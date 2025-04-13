@@ -1,0 +1,85 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% parameters for program laplacian                                        %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+[time]
+
+    Tend = 1e-1
+    dt = 1e-2
+
+[../]
+
+[materials]
+
+		gravity = [0,0] 
+		rho_r = 1
+		rho_f = 1
+		mu_f = 1
+[../]
+
+[bulkData]
+
+        [./domain]
+
+                meshExternal = none
+                meshFolder = ./meshes/
+
+                spatialDiscretizationX = 20
+                spatialDiscretizationY = 20
+                spatialInclination = 0.
+                lengthAbscissa = 1
+                lengthOrdinate = 1
+                lengthQuota = 1.
+                meshType = GT_PK(2,1)
+                spaceDimension = 2.
+
+		integrationTypeVelocity = IM_TRIANGLE(6)
+                integrationTypePressure = IM_TRIANGLE(1)
+
+        [../]
+
+        [./darcy]
+
+		bcflag = [0,0,0,0] %no flow dappertutto
+
+                Kxx = 1.0
+                Kyy = 1.0
+                Kxy = 0.0
+		biotM = -1
+                
+                FEMTypeVelocity = FEM_RT0(2)
+                FEMTypePressure = FEM_PK(2,0)
+                FEMTypeCoeff = FEM_PK(2,0)
+                integrationMethod = IM_TRIANGLE(6)
+
+                source = 1
+		p_BC = 0
+                v_BC = 0
+                pIni = 0
+                u_exact = [0,0] 
+		p_exact = 0
+		
+        [../]
+
+          [./mecc]
+
+		bcflag = [0,1,1,1]  %0 means displacement
+                mu = 1
+                lambda = 1
+                fluidP = 0  %to impose a given fluid pressure if we decouple the problems
+
+                bulkLoad = [0,0]
+                bdLoad = [0,0]
+                bdDisp = [0,0]
+                
+                FEMTypeDisplacement = FEM_PK(2,2)
+                FEMTypeCoeff = FEM_PK(2,0)
+                FEMTypeStress = FEM_PK(2,1)
+                FEMTypeStressS = FEM_PK(2,1)
+                integrationMethod = IM_TRIANGLE(6)
+		u_exact = [0,0]
+		u_ini = [0,0]
+
+        [../]
+
+[../]
