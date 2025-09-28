@@ -1,0 +1,55 @@
+# Compilation Instructions
+To compile the code, please follow these steps:
+
+1) Configure the Makefile:
+Adapt the Makefile by specifying your local paths (particularly for GetFEM and other dependencies).
+
+2) Execute compilation:
+
+```bash
+make
+```
+
+## Additional options:
+
+-j4: Compile in parallel using 4 processors
+
+2>out: Redirect compilation output to a file named 'out' for detailed review
+
+
+# Main Executables Description
+main_coupled: Implements a fully coupled monolithic formulation of the problem, solving all equations within a single linear system.
+
+## Execution Instructions
+After successful compilation, execute the program with:
+
+```bash
+./main -f data_filename
+```
+
+## russian doll recomandation
+Here you have in the folder line_profiles 2 options, using real and approximated data, with the difference that real uses experimental mesuration for all the parameters, while the other one set everything to 1. The default one comes with real data.
+If you want to change you need to change the path in the source files, in the DarcyProblemT::assembleRHS() and ElastProblem::assembleRHS() functions.
+
+Is important for the correct application of the interpolated boundary condition to set the first flag of the bc as 1 FOR DARCY, 0 FOR MECC.
+
+## Output Specifications
+The program generates output in the following format:
+
+Results are exported to the output_vtk directory
+
+Output includes pressure and displacement fields at each time step
+
+Corresponding exact solution values are also exported (can be ignored if no exact solution has been configured)
+
+## Additional Notes
+For optimal performance, ensure that:
+
+- All dependency paths are correctly specified in the Makefile
+
+- Sufficient memory is available for the monolithic solver approach
+
+- Output directory permissions allow file creation and writing
+
+This implementation provides a comprehensive framework for solving coupled poroelastic problems using a monolithic finite element approach. The VTK output format allows for convenient visualization of results using standard scientific visualization tools.
+
