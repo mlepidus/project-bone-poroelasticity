@@ -36,3 +36,7 @@
 
 # VS Code
 .vscode/
+out
+*.mm
+*.csv
+main
