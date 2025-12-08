@@ -21,7 +21,7 @@
 
         [./domain]
 
-                meshExternal = bonePV.msh
+                meshExternal = bonetag.msh
                 meshFolder = ./meshes/
 
                 %spatialDiscretizationX = 10
