@@ -58,15 +58,51 @@ Bulk::Bulk ( const GetPot& dataFile,
        typedef std::map<std::string, size_type> RegMap;
        typedef RegMap::iterator RegMapIter;
        RegMap regmap;
-       getfem::import_mesh_gmsh(M_meshFolder + M_meshFile, M_mesh, regmap);
+       getfem::import_mesh_gmsh(M_meshFolder + M_meshFile, M_mesh, regmap); //read mesh and boundary regions
        std::cout << regmap.size() << "\n";
-      // for (RegMapIter i=regmap.begin(); i != regmap.end(); i++) {
-      //    std::cout << i->first << " " << i->second << "\n";
-      // }
+
+       
+// 1. What's in regmap
+std::cout << "In regmap (from PhysicalNames):" << std::endl;
+for (const auto& pair : regmap) {
+    std::cout << "  '" << pair.first << "' -> id " << pair.second << std::endl;
+}
+
+// 2. What regions actually exist in mesh
+std::cout << "\nActual regions in mesh (regions_index()):" << std::endl;
+dal::bit_vector mesh_regions = M_mesh.regions_index();
+if (mesh_regions.empty()) {
+    std::cout << "  NO REGIONS IN MESH!" << std::endl;
+} else {
+    for (dal::bv_visitor i(mesh_regions); !i.finished(); ++i) {
+        std::cout << "  Region id: " << i;
+        
+        // Count elements in this region
+        getfem::mesh_region region = M_mesh.region(i);
+        size_t count = 0;
+        for (getfem::mr_visitor it(region); !it.finished(); ++it) {
+            count++;
+        }
+        std::cout << " (" << count << " elements)" << std::endl;
     }
+}
+
+// 3. Check if regmap IDs exist in mesh
+std::cout << "\nChecking regmap IDs against mesh:" << std::endl;
+for (const auto& [name, id] : regmap) {
+    if (mesh_regions.is_in(id)) {
+        std::cout << "  ✓ '" << name << "' (id=" << id << ") EXISTS in mesh" << std::endl;
+    } else {
+        std::cout << "  ✗ '" << name << "' (id=" << id << ") NOT FOUND in mesh!" << std::endl;
+    }
+}
+}
+
+
     M_DarcyDataPtr=&M_DarcyData;
     M_ElastDataPtr=&M_ElastData;
 
+    
 
     
 }

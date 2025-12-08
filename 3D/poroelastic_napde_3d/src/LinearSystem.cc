@@ -142,7 +142,7 @@ void LinearSystem::multAddToRHS(sparseMatrixPtr_Type M, scalarVector_Type& V,  i
 
 void LinearSystem::solve()
 {
-   if (M_gotInverse)
+   if (M_gotInverse) //da levare
    {
         gmm::clear(*M_Sol);
 	gmm::mult(*M_InverseMatrix, *M_RHS, *M_Sol);
@@ -151,7 +151,7 @@ void LinearSystem::solve()
    {
    	scalar_type rcond;
   	gmm::clear(*M_Sol);
-	SuperLU_solve(*M_Matrix, *M_Sol, *M_RHS, rcond);
+	SuperLU_solve(*M_Matrix, *M_Sol, *M_RHS, rcond); //solver da cambiare 
    }
 }
 

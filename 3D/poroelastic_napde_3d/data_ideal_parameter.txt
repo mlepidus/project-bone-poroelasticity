@@ -21,7 +21,7 @@
 
         [./domain]
 
-                meshExternal = bonetag.msh
+                meshExternal = hollow_cylinder.msh
                 meshFolder = ./meshes/
 
                 %spatialDiscretizationX = 10

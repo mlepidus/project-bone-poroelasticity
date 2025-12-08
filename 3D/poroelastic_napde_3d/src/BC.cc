@@ -281,3 +281,48 @@ void BC::setBoundaries(getfem::mesh* meshPtr, std::string where)
 
 }
 
+
+/*// Clear existing regions
+    for (size_type i = 0; i < M_nBoundaries; ++i) {
+        meshPtr->region(i).clear();
+    }
+    
+    // Read mapping from data file
+    std::map<std::string, size_type> tag_to_region;
+    
+    // Example format in data file:
+    // boundary_mapping/outer = 0
+    // boundary_mapping/inner = 1
+    // boundary_mapping/upper = 2
+    // boundary_mapping/lower = 3
+    
+    std::string mapping_section = M_section1 + "boundary_mapping/";
+    
+    // Check which mappings are defined
+    std::vector<std::string> possible_names = {"outer", "inner", "upper", "lower"};
+    
+    for (const auto& name : possible_names) {
+        std::string key = mapping_section + name;
+        if (dataFile.vector_variable_size(key.c_str()) > 0) {
+            size_type region_id = dataFile(key.c_str(), -1);
+            if (region_id != size_type(-1)) {
+                tag_to_region[name] = region_id;
+                std::cout << "Mapping " << name << " -> region " << region_id << std::endl;
+            }
+        }
+    }
+    
+    // Rest of the assignment logic...
+    for (const auto& region_pair : regmap) {
+        const std::string& physical_name = region_pair.first;
+        size_type gmsh_region_id = region_pair.second;
+        
+        auto it = tag_to_region.find(physical_name);
+        if (it != tag_to_region.end()) {
+            size_type your_region_id = it->second;
+            if (your_region_id < M_nBoundaries) {
+                meshPtr->region(your_region_id).add(meshPtr->region(gmsh_region_id));
+            }
+        }
+    }
+}*/
