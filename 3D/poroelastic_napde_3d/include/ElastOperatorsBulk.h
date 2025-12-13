@@ -1,3 +1,21 @@
+// DarcyOperators.h - Combined header for Darcy operators
+#ifndef DARCYOPERATORS_H
+#define DARCYOPERATORS_H
+
+#include "Core.h"
+#include "FEM.h"
+#include "Bulk.h"
+#include "BC.h"
+#include "DarcyOperatorsBulk.h"
+#include "DarcyOperatorsBD.h"
+
+#endif // DARCYOPERATORS_H
+
+// ============================================================================
+// Elasticity Operator Headers
+// ============================================================================
+
+// ElastOperatorsBulk.h - Assembly operators for bulk elasticity
 #ifndef ELASTOPERATORSBULK_H
 #define ELASTOPERATORSBULK_H
 
@@ -6,16 +24,77 @@
 #include "Bulk.h"
 #include "BC.h"
 
-//operatori elasticità nel bulk
+/**
+ * @brief Assemble elastic stiffness matrix
+ * @param M Output stiffness matrix
+ * @param medium Bulk domain pointer
+ * @param femV Displacement finite element space
+ * @param femP Coefficient finite element space
+ * @param im Integration method
+ */
+void stiffElast(sparseMatrixPtr_Type M, Bulk* medium, FEM& femV, FEM& femP,
+                getfem::mesh_im& im);
 
-void stiffElast ( sparseMatrixPtr_Type M, Bulk* medium, FEM& femV, FEM& femP, getfem::mesh_im& im);  //matrice di stiffness
-void bulkLoad (scalarVectorPtr_Type V, Bulk* medium,  FEM& FemD, FEM& FemC, getfem::mesh_im& im, scalar_type t);  //termine forzante volumetrico 
-void givenFluidP(scalarVectorPtr_Type V, Bulk* medium,  FEM& FemD, FEM& FemC, getfem::mesh_im& im);  //pressione del fluido imposta (per problema disaccoppiato o splittato)
-void givenFluidP(scalarVectorPtr_Type V, scalarVectorPtr_Type pressure, Bulk* medium,  FEM& FemD, FEM& FemC, getfem::mesh_im& im);  //pressione del fluido imposta (per problema disaccoppiato o splittato)
-void matrixFluidP(sparseMatrixPtr_Type M,  Bulk* medium,  FEM& FemD, FEM& FemC, getfem::mesh_im& im);  //matrice di accoppiamento poroelastico per problema fully coupled  
-void massMatrix(sparseMatrixPtr_Type M,  Bulk* medium,  FEM& FemD, getfem::mesh_im& im);  //matrice di massa per i fem del displacement
+/**
+ * @brief Assemble volumetric body force RHS
+ * @param V Output RHS vector
+ * @param medium Bulk domain pointer
+ * @param FemD Displacement finite element space
+ * @param FemC Coefficient finite element space
+ * @param im Integration method
+ * @param t Current time
+ */
+void bulkLoad(scalarVectorPtr_Type V, Bulk* medium, FEM& FemD, FEM& FemC,
+              getfem::mesh_im& im, scalar_type t);
 
-scalar_type L2Norm_Elast ( sparseMatrixPtr_Type M, scalarVector_Type V, Bulk* medium, getfem::mesh_fem& femP, getfem::mesh_im& im, int region); //calcolo norma L2 dell'errore sul campo scalare (displacement)
+/**
+ * @brief Apply prescribed fluid pressure field (decoupled/split problem)
+ * @param V Output RHS vector
+ * @param medium Bulk domain pointer
+ * @param FemD Displacement finite element space
+ * @param FemC Coefficient finite element space
+ * @param im Integration method
+ */
+void givenFluidP(scalarVectorPtr_Type V, Bulk* medium, FEM& FemD, FEM& FemC,
+                 getfem::mesh_im& im);
 
+/// Apply fluid pressure from solution vector
+void givenFluidP(scalarVectorPtr_Type V, scalarVectorPtr_Type pressure,
+                 Bulk* medium, FEM& FemD, FEM& FemC, getfem::mesh_im& im);
 
-#endif
+/**
+ * @brief Assemble poroelastic coupling matrix (fully coupled problem)
+ * @param M Output coupling matrix (pressure affects stress)
+ * @param medium Bulk domain pointer
+ * @param FemD Displacement finite element space
+ * @param FemC Coefficient finite element space
+ * @param im Integration method
+ */
+void matrixFluidP(sparseMatrixPtr_Type M, Bulk* medium, FEM& FemD, FEM& FemC,
+                  getfem::mesh_im& im);
+
+/**
+ * @brief Assemble mass matrix for displacement field
+ * @param M Output mass matrix
+ * @param medium Bulk domain pointer
+ * @param FemD Displacement finite element space
+ * @param im Integration method
+ */
+void massMatrix(sparseMatrixPtr_Type M, Bulk* medium, FEM& FemD,
+                getfem::mesh_im& im);
+
+/**
+ * @brief Compute L2 norm of elastic displacement error
+ * @param M Mass matrix for integration
+ * @param V Solution vector
+ * @param medium Bulk domain pointer
+ * @param femP Finite element space
+ * @param im Integration method
+ * @param region Mesh region ID (-1 for entire domain)
+ * @return L2 norm value
+ */
+scalar_type L2Norm_Elast(sparseMatrixPtr_Type M, scalarVector_Type V,
+                         Bulk* medium, getfem::mesh_fem& femP,
+                         getfem::mesh_im& im, int region);
+
+#endif // ELASTOPERATORSBULK_H

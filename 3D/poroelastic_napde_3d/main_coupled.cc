@@ -1,114 +1,121 @@
-// #include <utility>
-#include "getfem/getfem_regular_meshes.h"
-#include "getfem/getfem_interpolation.h"
-#include "getfem/getfem_config.h"
-#include "getfem/getfem_assembling.h" // import assembly methods (and comp. of 
-#include "getfem/getfem_import.h"
-#include "getfem/getfem_export.h"     // export functions (save the solution in a file)
-#include "gmm/gmm.h"
-#include "gmm/gmm_inoutput.h"
-#include "gmm/gmm_MUMPS_interface.h"
-#include "gmm/gmm_superlu_interface.h"
+// ============================================================================
+// Main Program
+// ============================================================================
 
-//#include "import_neu.h"                // the .neu mesh reader
+/**
+ * @file main.cpp
+ * @brief Main driver for coupled poroelasticity simulation
+ * 
+ * This program solves time-dependent Biot's equations (coupled Darcy flow
+ * and linear elasticity) on 2D bulk domains with optional fracture networks.
+ * 
+ * Physical Model:
+ * - Darcy flow: K∇p = -q (permeability K, pressure p, flux q)
+ * - Elasticity: σ = λtr(ε)I + 2με - αpI (stress σ, strain ε, Biot coefficient α)
+ * - Coupling: ∂/∂t(ζp + α∇·u) = ∇·q (storage ζ, displacement u)
+ * 
+ * Numerical Method:
+ * - Mixed finite elements for Darcy (RT/BDM for velocity, DG for pressure)
+ * - Standard FEM for elasticity (continuous Lagrange elements)
+ * - Backward Euler time discretization
+ * - Monolithic or staggered coupling
+ * - Nitsche's method for essential boundary conditions
+ * 
+ * Usage:
+ *   ./executable -f datafile.dat
+ *   ./executable --file datafile.dat
+ */
 
-// Level Set and Xfem stuff:
-#include "getfem/getfem_mesh_im_level_set.h"
-#include "getfem/getfem_mesh_fem_level_set.h"
-#include "getfem/getfem_mesh_fem_product.h"
-#include "getfem/getfem_mesh_fem_global_function.h"
-
-#include "include/UsefulFunctions.h"
-#include "include/CoupledProblem.h"
-#include "include/ElastProblem.h"
-#include "include/DarcyProblemT.h"
-#include "include/TimeLoop.h"
-
-//#include "darcy_operatorsX.h"   
-/* try to enable the SIGFPE if something evaluates to a Not-a-number
- * of infinity during computations
- */      // System Matrix
 #ifdef GETFEM_HAVE_FEENABLEEXCEPT
-#  include <fenv.h>
+#include <fenv.h>  // Enable floating point exception handling
 #endif
 
-/* some Getfem++ types that we will be using */
-using bgeot::base_small_vector;  /* special class for small (dim < 16) vectors */
-using bgeot::base_node;          /* geometrical nodes (derived from base_small_vector)*/
-using bgeot::scalar_type;        /* = double */
-using bgeot::size_type;          /* = unsigned long */
-using bgeot::short_type;
-
-/* definition of some matrix/vector types. These ones are built
- * using the predefined types in Gmm++
- */
+// Sparse matrix type definitions for easy reference
 typedef gmm::rsvector<scalar_type> sparse_vector_type;
 typedef gmm::row_matrix<sparse_vector_type> sparse_matrix_type;
 typedef gmm::col_matrix<sparse_vector_type> col_sparse_matrix_type;
 
 int main(int argc, char *argv[]) {
-
+    // Parse command line arguments
     GetPot command_line(argc, argv);
-    const std::string data_file_name = command_line.follow("data", 2, "-f",
-            "--file");
-
+    const std::string data_file_name = command_line.follow("data", 2, "-f", "--file");
+    
+    // Load parameter file
     GetPot dataFile(data_file_name.data());
-
+    
     const std::string section = "";
-
     const std::string vtkFolder = "output_vtk/";
-
+    
+    // ==================================================================
+    // Setup Phase: Initialize domain, time loop, and physical problems
+    // ==================================================================
+    
     Bulk myDomain(dataFile);
- 
-    //initial export   
-
-    myDomain.exportMesh(vtkFolder+"mesh.vtk");
- 
+    myDomain.exportMesh(vtkFolder + "mesh.vtk");
+    
     TimeLoop myTime(dataFile);
     
     DarcyProblemT myDarcy(dataFile, &myDomain);
-    
     ElastProblem myElast(dataFile, &myDomain);
-
+    
     CoupledProblem myCP(dataFile, &myDomain, &myTime);
     
+    // Initialize individual problems
     myDarcy.initialize();
     myElast.initialize();
+    
+    // Register sub-problems with coupled system
     myCP.addElastPB(&myElast);
     myCP.addDarcyPB(&myDarcy);
-
+    
+    // ==================================================================
+    // Assembly Phase: Build global monolithic system
+    // ==================================================================
+    
     LinearSystem mySys;
-
-    myCP.addToSys(&mySys);
-    myCP.assembleMatrix(&mySys);
-   // myCP.assembleRHS(&mySys);
-    myCP.enforceStrongBC(true);
-    myCP.addSubSystems();
-
-//    myCP.solve();
+    
+    myCP.addToSys(&mySys);          // Register DOFs
+    myCP.assembleMatrix(&mySys);    // Assemble stiffness/mass matrices
+    myCP.enforceStrongBC(true);     // Apply Dirichlet BC (modify matrix)
+    myCP.addSubSystems();           // Combine sub-system matrices
+    
+    // Save system matrix for inspection
     mySys.saveMatrix("matrix.mm");
     
-    bgeot::base_node err=myCP.computeError(0);
-    myCP.exportVtk(vtkFolder,"all",0);
+    // Compute initial error and export initial condition
+    bgeot::base_node err = myCP.computeError(0);
+    myCP.exportVtk(vtkFolder, "all", 0);
     myCP.updateSol();
-
-    for (size_type tt=0; tt<myTime.Nstep();++tt)
-    {
-	 std::cout <<tt<<std::endl;
-         myTime.advance();
-   	 mySys.cleanRHS();
-  
-  	 myCP.clearSubSystemsRHS();
-         myCP.assembleRHS(&mySys);
-         myCP.enforceStrongBC(false);
-
- 	 myCP.addSubSystemsRHS();
-
-
-	 myCP.solve();
- 	 myCP.updateSol();
-	 bgeot::base_node err=myCP.computeError(myTime.time());
- 	 myCP.exportVtk(vtkFolder,"all",tt+1);
+    
+    // ==================================================================
+    // Time Loop: Solve transient problem
+    // ==================================================================
+    
+    for (size_type tt = 0; tt < myTime.Nstep(); ++tt) {
+        std::cout << "Time step " << tt << std::endl;
+        
+        // Advance time
+        myTime.advance();
+        
+        // Clear previous RHS (matrix remains constant if problem is linear)
+        mySys.cleanRHS();
+        myCP.clearSubSystemsRHS();
+        
+        // Reassemble RHS for current time
+        myCP.assembleRHS(&mySys);
+        myCP.enforceStrongBC(false);  // Apply BC to RHS only
+        myCP.addSubSystemsRHS();
+        
+        // Solve coupled system
+        myCP.solve();
+        
+        // Update solution for next time step
+        myCP.updateSol();
+        
+        // Compute error and export results
+        bgeot::base_node err = myCP.computeError(myTime.time());
+        myCP.exportVtk(vtkFolder, "all", tt + 1);
     }
-
+    
+    return 0;
 }
