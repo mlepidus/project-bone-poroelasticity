@@ -60,6 +60,18 @@ public:
      */
     void setBoundaries(getfem::mesh* meshPtr, std::string where = "bulk");
     
+    /**
+     * @brief Associate boundary regions with mesh using Gmsh tags
+     * @param meshPtr Pointer to mesh
+     * @param regmap Map from physical names to region IDs (from Gmsh import)
+     * @param where Domain selector: "bulk" or "fracture"
+     */
+    void setBoundariesFromTags(getfem::mesh* meshPtr, 
+                               const std::map<std::string, size_type>& regmap,
+                               std::string where = "bulk");
+    
+
+
     /// Get list of boundary region IDs with Neumann conditions
     std::vector<size_type> getNeumBD(std::string where = "bulk");
     

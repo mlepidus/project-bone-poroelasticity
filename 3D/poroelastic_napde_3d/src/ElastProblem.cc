@@ -27,11 +27,16 @@ ElastProblem::ElastProblem (const GetPot& dataFile, Bulk* bulk ):
 
    M_Bulk->getElastData()->setfluidP(M_CoeffFEM.getDOFpoints());
 
-   M_BC.setBoundaries(M_Bulk->getMesh(), "bulk");
-
-
-
+      if (M_Bulk->hasExternalMesh()) {
+       std::cout << "Using Gmsh physical tags for boundary conditions..." << std::endl;
+       M_BC.setBoundariesFromTags(M_Bulk->getMesh(), M_Bulk->getRegionMap(), "bulk");
+   } else {
+       std::cout << "Using geometric detection for boundary conditions..." << std::endl;
+       M_BC.setBoundaries(M_Bulk->getMesh(), "bulk");
+   }
 }
+
+
 
 //restituisce un puntatore ai FEM dl displacement. In teoria dovrei estenderla se avessi Lagr. mult
 

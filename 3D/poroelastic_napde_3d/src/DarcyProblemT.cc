@@ -23,8 +23,13 @@ DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk):
    M_Bulk->getDarcyData()->setKxz(M_CoeffFEM.getDOFpoints());
    M_Bulk->getDarcyData()->setKyz(M_CoeffFEM.getDOFpoints());
 
-   M_BC.setBoundaries(M_Bulk->getMesh(), "bulk");
-  
+      if (M_Bulk->hasExternalMesh()) {
+       std::cout << "Using Gmsh physical tags for boundary conditions..." << std::endl;
+       M_BC.setBoundariesFromTags(M_Bulk->getMesh(), M_Bulk->getRegionMap(), "bulk");
+   } else {
+       std::cout << "Using geometric detection for boundary conditions..." << std::endl;
+       M_BC.setBoundaries(M_Bulk->getMesh(), "bulk");
+   }
    
 }
 

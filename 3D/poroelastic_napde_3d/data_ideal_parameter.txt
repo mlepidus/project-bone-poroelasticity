@@ -21,7 +21,7 @@
 
         [./domain]
 
-                meshExternal = hollow_cylinder.msh
+                meshExternal = mesh_tag2.msh
                 meshFolder = ./meshes/
 
                 %spatialDiscretizationX = 10
@@ -67,7 +67,7 @@
 
           [./mecc]
 
-		bcflag = [0,1,1,1]  %0 means displacement
+		bcflag = [0,1,1,1]  %0 means displacement   %%ext,int, low,up
 		nBoundaries = 4
                 mu = 1
                 lambda = 1

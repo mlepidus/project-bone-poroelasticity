@@ -59,6 +59,22 @@ public:
     /// Get domain length in z-direction
     inline scalar_type Lz() { return M_Lz; }
 
+    /**
+     * @brief Get the region map from Gmsh import
+     * @return Map from physical names to region IDs
+     */
+    inline const std::map<std::string, size_type>& getRegionMap() const {
+        return M_regmap;
+    }
+    
+    /**
+     * @brief Check if mesh was imported from external file
+     * @return True if external mesh, false if generated internally
+     */
+    inline bool hasExternalMesh() const {
+        return M_hasExternalMesh;
+    }
+
 private:
     // Data file sections
     std::string M_section;
@@ -90,6 +106,9 @@ private:
     std::vector<getfem::mesh_region*> M_NeumBoundaries;  ///< Neumann boundary regions
     
     bool M_isVertical;  ///< Flag for vertical fracture orientation
+
+    std::map<std::string, size_type> M_regmap;  ///< Physical names to region IDs
+    bool M_hasExternalMesh;  ///< Flag indicating external mesh import
 };
 
 #endif // BULK_H

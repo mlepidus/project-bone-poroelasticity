@@ -282,47 +282,126 @@ void BC::setBoundaries(getfem::mesh* meshPtr, std::string where)
 }
 
 
-/*// Clear existing regions
-    for (size_type i = 0; i < M_nBoundaries; ++i) {
-        meshPtr->region(i).clear();
-    }
+void BC::setBoundariesFromTags(getfem::mesh* meshPtr, 
+                               const std::map<std::string, size_type>& regmap,
+                               std::string where)
+{
+    std::cout << "\n=== BC::setBoundariesFromTags ===" << std::endl;
+    std::cout << "Setting boundaries from Gmsh physical tags..." << std::endl;
     
-    // Read mapping from data file
-    std::map<std::string, size_type> tag_to_region;
+    // Get all regions that exist in the mesh
+    dal::bit_vector mesh_regions = meshPtr->regions_index();
     
-    // Example format in data file:
-    // boundary_mapping/outer = 0
-    // boundary_mapping/inner = 1
-    // boundary_mapping/upper = 2
-    // boundary_mapping/lower = 3
-    
-    std::string mapping_section = M_section1 + "boundary_mapping/";
-    
-    // Check which mappings are defined
-    std::vector<std::string> possible_names = {"outer", "inner", "upper", "lower"};
-    
-    for (const auto& name : possible_names) {
-        std::string key = mapping_section + name;
-        if (dataFile.vector_variable_size(key.c_str()) > 0) {
-            size_type region_id = dataFile(key.c_str(), -1);
-            if (region_id != size_type(-1)) {
-                tag_to_region[name] = region_id;
-                std::cout << "Mapping " << name << " -> region " << region_id << std::endl;
-            }
+    std::cout << "Available regions in mesh:" << std::endl;
+    for (dal::bv_visitor i(mesh_regions); !i.finished(); ++i) {
+        getfem::mesh_region region = meshPtr->region(i);
+        size_t count = 0;
+        for (getfem::mr_visitor it(region); !it.finished(); ++it) {
+            count++;
         }
+        std::cout << "  Region " << i << ": " << count << " faces" << std::endl;
     }
     
-    // Rest of the assignment logic...
-    for (const auto& region_pair : regmap) {
-        const std::string& physical_name = region_pair.first;
-        size_type gmsh_region_id = region_pair.second;
+    std::cout << "\nPhysical names from Gmsh:" << std::endl;
+    for (const auto& pair : regmap) {
+        std::cout << "  '" << pair.first << "' -> region ID " << pair.second << std::endl;
+    }
+    
+    // Map physical names to your internal region numbering
+    // This mapping can be configured in the data file
+
+    std::map<std::string, size_type> name_to_internal_id;
+    
+    // Try to find standard names in regmap
+    for (const auto& pair : regmap) {
+        std::string name_lower = pair.first;
+        // Convert to lowercase for case-insensitive matching
+        std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
         
-        auto it = tag_to_region.find(physical_name);
-        if (it != tag_to_region.end()) {
-            size_type your_region_id = it->second;
-            if (your_region_id < M_nBoundaries) {
-                meshPtr->region(your_region_id).add(meshPtr->region(gmsh_region_id));
+        // Map based on common naming conventions
+        if (name_lower.find("outer") != std::string::npos || 
+            name_lower.find("external") != std::string::npos ||
+            name_lower.find("ext") != std::string::npos) {
+            name_to_internal_id[pair.first] = 0;
+            std::cout << "  Mapping '" << pair.first << "' to internal region 0 (outer surface)" << std::endl;
+        }
+        else if (name_lower.find("inner") != std::string::npos || 
+                 name_lower.find("internal") != std::string::npos ||
+                 name_lower.find("int") != std::string::npos) {
+            name_to_internal_id[pair.first] = 1;
+            std::cout << "  Mapping '" << pair.first << "' to internal region 1 (inner surface)" << std::endl;
+        }
+        else if (name_lower.find("bottom") != std::string::npos || 
+                 name_lower.find("lower") != std::string::npos ||
+                 name_lower.find("bot") != std::string::npos) {
+            name_to_internal_id[pair.first] = 2;
+            std::cout << "  Mapping '" << pair.first << "' to internal region 2 (bottom surface)" << std::endl;
+        }
+        else if (name_lower.find("top") != std::string::npos || 
+                 name_lower.find("upper") != std::string::npos) {
+            name_to_internal_id[pair.first] = 3;
+            std::cout << "  Mapping '" << pair.first << "' to internal region 3 (top surface)" << std::endl;
+        }
+        else {
+            std::cout << "  Warning: No mapping found for '" << pair.first << "', skipping" << std::endl;
+        }
+    }
+    
+    // Now assign the Gmsh regions to your internal regions
+    std::cout << "\nAssigning Gmsh regions to internal regions..." << std::endl;
+    
+    for (const auto& mapping : name_to_internal_id) {
+        const std::string& physical_name = mapping.first;
+        size_type internal_id = mapping.second;
+        
+        // Find the Gmsh region ID for this physical name
+        auto it = regmap.find(physical_name);
+        if (it != regmap.end()) {
+            size_type gmsh_region_id = it->second;
+            
+            // Check if this region exists in the mesh
+            if (mesh_regions.is_in(gmsh_region_id)) {
+                // Copy all faces from Gmsh region to internal region
+                getfem::mesh_region gmsh_region = meshPtr->region(gmsh_region_id);
+                
+                size_t face_count = 0;
+                for (getfem::mr_visitor face_it(gmsh_region); !face_it.finished(); ++face_it) {
+                    meshPtr->region(internal_id).add(face_it.cv(), face_it.f());
+                    face_count++;
+                }
+                
+                std::cout << "  ✓ Assigned " << face_count << " faces from '" 
+                          << physical_name << "' (Gmsh region " << gmsh_region_id 
+                          << ") to internal region " << internal_id << std::endl;
+            }
+            else {
+                std::cout << "  ✗ Warning: Gmsh region " << gmsh_region_id 
+                          << " for '" << physical_name << "' not found in mesh!" << std::endl;
             }
         }
     }
-}*/
+    
+    // Verify the assignment
+    std::cout << "\nVerification - Internal regions after assignment:" << std::endl;
+    for (size_type i = 0; i < M_nBoundaries; ++i) {
+        size_t count = 0;
+        getfem::mesh_region region = meshPtr->region(i);
+        for (getfem::mr_visitor it(region); !it.finished(); ++it) {
+            count++;
+        }
+        
+        std::string bc_type = "Unknown";
+        if (M_BC[i] == 0) bc_type = "Dirichlet";
+        else if (M_BC[i] == 1) bc_type = "Neumann";
+        else if (M_BC[i] == 2) bc_type = "Mixed";
+        
+        std::cout << "  Internal region " << i << ": " << count 
+                  << " faces (BC type: " << bc_type << ")" << std::endl;
+        
+        if (count == 0) {
+            std::cout << "    WARNING: No faces assigned to this region!" << std::endl;
+        }
+    }
+    
+    std::cout << "=== Boundary assignment complete ===" << std::endl;
+}
