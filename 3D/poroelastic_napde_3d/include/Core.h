@@ -105,10 +105,4 @@ namespace LifeV {
     typedef int Int;
 }
 
-// Element dimension enumeration for medium and fracture problems
-enum ElementDimension {
-    MEDIUM = 2,
-    FRACTURE = MEDIUM - 1
-};
-
 #endif // CORE_H

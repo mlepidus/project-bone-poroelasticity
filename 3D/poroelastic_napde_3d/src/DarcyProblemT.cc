@@ -25,10 +25,10 @@ DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk):
 
       if (M_Bulk->hasExternalMesh()) {
        std::cout << "Using Gmsh physical tags for boundary conditions..." << std::endl;
-       M_BC.setBoundariesFromTags(M_Bulk->getMesh(), M_Bulk->getRegionMap(), "bulk");
+       M_BC.setBoundariesFromTags(M_Bulk->getMesh(), M_Bulk->getRegionMap());
    } else {
        std::cout << "Using geometric detection for boundary conditions..." << std::endl;
-       M_BC.setBoundaries(M_Bulk->getMesh(), "bulk");
+       M_BC.setBoundaries(M_Bulk->getMesh());
    }
    
 }
