@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
     myCP.addToSys(&mySys);
     
     std::cout << "Assembling system matrix..." << std::endl;
-    myCP.assembleMatrix(&mySys);
+    myCP.assembleMatrix();
     
     std::cout << "Applying boundary conditions (first time)..." << std::endl;
     myCP.enforceStrongBC(true);  // Modify both matrix and RHS
@@ -187,7 +187,7 @@ int main(int argc, char *argv[]) {
         
         // Reassemble RHS for current time step
         std::cout << "  Assembling RHS..." << std::endl;
-        myCP.assembleRHS(&mySys);
+        myCP.assembleRHS();
         
         // Apply boundary conditions (RHS only, matrix already modified)
         std::cout << "  Applying boundary conditions..." << std::endl;

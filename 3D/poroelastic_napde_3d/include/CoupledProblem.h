@@ -63,13 +63,13 @@ public:
      * @brief Assemble global system matrix
      * @param sys Linear system object
      */
-    void assembleMatrix(LinearSystem* sys);
+    void assembleMatrix();
     
     /**
      * @brief Assemble global right-hand side vector
      * @param sys Linear system object
      */
-    void assembleRHS(LinearSystem* sys);
+    void assembleRHS();
     
     /// Add sub-problem matrices to global system
     void addSubSystems();

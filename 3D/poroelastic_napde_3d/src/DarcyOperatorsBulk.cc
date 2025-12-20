@@ -167,76 +167,168 @@ scalar_type L2Norm ( sparseMatrixPtr_Type M, scalarVector_Type V, Bulk* medium, 
 
 }
 
-void massHdiv( sparseMatrixPtr_Type M,
-               Bulk* medium, FEM& FemV, FEM& FemP, getfem::mesh_im& im)
+void massHdiv(sparseMatrixPtr_Type M,
+              Bulk* medium, FEM& FemV, FEM& FemP, getfem::mesh_im& im)
 {
-
     getfem::mesh_fem femV(*(FemV.getFEM()));
     getfem::mesh_fem femP((*FemP.getFEM()));
 
+    size_type dim = femV.linked_mesh().dim();
+    std::cout << "DARCY :: assembling massHdiv for dimension " << dim << std::endl;
     
-    //questo è il termine tau tau (matrice di "massa" per le velocità)
+    // Prepare coefficient vectors
+    std::vector<scalar_type> iKxx(femP.nb_dof(), 0.0);
+    std::vector<scalar_type> iKyy(femP.nb_dof(), 0.0);
+    std::vector<scalar_type> iKzz(femP.nb_dof(), 0.0);
+    std::vector<scalar_type> iKxy(femP.nb_dof(), 0.0);
+    std::vector<scalar_type> iKxz(femP.nb_dof(), 0.0);
+    std::vector<scalar_type> iKyz(femP.nb_dof(), 0.0);
 
-    getfem::generic_assembly assem;
-
-    assem.set ( "xx=data(#2);""yy=data$2(#2);""xy=data$3(#2);""xz=data$4(#2);""yz=data$5(#2);""zz=data$6(#2);"
-                "a=comp(vBase(#1).vBase(#1).Base(#2));"
-                "M(#1,#1)+=a(:,1,:,1,j).xx(j)+a(:,2,:,2,j).yy(j)+a(:,3,:,3,j).zz(j)+a(:,1,:,2,j).xy(j)+a(:,2,:,1,j).xy(j)+ a(:,1,:,3,j).xz(j)+a(:,3,:,1,j).xz(j)+a(:,2,:,3,j).yz(j)+a(:,3,:,2,j).yz(j);");
-      
-                
-    // Assign the mesh integration method
-    assem.push_mi(im);
-    // Assign the mesh finite element space
-    assem.push_mf(femV);
-    // Assign the mesh finite element space
-    
-    // Assign the mesh finite element space for the coefficients
-    assem.push_mf(femP);
-    std::vector<scalar_type> iKxx(femP.nb_dof(),0.0);
-    std::vector<scalar_type> iKxy(femP.nb_dof(),0.0);
-    std::vector<scalar_type> iKyy(femP.nb_dof(),0.0);
-    std::vector<scalar_type> iKxz(femP.nb_dof(),0.0);
-    std::vector<scalar_type> iKyz(femP.nb_dof(),0.0);
-    std::vector<scalar_type> iKzz(femP.nb_dof(),0.0);
-
-    for (int i=0; i<femP.nb_dof();++i)
+    // Compute inverse of permeability tensor at each DOF
+    for (size_type i = 0; i < femP.nb_dof(); ++i)
     {   
-        scalar_type xx=medium->getDarcyData()->getKxx(i);
-        scalar_type yy=medium->getDarcyData()->getKyy(i);
-        scalar_type zz=medium->getDarcyData()->getKzz(i);
-        scalar_type xy=medium->getDarcyData()->getKxy(i);
-        scalar_type xz=medium->getDarcyData()->getKxz(i);
-        scalar_type yz=medium->getDarcyData()->getKyz(i);
-        scalar_type det= -zz*xy*xy + 2*xy*xz*yz - yy*xz*xz - xx*yz*yz + xx*yy*zz;
-    	iKxx[i]=(- yz*yz + yy*zz)/det;
-        iKxy[i]=(xz*yz - xy*zz)/det;
-        iKxz[i]=(xy*yz - xz*yy)/det;
-        iKyy[i]=(- xz*xz + xx*zz)/det;
-        iKyz[i]=(xy*xz - xx*yz)/det;
-        iKzz[i]=(- xy*xy + xx*yy)/det;
+        if (dim == 2) {
+            scalar_type Kxx = medium->getDarcyData()->getKxx(i);
+            scalar_type Kyy = medium->getDarcyData()->getKyy(i);
+            scalar_type Kxy = medium->getDarcyData()->getKxy(i);
+            
+            scalar_type det = Kxx * Kyy - Kxy * Kxy;
+            if (std::abs(det) < 1e-14) det = 1.0;
+            
+            iKxx[i] = Kyy / det;
+            iKyy[i] = Kxx / det;
+            iKxy[i] = -Kxy / det;
+        }
+        else if (dim == 3) {
+            scalar_type Kxx = medium->getDarcyData()->getKxx(i);
+            scalar_type Kyy = medium->getDarcyData()->getKyy(i);
+            scalar_type Kzz = medium->getDarcyData()->getKzz(i);
+            scalar_type Kxy = medium->getDarcyData()->getKxy(i);
+            scalar_type Kxz = medium->getDarcyData()->getKxz(i);
+            scalar_type Kyz = medium->getDarcyData()->getKyz(i);
+            
+            scalar_type det = Kxx*(Kyy*Kzz - Kyz*Kyz) 
+                            - Kxy*(Kxy*Kzz - Kyz*Kxz) 
+                            + Kxz*(Kxy*Kyz - Kyy*Kxz);
+            
+            if (std::abs(det) < 1e-14) {
+                iKxx[i] = 1.0;
+                iKyy[i] = 1.0;
+                iKzz[i] = 1.0;
+                iKxy[i] = 0.0;
+                iKxz[i] = 0.0;
+                iKyz[i] = 0.0;
+                continue;
+            }
+            
+            iKxx[i] = (Kyy*Kzz - Kyz*Kyz) / det;
+            iKyy[i] = (Kxx*Kzz - Kxz*Kxz) / det;
+            iKzz[i] = (Kxx*Kyy - Kxy*Kxy) / det;
+            iKxy[i] = (Kxz*Kyz - Kxy*Kzz) / det;
+            iKxz[i] = (Kxy*Kyz - Kxz*Kyy) / det;
+            iKyz[i] = (Kxy*Kxz - Kxx*Kyz) / det;
+        }
     }
     
-    // Assign the coefficients
-    
-    assem.push_data(iKxx);
-    assem.push_data(iKyy);
-    assem.push_data(iKxy);
-    assem.push_data(iKxy);
-    assem.push_data(iKyz);
-    assem.push_data(iKzz);
+    getfem::generic_assembly assem;
 
-    // Set the matrices to save the evaluations
-    assem.push_mat(*M);
+    if (dim == 2) {
+        assem.set("xx=data(#2); yy=data$2(#2); xy=data$3(#2);"
+                  "t=comp(vBase(#1).vBase(#1).Base(#2));"
+                  "M(#1,#1)+=t(:,1,:,1,j).xx(j) + t(:,2,:,2,j).yy(j) + "
+                  "t(:,1,:,2,j).xy(j) + t(:,2,:,1,j).xy(j);");
+                  
+        assem.push_mi(im);
+        assem.push_mf(femV);
+        assem.push_mf(femP);
+        assem.push_data(iKxx);
+        assem.push_data(iKyy);
+        assem.push_data(iKxy);
+        assem.push_mat(*M);
+        assem.assembly(-1);
+    }
+    else if (dim == 3) {
+        // For 3D, assemble diagonal terms first, then off-diagonal
+        assem.set("xx=data(#2);"
+                  "t=comp(vBase(#1).vBase(#1).Base(#2));"
+                  "M(#1,#1)+=t(:,1,:,1,j).xx(j);");
+        assem.push_mi(im);
+        assem.push_mf(femV);
+        assem.push_mf(femP);
+        assem.push_data(iKxx);
+        assem.push_mat(*M);
+        assem.assembly(-1);
+        
+        // Assemble Kyy term
+        getfem::generic_assembly assem_yy;
+        assem_yy.set("yy=data(#2);"
+                     "t=comp(vBase(#1).vBase(#1).Base(#2));"
+                     "M(#1,#1)+=t(:,2,:,2,j).yy(j);");
+        assem_yy.push_mi(im);
+        assem_yy.push_mf(femV);
+        assem_yy.push_mf(femP);
+        assem_yy.push_data(iKyy);
+        assem_yy.push_mat(*M);
+        assem_yy.assembly(-1);
+        
+        // Assemble Kzz term
+        getfem::generic_assembly assem_zz;
+        assem_zz.set("zz=data(#2);"
+                     "t=comp(vBase(#1).vBase(#1).Base(#2));"
+                     "M(#1,#1)+=t(:,3,:,3,j).zz(j);");
+        assem_zz.push_mi(im);
+        assem_zz.push_mf(femV);
+        assem_zz.push_mf(femP);
+        assem_zz.push_data(iKzz);
+        assem_zz.push_mat(*M);
+        assem_zz.assembly(-1);
+        
+        // Assemble Kxy off-diagonal terms
+        getfem::generic_assembly assem_xy;
+        assem_xy.set("xy=data(#2);"
+                     "t=comp(vBase(#1).vBase(#1).Base(#2));"
+                     "M(#1,#1)+=t(:,1,:,2,j).xy(j) + t(:,2,:,1,j).xy(j);");
+        assem_xy.push_mi(im);
+        assem_xy.push_mf(femV);
+        assem_xy.push_mf(femP);
+        assem_xy.push_data(iKxy);
+        assem_xy.push_mat(*M);
+        assem_xy.assembly(-1);
+        
+        // Assemble Kxz off-diagonal terms
+        getfem::generic_assembly assem_xz;
+        assem_xz.set("xz=data(#2);"
+                     "t=comp(vBase(#1).vBase(#1).Base(#2));"
+                     "M(#1,#1)+=t(:,1,:,3,j).xz(j) + t(:,3,:,1,j).xz(j);");
+        assem_xz.push_mi(im);
+        assem_xz.push_mf(femV);
+        assem_xz.push_mf(femP);
+        assem_xz.push_data(iKxz);
+        assem_xz.push_mat(*M);
+        assem_xz.assembly(-1);
+        
+        // Assemble Kyz off-diagonal terms
+        getfem::generic_assembly assem_yz;
+        assem_yz.set("yz=data(#2);"
+                     "t=comp(vBase(#1).vBase(#1).Base(#2));"
+                     "M(#1,#1)+=t(:,2,:,3,j).yz(j) + t(:,3,:,2,j).yz(j);");
+        assem_yz.push_mi(im);
+        assem_yz.push_mf(femV);
+        assem_yz.push_mf(femP);
+        assem_yz.push_data(iKyz);
+        assem_yz.push_mat(*M);
+        assem_yz.assembly(-1);
+    }
+    else {
+        throw std::runtime_error("massHdiv: unsupported dimension");
+    }
 
-    // Computes the matrices
-    assem.assembly(-1);
-
-    std::cout << "DARCY :: operator a(volume)      [OK]" << std::endl;
-
+    std::cout << "DARCY :: operator a(volume) [OK] - " 
+              << gmm::nnz(*M) << " non-zeros" << std::endl;
 }
 
-void divHdiv( sparseMatrixPtr_Type M,
-               Bulk* medium, FEM& FemV, FEM& FemP, getfem::mesh_im& im)
+
+void divHdiv( sparseMatrixPtr_Type M, FEM& FemV, FEM& FemP, getfem::mesh_im& im)
 {
 
     getfem::mesh_fem femV(*(FemV.getFEM()));
@@ -343,7 +435,7 @@ void vectorSource (scalarVectorPtr_Type V, Bulk* medium,  FEM& FemV, FEM& FemC, 
 
 }
 
-void vectorSource (scalarVectorPtr_Type V, Bulk* medium,  FEM& FemV, FEM& FemC, scalarVectorPtr_Type data, getfem::mesh_im& im)
+void vectorSource (scalarVectorPtr_Type V, FEM& FemV, FEM& FemC, scalarVectorPtr_Type data, getfem::mesh_im& im)
 {
 
 	  getfem::mesh_fem femV(*(FemV.getFEM()));

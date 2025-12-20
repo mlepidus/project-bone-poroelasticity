@@ -65,36 +65,28 @@ void givenFluidP(scalarVectorPtr_Type V, scalarVectorPtr_Type pressure,
 /**
  * @brief Assemble poroelastic coupling matrix (fully coupled problem)
  * @param M Output coupling matrix (pressure affects stress)
- * @param medium Bulk domain pointer
  * @param FemD Displacement finite element space
  * @param FemC Coefficient finite element space
  * @param im Integration method
  */
-void matrixFluidP(sparseMatrixPtr_Type M, Bulk* medium, FEM& FemD, FEM& FemC,
+void matrixFluidP(sparseMatrixPtr_Type M, FEM& FemD, FEM& FemC,
                   getfem::mesh_im& im);
 
 /**
  * @brief Assemble mass matrix for displacement field
  * @param M Output mass matrix
- * @param medium Bulk domain pointer
  * @param FemD Displacement finite element space
  * @param im Integration method
  */
-void massMatrix(sparseMatrixPtr_Type M, Bulk* medium, FEM& FemD,
+void massMatrix(sparseMatrixPtr_Type M,  FEM& FemD,
                 getfem::mesh_im& im);
 
 /**
  * @brief Compute L2 norm of elastic displacement error
  * @param M Mass matrix for integration
  * @param V Solution vector
- * @param medium Bulk domain pointer
- * @param femP Finite element space
- * @param im Integration method
- * @param region Mesh region ID (-1 for entire domain)
  * @return L2 norm value
  */
-scalar_type L2Norm_Elast(sparseMatrixPtr_Type M, scalarVector_Type V,
-                         Bulk* medium, getfem::mesh_fem& femP,
-                         getfem::mesh_im& im, int region);
+scalar_type L2Norm_Elast(sparseMatrixPtr_Type M, scalarVector_Type V);
 
 #endif // ELASTOPERATORSBULK_H

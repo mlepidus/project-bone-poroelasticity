@@ -45,25 +45,28 @@ FEM* DarcyProblemT::getFEM(const std::string where, const std::string variable)
  		
 			return &M_VelocityFEM;
 	}
+std::cerr << "ERROR: Unknown variable '" << variable << "' in DarcyProblemT::getFEM" << std::endl;
+return &M_PressureFEM;  
 }
 
 size_type DarcyProblemT::getNDOF(std::string variable)
 {
-	if (variable=="Pressure")
-	{
-		return M_PressureFEM.nb_dof();
-	}
+		if (variable=="Pressure")
+		{
+			return M_PressureFEM.nb_dof();
+		}
 
-	if (variable=="Velocity")
-	{
-		return M_VelocityFEM.nb_dof();
-	}
-  
-	if (variable=="all")
-	{
-		return M_VelocityFEM.nb_dof()+M_PressureFEM.nb_dof();
-	}
+		if (variable=="Velocity")
+		{
+			return M_VelocityFEM.nb_dof();
+		}
 	
+		if (variable=="all")
+		{
+			return M_VelocityFEM.nb_dof()+M_PressureFEM.nb_dof();
+		}
+	std::cerr << "ERROR: Unknown variable '" << variable << "' in DarcyProblemT::getNDOF" << std::endl;
+	return 0;
 }
 void DarcyProblemT::addToSys(LinearSystem* sys)
 {
@@ -116,7 +119,7 @@ void DarcyProblemT::assembleMatrix(LinearSystem* sys, std::string where)
 		massHdiv( A11, M_Bulk, M_VelocityFEM, M_CoeffFEM, M_intMethod);
  		massL2( A22, M_Bulk, M_PressureFEM, M_CoeffFEM, M_intMethod, M_dt);
 				
-		divHdiv( A12, M_Bulk, M_VelocityFEM, M_PressureFEM, M_intMethod);
+		divHdiv( A12, M_VelocityFEM, M_PressureFEM, M_intMethod);
 
 		essentialWNitsche( A11, M_Bulk, &M_BC, M_VelocityFEM, M_CoeffFEM, M_intMethod);
 	

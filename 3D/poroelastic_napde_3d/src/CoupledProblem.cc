@@ -24,7 +24,7 @@ void CoupledProblem::addToSys(LinearSystem* sys)
            
 }
 
-void CoupledProblem::assembleMatrix(LinearSystem* sys)
+void CoupledProblem::assembleMatrix()
 {
 	M_ElastPB->assembleMatrix(&M_elastSys,"bulk");
 
@@ -34,10 +34,10 @@ void CoupledProblem::assembleMatrix(LinearSystem* sys)
 	
 	M_PressureStress.reset(new sparseMatrix_Type (M_ElastPB->getFEM("bulk","Disp")->nb_dof(), M_DarcyPB->getFEM("bulk","Pressure")->nb_dof()));
 	
-	matrixFluidP( M_PressureStress, M_Bulk, *(M_ElastPB->getFEM("bulk","Disp")), (*M_DarcyPB->getFEM("bulk","Pressure")), M_intMethod);	
+	matrixFluidP( M_PressureStress, *(M_ElastPB->getFEM("bulk","Disp")), (*M_DarcyPB->getFEM("bulk","Pressure")), M_intMethod);	
 }
 
-void CoupledProblem::assembleRHS(LinearSystem* sys)
+void CoupledProblem::assembleRHS()
 {
 	M_ElastPB->assembleRHS(&M_elastSys,"bulk");
 

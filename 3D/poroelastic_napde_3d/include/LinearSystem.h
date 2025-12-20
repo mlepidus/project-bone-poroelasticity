@@ -143,7 +143,7 @@ private:
     scalarVectorPtr_Type M_RHS;           ///< Right-hand side vector b
     scalarVectorPtr_Type M_Sol;           ///< Solution vector x
     bool M_gotInverse;                    ///< Flag indicating if inverse is available
-    int M_ndof;                           ///< Number of degrees of freedom
+    size_type M_ndof;                           ///< Number of degrees of freedom
 };
 
 #endif // LINEARSYSTEM_H

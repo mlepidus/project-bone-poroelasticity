@@ -84,7 +84,7 @@ private:
     
     LifeV::Parser M_parser;  ///< Expression parser for BC evaluation
     
-    int M_nBoundaries;  ///< Number of boundary segments
+    size_type M_nBoundaries;  ///< Number of boundary segments
 };
 
 #endif // BC_H

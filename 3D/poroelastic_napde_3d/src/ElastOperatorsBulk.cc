@@ -25,7 +25,7 @@ void stiffElast( sparseMatrixPtr_Type M,
     std::vector<scalar_type> lambda(femC.nb_dof(),0.0);
     std::vector<scalar_type> mu(femC.nb_dof(),0.0);
    
-    for (int i=0; i<femC.nb_dof();++i)
+    for (size_type i=0; i<femC.nb_dof();++i)
     {   
     	lambda[i]=medium->getElastData()->getLambda(i);
     	mu[i]=medium->getElastData()->getMu(i); 
@@ -127,7 +127,7 @@ void givenFluidP( scalarVectorPtr_Type V,
 
 
 void givenFluidP( scalarVectorPtr_Type V, scalarVectorPtr_Type pressure,
-               Bulk* medium, FEM& FemD, FEM& FemC, getfem::mesh_im& im)
+               FEM& FemD, FEM& FemC, getfem::mesh_im& im)
 {
     getfem::mesh_fem femD(*(FemD.getFEM()));
     getfem::mesh_fem femC((*FemC.getFEM()));
@@ -157,7 +157,7 @@ void givenFluidP( scalarVectorPtr_Type V, scalarVectorPtr_Type pressure,
 }
 
 void massMatrix( sparseMatrixPtr_Type M, 
-               Bulk* medium, FEM& FemD, getfem::mesh_im& im)
+                FEM& FemD, getfem::mesh_im& im)
 {
     getfem::mesh_fem femD(*(FemD.getFEM()));
         
@@ -188,7 +188,7 @@ void massMatrix( sparseMatrixPtr_Type M,
 }
 
 void matrixFluidP( sparseMatrixPtr_Type M, 
-               Bulk* medium, FEM& FemD, FEM& FemS, getfem::mesh_im& im)
+                FEM& FemD, FEM& FemS, getfem::mesh_im& im)
 {
     getfem::mesh_fem femD(*(FemD.getFEM()));
     getfem::mesh_fem femS((*FemS.getFEM()));
@@ -213,7 +213,7 @@ void matrixFluidP( sparseMatrixPtr_Type M,
   
 }
 
-scalar_type L2Norm_Elast (sparseMatrixPtr_Type M, scalarVector_Type V, Bulk* medium, getfem::mesh_fem& femP, getfem::mesh_im& im, int region)
+scalar_type L2Norm_Elast (sparseMatrixPtr_Type M, scalarVector_Type V)
 {
     scalarVector_Type VV(V.size(), 0);
     gmm::mult(*M, V, VV);

@@ -57,18 +57,16 @@ void ElastProblem::addToSys(LinearSystem* sys)
 size_type ElastProblem::getNDOF(std::string variable)
 {
 	if (variable=="Disp")
-	{
 		return M_DispFEM.nb_dof();
-	}
 	
 	if (variable=="Lagrange")
-	{
 		return M_StressFEM.nb_dof("extended");
-	}
+	
 	if (variable=="all")
-	{
 		return M_DispFEM.nb_dof();//+M_StressFEM.nb_dof("extended");  //obsoleto perché non uso più Lagr. Mult.
-	}
+	
+    std::cerr << "ERROR: Unknown variable '" << variable << "' in ElastProblem::getNDOF" << std::endl;
+    return 0;
 }
 
 //inizializza la soluzione
@@ -110,13 +108,13 @@ void ElastProblem::assembleMatrix(LinearSystem* sys, std::string where)
 			{
 				M_dispMassMatrix.reset(new sparseMatrix_Type (M_DispFEM.nb_dof(), M_DispFEM.nb_dof()));
 				gmm::clear(*M_dispMassMatrix);
-				massMatrix(M_dispMassMatrix, M_Bulk, M_DispFEM, M_intMethod);
+				massMatrix(M_dispMassMatrix, M_DispFEM, M_intMethod);
 			}
 		
 
 			stiffElast( A, M_Bulk, M_DispFEM, M_CoeffFEM, M_intMethod);
-			massMatrix( M_massMatrixVector, M_Bulk, M_StressFEM, M_intMethod);
-			massMatrix( M_massMatrix, M_Bulk, M_StressScalarFEM, M_intMethod);
+			massMatrix( M_massMatrixVector, M_StressFEM, M_intMethod);
+			massMatrix( M_massMatrix, M_StressScalarFEM, M_intMethod);
 
 			//essentialWNitscheVec( A,M_Bulk,  &M_BC,  M_DispFEM, M_CoeffFEM, M_intMethod);
 				
@@ -169,7 +167,7 @@ void ElastProblem::enforceStrongBC(bool firstTime)
 		}
 	}
 
-		for (int i=0;i<M_rowsStrongBC.size(); ++++++i)
+		for (int i=0;i<M_rowsStrongBC.size(); i+=3)
 		{
 
 			size_type ii=M_rowsStrongBC[i];
@@ -199,7 +197,7 @@ void ElastProblem::enforceStrongBC(bool firstTime)
     }
     else
    {
-    	for (int i=0;i<M_rowsStrongBC.size(); ++++++i)
+    	for (int i=0;i<M_rowsStrongBC.size(); i+=3)
 		{
 			size_type ii=M_rowsStrongBC[i];
 			bgeot::base_node where=M_DispFEM.getFEM()->point_of_basic_dof(ii);
@@ -286,7 +284,7 @@ scalar_type ElastProblem::computeError(std::string what, scalar_type time)
         }
         
         // Compute L2 norm of error
-        error = L2Norm_Elast(M_dispMassMatrix, loc_err, M_Bulk, *(M_DispFEM.getFEM()), M_intMethod, -1);
+        error = L2Norm_Elast(M_dispMassMatrix, loc_err);
         std::cout << "at time " << time << " error displacement " << error << std::endl;
     }
     
@@ -340,7 +338,7 @@ void ElastProblem::exportVtk(std::string folder, std::string what, int frame)
 
 			expE.exporting( *(M_DispFEM.getFEM()));
 			gmm::clear(dispCut);
-			for (int i=0; i<dispCut.size();++++++i )
+			for (int i=0; i<dispCut.size(); i+=3)
 			{	
 				bgeot::base_node where=M_DispFEM.getFEM()->point_of_basic_dof(i);
 				dispCut[i]= M_Bulk->getElastData()->uEx(where,M_time->time())[0] ;

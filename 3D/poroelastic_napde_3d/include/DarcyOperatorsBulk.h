@@ -65,7 +65,7 @@ scalar_type L2Norm(sparseMatrixPtr_Type M, scalarVector_Type V, Bulk* medium,
  * @param femP Pressure finite element space
  * @param im Integration method
  */
-void divHdiv(sparseMatrixPtr_Type M, Bulk* medium, FEM& femV, FEM& femP,
+void divHdiv(sparseMatrixPtr_Type M, FEM& femV, FEM& femP,
              getfem::mesh_im& im);
 
 /// Assemble scalar source term for divergence equation RHS
@@ -77,7 +77,7 @@ void vectorSource(scalarVectorPtr_Type V, Bulk* medium, FEM& femV, FEM& femC,
                   getfem::mesh_im& im);
 
 /// Assemble vector source term from data field
-void vectorSource(scalarVectorPtr_Type V, Bulk* medium, FEM& femV, FEM& femC,
+void vectorSource(scalarVectorPtr_Type V, FEM& femV, FEM& femC,
                   scalarVectorPtr_Type data, getfem::mesh_im& im);
 
 #endif // DARCYOPERATORSBULK_H
