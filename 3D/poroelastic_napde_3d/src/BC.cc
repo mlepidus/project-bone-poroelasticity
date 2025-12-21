@@ -7,9 +7,9 @@ BC::BC(const GetPot& dataFile,
         M_nBoundaries(dataFile((M_section + "nBoundaries").data(), 4)),
         M_BCstring(dataFile((M_section + "bcflag").data(), "[1,1,1,1]")),
         M_BCNeum(dataFile((M_section + "p_BC").data(), "0")),
+        M_BCNeumVec(dataFile((M_section + "bdLoad").data(), "[0,0,0]")),        
         M_BCDiri(dataFile((M_section + "v_BC").data(), "0")),
         M_BCDiriVec(dataFile((M_section + "bdDisp").data(), "[0,0,0]")),
-        M_BCNeumVec(dataFile((M_section + "bdLoad").data(), "[0,0,0]")),
         M_BCDiriVel(dataFile((M_section + "bdVel").data(), "[0,0,0]"))
 {   
     M_BC.resize(M_nBoundaries, 0); 
@@ -214,7 +214,7 @@ void BC::setBoundaries(getfem::mesh* meshPtr)
     }
     
     std::cout << "Boundary detection complete:" << std::endl;
-    for (int i = 0; i < M_nBoundaries; ++i) {
+    for (size_type i = 0; i < M_nBoundaries; ++i) {
         std::cout << "  Region " << i << ": " << face_count[i] << " faces" << std::endl;
     }
     std::cout << "===========================================\n" << std::endl;

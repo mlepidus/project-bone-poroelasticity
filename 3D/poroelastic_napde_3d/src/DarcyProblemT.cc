@@ -7,8 +7,9 @@ DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk):
 			M_CoeffFEM( bulk->getMesh(), dataFile, "darcy/", "Coeff", "bulkData/"),
 			M_VelocityFEM( bulk->getMesh(), dataFile, "darcy/", "Velocity", "bulkData/"),
 			M_visualizationVFEM( bulk->getMesh(), dataFile, "darcy/", "VelocityVis", "bulkData/"),
-			M_intMethod(*(bulk->getMesh()) ),
-			M_Sys()
+			M_Sys(),			
+			M_intMethod(*(bulk->getMesh()) )
+
 
 {  
    M_nbTotDOF=M_PressureFEM.nb_dof()+M_VelocityFEM.nb_dof();
@@ -33,7 +34,7 @@ DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk):
    
 }
 
-FEM* DarcyProblemT::getFEM(const std::string where, const std::string variable)
+FEM* DarcyProblemT::getFEM(const std::string variable)
  {
  	if (variable=="Pressure")
  	{
@@ -103,7 +104,7 @@ void DarcyProblemT::updateSol()
 	gmm::copy(*M_pressureSol, *M_pressureSolOld);
 }
 
-void DarcyProblemT::assembleMatrix(LinearSystem* sys, std::string where)
+void DarcyProblemT::assembleMatrix()
 {
 		sparseMatrixPtr_Type A11;
 		A11.reset(new sparseMatrix_Type (M_VelocityFEM.nb_dof(),M_VelocityFEM.nb_dof()));
@@ -135,7 +136,7 @@ void DarcyProblemT::assembleMatrix(LinearSystem* sys, std::string where)
 
 }
 
-void DarcyProblemT::assembleRHS(LinearSystem* sys, std::string where)
+void DarcyProblemT::assembleRHS()
 {
 	
 			scalarVectorPtr_Type  source;
@@ -209,7 +210,7 @@ scalar_type DarcyProblemT::computeError(std::string what, scalar_type time)
 	scalarVector_Type loc_err(M_PressureFEM.getFEM()->nb_dof());
 	if (what=="Pressure" || what=="all")
 	{
-		for (int i=0;i<loc_err.size();++i)
+		for (size_type i=0;i<loc_err.size();++i)
 		{
 			bgeot::base_node where=M_PressureFEM.getFEM()->point_of_basic_dof(i);
 			loc_err[i]=gmm::abs(((*M_pressureSol)[i]) - M_Bulk->getDarcyData()->pEx(where,time) );
@@ -267,14 +268,14 @@ void DarcyProblemT::exportVtk(std::string folder, std::string what, int frame)
 			expD.write_mesh();
 			std::vector<scalar_type> diff(M_PressureFEM.getFEM()->nb_dof());
 			std::vector<scalar_type> pe(M_PressureFEM.getFEM()->nb_dof());
-			for (int i=0; i<diff.size(); ++i)
+			for (size_type i=0; i<diff.size(); ++i)
 			{
 				bgeot::base_node where=M_PressureFEM.getFEM()->point_of_basic_dof(i);
 				pe[i]=M_Bulk->getDarcyData()->pEx(where,M_timeLoop->time() );
 			}
 			if (M_pressureSolIni!=NULL)
 			{
-			for (int i=0; i<diff.size(); ++i)
+			for (size_type i=0; i<diff.size(); ++i)
 			{
 				diff[i]=(*M_pressureSol)[i] - (*M_pressureSolIni)[i] ;
 							}

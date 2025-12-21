@@ -92,7 +92,7 @@ void massL2( sparseMatrixPtr_Type M,
     std::vector<scalar_type> iKxx(femC.nb_dof(),0.0);
     
     scalar_type leakage = medium->getDarcyData()->getLeakage();
-    for (int i=0; i<femC.nb_dof();++i)
+    for (size_type i=0; i<femC.nb_dof();++i)
     {   
     	iKxx[i]=1./dt + leakage;
    

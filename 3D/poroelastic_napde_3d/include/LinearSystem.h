@@ -83,7 +83,7 @@ public:
      * @param shiftRows Row offset in global system
      * @param shiftColumns Column offset (unused for RHS-only)
      */
-    void addSubSystemRHS(LinearSystem* small, size_type shiftRows, size_type shiftColumns);
+    void addSubSystemRHS(LinearSystem* small, size_type shiftRows);
     
     /// Solve the linear system Ax = b using direct solver
     void solve();
@@ -103,7 +103,7 @@ public:
      * @param ncols Number of columns to multiply
      */
     void multAddToRHS(scalarVectorPtr_Type V, int first_row, int first_column,
-                     int nrows, int ncols);
+                     size_type nrows, size_type ncols);
     
     /// Multiply arbitrary matrix M by vector V and add result to RHS
     void multAddToRHS(sparseMatrixPtr_Type M, scalarVectorPtr_Type V,

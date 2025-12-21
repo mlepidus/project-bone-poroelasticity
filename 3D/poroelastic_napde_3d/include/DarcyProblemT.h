@@ -45,7 +45,7 @@ public:
      * @param variable Variable name ("Pressure" or "Velocity")
      * @return Pointer to FEM object
      */
-    FEM* getFEM(const std::string where = "bulk", const std::string variable = "Pressure");
+    FEM* getFEM(const std::string variable = "Pressure");
     
     /// Initialize problem (setup FEM spaces, initial conditions)
     void initialize();
@@ -58,14 +58,14 @@ public:
      * @param sys Linear system object
      * @param where Domain selector
      */
-    void assembleMatrix(LinearSystem* sys, std::string where);
+    void assembleMatrix();
     
     /**
      * @brief Assemble right-hand side vector
      * @param sys Linear system object
      * @param where Domain selector
      */
-    void assembleRHS(LinearSystem* sys, std::string where);
+    void assembleRHS();
     
     /// Solve linear system for current time step
     void solve();

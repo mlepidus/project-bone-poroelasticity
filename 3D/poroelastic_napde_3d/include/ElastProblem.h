@@ -39,7 +39,7 @@ public:
      * @param variable Variable name (e.g., "Displacement", "Stress")
      * @return Pointer to FEM object
      */
-    FEM* getFEM(const std::string where = "bulk", const std::string variable = "Pressure");
+    FEM* getFEM();
     
     /// Get pointer to boundary condition handler
     inline BC* getBC() { return &M_BC; }
@@ -52,14 +52,14 @@ public:
      * @param sys Linear system object
      * @param where Domain selector
      */
-    void assembleMatrix(LinearSystem* sys, std::string where);
+    void assembleMatrix();
     
     /**
      * @brief Assemble right-hand side vector
      * @param sys Linear system object
      * @param where Domain selector
      */
-    void assembleRHS(LinearSystem* sys, std::string where);
+    void assembleRHS();
     
     /**
      * @brief Enforce essential boundary conditions

@@ -5,14 +5,14 @@ ElastProblem::ElastProblem (const GetPot& dataFile, Bulk* bulk ):
 			M_BC(dataFile, "mecc/"),
 			M_DispFEM( bulk->getMesh(), dataFile, "mecc/", "Displacement", "bulkData/"),
 			M_DispScalarFEM(bulk->getMesh(),dataFile ( std::string("bulkData/mecc/FEMTypeDisplacement").data (), "FEM_PK(3,1)" ), 1 ),
+			M_CoeffFEM( bulk->getMesh(), dataFile, "mecc/", "Coeff", "bulkData/"),			
 			M_StressFEM( bulk->getMesh(), dataFile, "mecc/", "Stress", "bulkData/"),
 			M_StressScalarFEM( bulk->getMesh(), dataFile, "mecc/", "StressS", "bulkData/"),
-			M_CoeffFEM( bulk->getMesh(), dataFile, "mecc/", "Coeff", "bulkData/"),
-			M_intMethod(*(bulk->getMesh()) ),
+			M_Sys(),			
 			M_staticMu (dataFile ( (std::string("bulkData/mecc/static_mu" )).data (), 0.4) ), 
+			M_intMethod(*(bulk->getMesh()) ),
 			M_IsNitSym(dataFile ( (std::string("bulkData/nitsche/isSymmetric" )).data (), true )  ),
-			M_IsNitCons(dataFile ( (std::string("bulkData/nitsche/isConsistent" )).data (), true )  ),
-			M_Sys()
+			M_IsNitCons(dataFile ( (std::string("bulkData/nitsche/isConsistent" )).data (), true )  )
 {  
 
 
@@ -40,7 +40,7 @@ ElastProblem::ElastProblem (const GetPot& dataFile, Bulk* bulk ):
 
 //restituisce un puntatore ai FEM dl displacement. In teoria dovrei estenderla se avessi Lagr. mult
 
-FEM* ElastProblem::getFEM(const std::string where, const std::string variable)
+FEM* ElastProblem::getFEM()
 {
  		return &M_DispFEM;
 }
@@ -85,7 +85,7 @@ void ElastProblem::initialize()
 }
 
 // assembla la matrice
-void ElastProblem::assembleMatrix(LinearSystem* sys, std::string where)
+void ElastProblem::assembleMatrix()
 {
 	
 			sparseMatrixPtr_Type A;
@@ -125,7 +125,7 @@ void ElastProblem::assembleMatrix(LinearSystem* sys, std::string where)
 
 //assemblo il RHS
 
-void ElastProblem::assembleRHS(LinearSystem* sys, std::string where)
+void ElastProblem::assembleRHS()
 {
 	
 		scalarVectorPtr_Type  source;
@@ -167,7 +167,7 @@ void ElastProblem::enforceStrongBC(bool firstTime)
 		}
 	}
 
-		for (int i=0;i<M_rowsStrongBC.size(); i+=3)
+		for (size_type i=0;i<M_rowsStrongBC.size(); i+=3)
 		{
 
 			size_type ii=M_rowsStrongBC[i];
@@ -197,7 +197,7 @@ void ElastProblem::enforceStrongBC(bool firstTime)
     }
     else
    {
-    	for (int i=0;i<M_rowsStrongBC.size(); i+=3)
+    	for (size_type i=0;i<M_rowsStrongBC.size(); i+=3)
 		{
 			size_type ii=M_rowsStrongBC[i];
 			bgeot::base_node where=M_DispFEM.getFEM()->point_of_basic_dof(ii);
@@ -338,7 +338,7 @@ void ElastProblem::exportVtk(std::string folder, std::string what, int frame)
 
 			expE.exporting( *(M_DispFEM.getFEM()));
 			gmm::clear(dispCut);
-			for (int i=0; i<dispCut.size(); i+=3)
+			for (size_type i=0; i<dispCut.size(); i+=3)
 			{	
 				bgeot::base_node where=M_DispFEM.getFEM()->point_of_basic_dof(i);
 				dispCut[i]= M_Bulk->getElastData()->uEx(where,M_time->time())[0] ;

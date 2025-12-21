@@ -61,13 +61,11 @@ public:
     
     /**
      * @brief Assemble global system matrix
-     * @param sys Linear system object
      */
     void assembleMatrix();
     
     /**
      * @brief Assemble global right-hand side vector
-     * @param sys Linear system object
      */
     void assembleRHS();
     

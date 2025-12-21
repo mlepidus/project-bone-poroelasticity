@@ -96,7 +96,7 @@ void LinearSystem::addSubSystem(LinearSystem* small, size_type shiftRows, size_t
                         
 }
 
-void LinearSystem::addSubSystemRHS(LinearSystem* small, size_type shiftRows, size_type shiftColumns)
+void LinearSystem::addSubSystemRHS(LinearSystem* small, size_type shiftRows)
 {
                         
         gmm::add ( *(small->getRHS()), gmm::sub_vector (*M_RHS,
@@ -104,7 +104,7 @@ void LinearSystem::addSubSystemRHS(LinearSystem* small, size_type shiftRows, siz
                         
 }
 
-void LinearSystem::multAddToRHS(scalarVectorPtr_Type V, int first_row, int first_column, int nrows, int ncols)
+void LinearSystem::multAddToRHS(scalarVectorPtr_Type V, int first_row, int first_column, size_type nrows, size_type ncols)
 {
 	int length((*V).size());	
 	if (ncols==(*V).size()){
@@ -161,7 +161,7 @@ void LinearSystem::computeInverse()  //lento
     std::vector<scalar_type> provv(M_ndof,0.0);
     M_InverseMatrix.reset(new sparseMatrix_Type (M_ndof,M_ndof));
 
-    for (int i=0; i<M_ndof;++i)
+    for (size_type i=0; i<M_ndof;++i)
     {
 	gmm::clear(RHS);
 	gmm::clear(provv);

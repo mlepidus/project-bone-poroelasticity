@@ -3,16 +3,16 @@
 BulkElastData::BulkElastData ( const GetPot& dataFile,
                                  const std::string& section,
                                  const std::string& sectionElast) :
-            M_section ( section ),
-            M_sectionElast ( M_section + sectionElast ),
+        M_section ( section ),
+    	M_sectionElast ( M_section + sectionElast ),
+	    M_mu( dataFile ( ( M_sectionElast + "mu" ).data (), "1." ) ),			
 	    M_lambda( dataFile ( ( M_sectionElast + "lambda" ).data (), "1." ) ),	
-	    M_mu( dataFile ( ( M_sectionElast + "mu" ).data (), "1." ) ),
 	    M_load( dataFile ( ( M_sectionElast + "bulkLoad" ).data (), "1." ) ),
-	    M_fluidP( dataFile ( ( M_sectionElast + "fluidP" ).data (), "0." ) ),
 	    M_uEx( dataFile ( ( M_sectionElast + "u_exact" ).data (), "0." ) ),
 	    M_uIni( dataFile ( ( M_sectionElast + "u_ini" ).data (), "0." ) ),
-            M_rhoR( dataFile ( ( std::string("materials/") + "rho_r" ).data (), 1000 ) ),
-	    M_Gstring( dataFile ( ( std::string("materials/") + "gravity" ).data (), "[0,0,0]" ) )
+	    M_fluidP( dataFile ( ( M_sectionElast + "fluidP" ).data (), "0." ) ),		
+	    M_Gstring( dataFile ( ( std::string("materials/") + "gravity" ).data (), "[0,0,0]" ) ),
+        M_rhoR( dataFile ( ( std::string("materials/") + "rho_r" ).data (), 1000 ) )
 {
      M_G.resize(3);
      M_parser.setString ( M_Gstring );

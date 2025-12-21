@@ -6,26 +6,36 @@ Bulk::Bulk ( const GetPot& dataFile,
                              const std::string& sectionDarcy,
                              const std::string& sectionElast
                              ) :
-            M_datafile(dataFile),                 
             M_section ( section ),
             M_sectionDomain ( M_section + sectionDomain ),
             M_sectionDarcy ( M_section + sectionDarcy ),
-            M_sectionElast ( M_section + sectionElast ),
-	    M_DarcyData( dataFile),
-	    M_ElastData( dataFile),
-            // domain
-	    M_meshType( dataFile ( ( M_sectionDomain + "meshType" ).data (), "GT_PK(3,1)" ) ),
-	    M_meshFile( dataFile ( ( M_sectionDomain + "meshExternal" ).data (), "none" )   ),
-	    M_meshFolder( dataFile ( ( M_sectionDomain + "meshFolder" ).data (), "" )   ),
+            M_sectionElast ( M_section + sectionElast ),   
+	        M_meshFile( dataFile ( ( M_sectionDomain + "meshExternal" ).data (), "none" )   ),            
+	        M_meshFolder( dataFile ( ( M_sectionDomain + "meshFolder" ).data (), "" )   ),
+
+            M_datafile(dataFile),    
+    	    M_DarcyData( dataFile), 
+            M_DarcyDataPtr(nullptr),
+	        M_ElastData( dataFile),
+            M_ElastDataPtr(nullptr),
+
+
         M_Nx ( dataFile ( ( M_sectionDomain + "spatialDiscretizationX" ).data (), 10 ) ),
         M_Ny ( dataFile ( ( M_sectionDomain + "spatialDiscretizationY" ).data (), 10 ) ),
         M_Nz ( dataFile ( ( M_sectionDomain + "spatialDiscretizationZ" ).data (), 10 ) ),
 	    M_Lx ( dataFile ( ( M_sectionDomain + "lengthAbscissa" ).data (), 1. ) ),
         M_Ly ( dataFile ( ( M_sectionDomain + "lengthOrdinate" ).data (), 1. ) ),
 	    M_Lz ( dataFile ( ( M_sectionDomain + "lengthQuota" ).data (), 1. ) ),
+	    
+
 	    M_coeffNitscheNormal ( dataFile ( ( M_sectionDomain + "coeffN" ).data (), 1. ) ),
 	    M_coeffNitscheTangent ( dataFile ( ( M_sectionDomain + "coeffT" ).data (), 1. ) ),
-	    M_isVertical( dataFile ( ( M_sectionDomain + "isVertical" ).data (), true ) )
+        M_meshType( dataFile ( ( M_sectionDomain + "meshType" ).data (), "GT_PK(3,1)" ) ),
+
+	    M_isVertical( dataFile ( ( M_sectionDomain + "isVertical" ).data (), true ) ),
+  
+    
+        M_hasExternalMesh(false)
 {  
 
     bgeot::pgeometric_trans pgt; 

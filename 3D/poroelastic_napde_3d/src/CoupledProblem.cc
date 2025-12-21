@@ -2,9 +2,9 @@
 
 CoupledProblem::CoupledProblem (const GetPot& dataFile, Bulk* bulk,  TimeLoop* time ):
 			M_Bulk(bulk),
-			M_intMethod(*(bulk->getMesh()) ),
-		    M_time(time),
+			M_time(time),
 			M_Sys(),
+			M_intMethod(*(bulk->getMesh()) ),
 			step(0)
 
 {  
@@ -26,22 +26,22 @@ void CoupledProblem::addToSys(LinearSystem* sys)
 
 void CoupledProblem::assembleMatrix()
 {
-	M_ElastPB->assembleMatrix(&M_elastSys,"bulk");
+	M_ElastPB->assembleMatrix();
 
 	
-	M_DarcyPB->assembleMatrix(&M_darcySys,"bulk");
+	M_DarcyPB->assembleMatrix();
 	
 	
-	M_PressureStress.reset(new sparseMatrix_Type (M_ElastPB->getFEM("bulk","Disp")->nb_dof(), M_DarcyPB->getFEM("bulk","Pressure")->nb_dof()));
+	M_PressureStress.reset(new sparseMatrix_Type (M_ElastPB->getFEM()->nb_dof(), M_DarcyPB->getFEM("Pressure")->nb_dof()));
 	
-	matrixFluidP( M_PressureStress, *(M_ElastPB->getFEM("bulk","Disp")), (*M_DarcyPB->getFEM("bulk","Pressure")), M_intMethod);	
+	matrixFluidP( M_PressureStress, *(M_ElastPB->getFEM()), (*M_DarcyPB->getFEM("Pressure")), M_intMethod);	
 }
 
 void CoupledProblem::assembleRHS()
 {
-	M_ElastPB->assembleRHS(&M_elastSys,"bulk");
+	M_ElastPB->assembleRHS();
 
-	M_DarcyPB->assembleRHS(&M_darcySys,"bulk");
+	M_DarcyPB->assembleRHS();
 
 	//M_DarcyPB->solve();
 }
@@ -63,9 +63,9 @@ void CoupledProblem::addSubSystems()
 
 void CoupledProblem::addSubSystemsRHS()
 {
-	M_Sys->addSubSystemRHS(&M_elastSys,0,0);
+	M_Sys->addSubSystemRHS(&M_elastSys,0);
 
-	M_Sys->addSubSystemRHS(&M_darcySys,M_ElastPB->getNDOF(),M_ElastPB->getNDOF());
+	M_Sys->addSubSystemRHS(&M_darcySys,M_ElastPB->getNDOF());
 
 	M_Sys->multAddToRHS(M_ElastPB->getOldSol(), M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"),0 ,M_DarcyPB->getNDOF("Pressure"),  M_ElastPB->getNDOF("Disp") );
 	

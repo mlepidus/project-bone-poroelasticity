@@ -67,6 +67,7 @@ public:
 
 private:
     std::string M_section;  ///< Bulk data section name
+    size_type M_nBoundaries;  ///< Number of boundary segments
     
     // Boundary condition expression strings
     std::string M_BCstring;      ///< BC descriptor (flags: 0=Dirichlet, 1=Neumann, 2=Mixed)
@@ -84,7 +85,6 @@ private:
     
     LifeV::Parser M_parser;  ///< Expression parser for BC evaluation
     
-    size_type M_nBoundaries;  ///< Number of boundary segments
 };
 
 #endif // BC_H
