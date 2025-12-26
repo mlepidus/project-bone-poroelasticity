@@ -49,6 +49,10 @@ public:
     /// Get all Mu values
     inline std::vector<scalar_type> getMu() { return *M_MuVector; }
     
+    /// Check if exact solution is provided
+    inline bool hasExactSolution() {
+        return !M_uEx.empty();
+    }
     /// Evaluate volumetric body force (e.g., gravity)
     bgeot::base_node bulkLoad(bgeot::base_node x, scalar_type t);
     

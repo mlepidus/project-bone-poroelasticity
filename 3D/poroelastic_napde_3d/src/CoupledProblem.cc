@@ -148,13 +148,13 @@ void CoupledProblem::exportVtk(std::string folder, std::string what, int frame)
 	{
 		M_DarcyPB->exportVtk(folder, "all",frame);
 
-		M_ElastPB->exportVtk(folder, "all",frame);
+		M_ElastPB->exportVtk(folder,frame);
 	}
 	else
 	{
 		if (what=="elast")
 		{
-			M_ElastPB->exportVtk(folder, "all",frame);
+			M_ElastPB->exportVtk(folder,frame);
 		}
 		else
 		{

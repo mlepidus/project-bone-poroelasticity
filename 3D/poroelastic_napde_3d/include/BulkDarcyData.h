@@ -77,6 +77,8 @@ public:
     /// Load layered material properties
     void getLayers();
     
+    bool hasExactSolution() { return !M_pEx.empty() && !M_uEx.empty(); };
+
     /// Get exact pressure expression string
     inline std::string getPexpr() { return M_pEx; }
     

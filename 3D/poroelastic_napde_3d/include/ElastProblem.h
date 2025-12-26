@@ -1,4 +1,4 @@
-// ElastProblem.h - Quasi-static elasticity problem
+// ElastProblem.h - Quasi-static linear elasticity with poroelastic coupling
 #ifndef ELASTPROBLEM_H
 #define ELASTPROBLEM_H
 
@@ -11,7 +11,7 @@
 
 /**
  * @class ElastProblem
- * @brief Quasi-static linear elasticity problem solver
+ * @brief Quasi-static linear elasticity problem solver with poroelastic coupling
  * 
  * Solves displacement field under applied loads and boundary conditions.
  * Supports poroelastic coupling through fluid pressure coupling term.
@@ -34,12 +34,10 @@ public:
     }
     
     /**
-     * @brief Get finite element space for specified variable
-     * @param where Domain selector
-     * @param variable Variable name (e.g., "Displacement", "Stress")
+     * @brief Get finite element space for displacement
      * @return Pointer to FEM object
      */
-    FEM* getFEM();
+    FEM* getFEM() { return &M_DispFEM; }
     
     /// Get pointer to boundary condition handler
     inline BC* getBC() { return &M_BC; }
@@ -49,15 +47,11 @@ public:
     
     /**
      * @brief Assemble system matrix
-     * @param sys Linear system object
-     * @param where Domain selector
      */
     void assembleMatrix();
     
     /**
      * @brief Assemble right-hand side vector
-     * @param sys Linear system object
-     * @param where Domain selector
      */
     void assembleRHS();
     
@@ -69,7 +63,7 @@ public:
     
     /**
      * @brief Compute error against exact solution
-     * @param what Variable to check
+     * @param what Variable to check (only "Displacement" supported)
      * @param time Current time
      * @return L2 error norm
      */
@@ -90,14 +84,14 @@ public:
     /**
      * @brief Export solution to VTK format
      * @param folder Output directory
-     * @param what Variables to export
+     * @param what Variables to export (only "Displacement" supported)
      * @param frame Time frame number
      */
-    void exportVtk(std::string folder = "./vtk", std::string what = "all", int frame = -1);
+    void exportVtk(std::string folder = "./vtk", int frame = -1);
     
     /**
      * @brief Get number of degrees of freedom
-     * @param variable Variable selector
+     * @param variable Variable selector (only "Disp" or "all" supported)
      * @return Number of DOFs
      */
     size_type getNDOF(std::string variable = "all");
@@ -107,66 +101,32 @@ public:
     
     /// Initialize problem (setup FEM spaces, matrices)
     void initialize();
-    
-    /// Compute normal stress on fault surface
-    scalarVector_Type getNormalStressOnFault();
-    
-    /// Get friction coefficient
-    inline scalar_type frictionCoeff() { return M_staticMu; }
 
 private:
-    TimeLoop* M_time;  ///< Pointer to time manager
-    Bulk* M_Bulk;      ///< Pointer to bulk domain
-    BC M_BC;           ///< Boundary condition handler
+    TimeLoop* M_time;      ///< Pointer to time manager
+    Bulk* M_Bulk;          ///< Pointer to bulk domain
+    BC M_BC;               ///< Boundary condition handler
     
     // Finite element spaces
-    FEM M_DispFEM;           ///< Displacement (vector) FEM
-    FEM M_DispScalarFEM;     ///< Scalar displacement component FEM
-    FEM M_CoeffFEM;          ///< Coefficient FEM for material properties
-    FEM M_StressFEM;         ///< Stress (tensor) FEM
-    FEM M_StressScalarFEM;   ///< Scalar stress component FEM
+    FEM M_DispFEM;         ///< Displacement (vector) FEM
+    FEM M_CoeffFEM;        ///< Coefficient FEM for material properties
     
-    LinearSystem* M_Sys;  ///< Pointer to global linear system
+    LinearSystem* M_Sys;   ///< Pointer to global linear system
     
     // Solution vectors
-    scalarVectorPtr_Type M_DispSol;                   ///< Current displacement
-    scalarVectorPtr_Type M_DispSolOld;                ///< Previous displacement
-    scalarVectorPtr_Type M_slipVel;                   ///< Slip velocity (fault)
-    scalarVectorPtr_Type M_NormalStressSol;           ///< Normal stress vector
-    scalarVectorPtr_Type M_NormalStressScalarSol;     ///< Normal stress scalar
-    scalarVectorPtr_Type M_TangentStressScalarSol;    ///< Tangent stress scalar
-    scalarVectorPtr_Type M_ST;                        ///< Tangential stress
-    scalarVectorPtr_Type M_Slip;                      ///< Current slip
-    scalarVectorPtr_Type M_SlipOld;                   ///< Previous slip
+    scalarVectorPtr_Type M_DispSol;     ///< Current displacement
+    scalarVectorPtr_Type M_DispSolOld;  ///< Previous displacement
     
-    // Auxiliary matrices
-    sparseMatrixPtr_Type M_normalStressMat;
-    sparseMatrixPtr_Type M_normalStressScalarMat;
-    sparseMatrixPtr_Type M_tangentStressScalarMat;
-    sparseMatrixPtr_Type M_massMatrixVector;
-    sparseMatrixPtr_Type M_massMatrix;
-    sparseMatrixPtr_Type M_massP2onFault;
-    sparseMatrixPtr_Type M_maskUzawa;
-    sparseMatrixPtr_Type M_glueMatrix;
-    sparseMatrixPtr_Type M_normalGlueMatrix;
-    sparseMatrixPtr_Type M_P02P2interp;
+    // Mass matrix for error computation
     sparseMatrixPtr_Type M_dispMassMatrix;
     
-    size_type M_nbTotDOF;      ///< Total DOFs
-    size_type M_nbTotBulkDOF;  ///< Bulk domain DOFs
+    size_type M_nbTotDOF;  ///< Total DOFs
     
-    // Boundary condition data
+    // Boundary condition data for strong enforcement
     std::vector<size_type> M_rowsStrongBC;       ///< DOF indices with strong BC
     std::vector<size_type> M_rowsStrongBCFlags;  ///< Flags for BC type
     
-    scalar_type M_staticMu;  ///< Static friction coefficient
-    
-    bool M_precomputeInterpolation;  ///< Flag for interpolation precomputation
-    
     getfem::mesh_im M_intMethod;  ///< Integration method
-    
-    bool M_IsNitSym;   ///< Nitsche symmetry flag
-    bool M_IsNitCons;  ///< Nitsche consistency flag
 };
 
 #endif // ELASTPROBLEM_H
