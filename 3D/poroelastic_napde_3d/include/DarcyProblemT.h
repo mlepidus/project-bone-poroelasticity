@@ -125,8 +125,9 @@ private:
     scalarVectorPtr_Type M_pressureSolIni;  ///< Initial pressure
     scalarVectorPtr_Type M_velocitySol;     ///< Current velocity
     
-    sparseMatrixPtr_Type A22;  ///< Pressure-pressure block matrix
-    
+    sparseMatrixPtr_Type M_pressureMass;  ///< Pressure-pressure block matrix
+//    sparseMatrixPtr_Type A22; ///<Pressure-pressure scaled by dt and M
+
     size_type M_nbTotDOF;      ///< Total DOFs (pressure + velocity)
     size_type M_nbTotBulkDOF;  ///< Bulk domain DOFs only
     

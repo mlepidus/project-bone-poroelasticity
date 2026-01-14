@@ -169,8 +169,6 @@ void essentialWNitscheRHSVec( scalarVectorPtr_Type V,
 	    	datay2 [ i ] = etaGammaUinvh [ i ]*datay[i];
 	    }
     	    // Assign the coefficients
-   
-    	    // Assign the coefficients
 assem_cons.push_data(datax);
     
    	    assem_surf.push_data(datax2);

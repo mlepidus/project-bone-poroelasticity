@@ -112,6 +112,30 @@ void massL2( sparseMatrixPtr_Type M,
 
 }
 
+void massL2Standard(sparseMatrixPtr_Type M, Bulk* medium, FEM& femP, 
+                    FEM& femC, getfem::mesh_im& im)
+{
+    // Same as massL2 but with dt=1 and leakage=0
+    getfem::mesh_fem femP_mf = *(femP.getFEM());
+    getfem::mesh_fem femC_mf = *(femC.getFEM());
+    
+    std::vector<scalar_type> ones(femC_mf.nb_dof(), 1.0);
+    
+    getfem::generic_assembly assem;
+    assem.set("x=data(#2);"
+              "a=comp(vBase(#1).vBase(#1).Base(#2));"
+              "M(#1,#1)+=a(:,i,:,i,j).x(j)");
+    
+    assem.push_mi(im);
+    assem.push_mf(femP_mf);
+    assem.push_mf(femC_mf);
+    assem.push_data(ones);  // Coefficient = 1 everywhere
+    assem.push_mat(*M);
+    assem.assembly(-1);
+}
+
+
+//without providing mass matrix, recompute it
 scalar_type L2Norm ( scalarVectorPtr_Type V, Bulk* medium, FEM& femP, getfem::mesh_im& im)
 {
 	
@@ -126,9 +150,9 @@ scalar_type L2Norm ( scalarVectorPtr_Type V, Bulk* medium, FEM& femP, getfem::me
 
 }
 
+
 scalar_type L2Norm ( scalarVector_Type V, Bulk* medium, FEM& femP, getfem::mesh_im& im)
 {
-	
  	sparseMatrixPtr_Type M;
 	M.reset(new sparseMatrix_Type (femP.nb_dof(),femP.nb_dof()));
 			gmm::clear(*M);
@@ -139,6 +163,7 @@ scalar_type L2Norm ( scalarVector_Type V, Bulk* medium, FEM& femP, getfem::mesh_
 	return pow(norm,0.5);
 
 }
+/*
 scalar_type L2Norm ( scalarVector_Type V, Bulk* medium, FEM& femV,FEM& femP, getfem::mesh_im& im)
 {
 	
@@ -152,19 +177,20 @@ scalar_type L2Norm ( scalarVector_Type V, Bulk* medium, FEM& femV,FEM& femP, get
 	return pow(norm,0.5);
 
 }
+*/
 
 scalar_type L2Norm ( sparseMatrixPtr_Type M, scalarVector_Type V, Bulk* medium, getfem::mesh_fem& femP, getfem::mesh_im& im, int region)
 {
-	
- 	/*sparseMatrixPtr_Type M;
-	M.reset(new sparseMatrix_Type (femP.nb_dof(),femP.nb_dof()));
-			gmm::clear(*M);*/
-//	massL2(M,  medium, femP,  femP, im, 1, region);
+	if (M==nullptr){
+        sparseMatrixPtr_Type M;
+        M.reset(new sparseMatrix_Type (femP.nb_dof(),femP.nb_dof()));
+                gmm::clear(*M);
+        massL2(M,  medium, femP,  femP, im, 1, region);
+    }
 	scalarVector_Type VV(V.size(),0);
 	gmm::mult(*M, V,VV);
 	scalar_type norm=gmm::vect_sp(V, VV);
 	return pow(norm,0.5);
-
 }
 
 void massHdiv(sparseMatrixPtr_Type M,

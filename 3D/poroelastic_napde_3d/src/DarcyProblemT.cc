@@ -104,6 +104,9 @@ void DarcyProblemT::updateSol()
 	gmm::copy(*M_pressureSol, *M_pressureSolOld);
 }
 
+//A11=∫ u·v K⁻¹
+//A12=∫ div(u) φ
+//A22=∫ φψ * (1/dt)
 void DarcyProblemT::assembleMatrix()
 {
 		sparseMatrixPtr_Type A11;
@@ -112,25 +115,45 @@ void DarcyProblemT::assembleMatrix()
 		sparseMatrixPtr_Type A12;
 		A12.reset(new sparseMatrix_Type (M_VelocityFEM.nb_dof(),M_PressureFEM.nb_dof()));
 		gmm::clear(*A12);
-		if (A22==NULL)
-		{
-		A22.reset(new sparseMatrix_Type (M_PressureFEM.nb_dof(),M_PressureFEM.nb_dof()));
-		gmm::clear(*A22);
-		}
+
+		if (M_pressureMass == NULL) {
+			M_pressureMass.reset(new sparseMatrix_Type(M_PressureFEM.nb_dof(), M_PressureFEM.nb_dof()));
+			gmm::clear(*M_pressureMass);
+			massL2Standard(M_pressureMass, M_PressureFEM, M_CoeffFEM, M_intMethod);
+    	}
+
 		massHdiv( A11, M_Bulk, M_VelocityFEM, M_CoeffFEM, M_intMethod);
- 		massL2( A22, M_Bulk, M_PressureFEM, M_CoeffFEM, M_intMethod, M_dt);
 				
 		divHdiv( A12, M_VelocityFEM, M_PressureFEM, M_intMethod);
 
 		essentialWNitsche( A11, M_Bulk, &M_BC, M_VelocityFEM, M_CoeffFEM, M_intMethod);
-	
+
+		sparseMatrixPtr_Type A22;
+		A22.reset(new sparseMatrix_Type(M_PressureFEM.nb_dof(), M_PressureFEM.nb_dof()));
+		gmm::clear(*A22);
+		
+		scalar_type M_v = M_Bulk->getDarcyData()->M();
+		scalar_type gamma = M_Bulk->getDarcyData()->getLeakage();
+		if (M_v<=0.0){
+			std::cerr << "ERROR: Biot modulus must be positive. M_v = " 
+                	  << M_v << std::endl;
+        	throw std::runtime_error("Non-positive Biot modulus");
+		}
+
+		// Compute: (1/(M_v*Δt) + γ) * M_standard
+		gmm::copy(*M_pressureMass, *A22);
+		scalar_type scaling = 1.0/(M_v * M_dt) + gamma;
+		gmm::scale(*A22, scaling);
+
 		M_Sys->addSubMatrix(A11, 0,0);
 			
 
 		M_Sys->addSubMatrix(A12, 0, gmm::mat_ncols(*A11));
 		M_Sys->addSubMatrix(A12, gmm::mat_nrows(*A11),0, -1.0, true);
-		if (M_Bulk->getDarcyData()->M()>0)
-		M_Sys->addSubMatrix(A22, M_VelocityFEM.nb_dof(),M_VelocityFEM.nb_dof(),1./M_Bulk->getDarcyData()->M());
+
+		M_Sys->addSubMatrix(A22, M_VelocityFEM.nb_dof(),M_VelocityFEM.nb_dof());
+
+
 
 		M_Sys->saveMatrix("mat_darcy.mm");
 
@@ -139,14 +162,62 @@ void DarcyProblemT::assembleMatrix()
 void DarcyProblemT::assembleRHS()
 {
 	
+	scalarVectorPtr_Type  source;
+	source.reset(new scalarVector_Type (M_PressureFEM.getFEM()->nb_dof()));
+	gmm::clear(*source);
+
+	scalarSource(source, M_Bulk, M_PressureFEM, M_CoeffFEM, M_intMethod, M_timeLoop->time() );
+		
+	M_Sys->addSubVector(source,M_VelocityFEM.nb_dof());
+		
+	scalarVectorPtr_Type  BCvec;
+	BCvec.reset(new scalarVector_Type (M_VelocityFEM.getFEM()->nb_dof()));
+	gmm::clear(*BCvec);
+	essentialWNitscheRHS( BCvec, M_Bulk, &M_BC, M_VelocityFEM, M_CoeffFEM, M_intMethod);
+	M_Sys->addSubVector(BCvec, 0);		
+		
+	gmm::clear(*BCvec);
+		
+	naturalRHS( BCvec, M_Bulk, &M_BC, M_VelocityFEM, M_CoeffFEM, M_intMethod, M_timeLoop->time() );
+			//std::cout << "bc fatte"<<std::endl;
+
+	M_Sys->addSubVector(BCvec, 0);	
+
+	gmm::clear(*BCvec);
+
+    vectorSource( BCvec, M_Bulk, M_VelocityFEM, M_CoeffFEM, M_intMethod);
+		
+	M_Sys->addSubVector(BCvec, 0);
+		// RHS: (1/(M_v*Δt)) * M_standard * p^n
+	if (M_Bulk->getDarcyData()->M() > 0) {
+		scalar_type scaling = 1.0 / (M_Bulk->getDarcyData()->M() * M_dt);
+		M_Sys->multAddToRHS(M_pressureMass, M_pressureSolOld, 0,
+							M_VelocityFEM.nb_dof(), scaling);
+		}
+}
+
+/*
+void DarcyProblemT::assembleRHS_RussianDoll_interp(LinearSystem* sys, std::string where)
+{
+
+			scalar_type currentTime = M_timeLoop->time();
+			scalar_type dt = M_timeLoop->dt();
+			
+			// Imposta l'interpolazione per la condizione al contorno esterna
+			size_type currentStep = static_cast<int>(currentTime / dt);
+			size_type degree= M_Bulk->get_polydegree();
+
+			//M_BC.setOuterBoundaryInterpolationP("line_profiles/pressure1/real/p_real_" + LifeV::number2string(currentStep) + ".csv", degree);
+			M_BC.setOuterBoundaryInterpolationP("line_profiles/pressure1/approximated/p_ideal_" + LifeV::number2string(currentStep) + ".csv", degree);
+			
 			scalarVectorPtr_Type  source;
 			source.reset(new scalarVector_Type (M_PressureFEM.getFEM()->nb_dof()));
 			gmm::clear(*source);
 
-			scalarSource(source, M_Bulk, M_PressureFEM, M_CoeffFEM, M_intMethod, M_timeLoop->time() );
+			scalarSource(source, M_Bulk, M_PressureFEM, M_CoeffFEM, M_intMethod, currentTime );
 		
 			M_Sys->addSubVector(source,M_VelocityFEM.nb_dof());
-		
+
 			scalarVectorPtr_Type  BCvec;
 			BCvec.reset(new scalarVector_Type (M_VelocityFEM.getFEM()->nb_dof()));
 			gmm::clear(*BCvec);
@@ -156,21 +227,32 @@ void DarcyProblemT::assembleRHS()
 			gmm::clear(*BCvec);
 		
 			naturalRHS( BCvec, M_Bulk, &M_BC, M_VelocityFEM, M_CoeffFEM, M_intMethod, M_timeLoop->time() );
-			//std::cout << "bc fatte"<<std::endl;
+			std::cout << "bc fatte"<<std::endl;
 
 			M_Sys->addSubVector(BCvec, 0);	
 
 			gmm::clear(*BCvec);
 
-                        vectorSource( BCvec, M_Bulk, M_VelocityFEM, M_CoeffFEM, M_intMethod);
+            vectorSource( BCvec, M_Bulk, M_VelocityFEM, M_CoeffFEM, M_intMethod);
 		
 			M_Sys->addSubVector(BCvec, 0);
 			if (M_Bulk->getDarcyData()->M()>0)
 			M_Sys->multAddToRHS(A22,M_pressureSolOld, 0, M_VelocityFEM.nb_dof(),1./M_Bulk->getDarcyData()->M());
 
-
+			//termine extra
+			scalarVectorPtr_Type  pv;
+			pv.reset(new scalarVector_Type (M_PressureFEM.getFEM()->nb_dof()));
+			gmm::clear(*pv);
+			for (size_type i=0; i<M_PressureFEM.getFEM()->nb_dof();++i)
+			{
+				bgeot::base_node nodo(M_PressureFEM.point_of_basic_dof(i));
+				(*pv)[i]=M_BC.evaluateOuterBoundaryConditionPressure(nodo[2]);
+			}
+			double leakage = M_Bulk->getDarcyData()->getLeakage();
+			M_Sys->multAddToRHS(A22,pv, 0, M_VelocityFEM.nb_dof(),leakage*M_timeLoop->dt());
 
 }
+*/
 
 void DarcyProblemT::solve()
 {
@@ -205,21 +287,23 @@ void DarcyProblemT::extractSol(scalarVectorPtr_Type sol)
 
 scalar_type DarcyProblemT::computeError(std::string what, scalar_type time)
 {
-	std::cout << "compute error"<<std::endl;
-	scalar_type error;
-	scalarVector_Type loc_err(M_PressureFEM.getFEM()->nb_dof());
-	if (what=="Pressure" || what=="all")
-	{
-		for (size_type i=0;i<loc_err.size();++i)
+	if (M_Bulk->getDarcyData()->hasExactSolution()){
+		std::cout << "compute error"<<std::endl;
+		scalar_type error;
+		scalarVector_Type loc_err(M_PressureFEM.getFEM()->nb_dof());
+		if (what=="Pressure" || what=="all")
 		{
-			bgeot::base_node where=M_PressureFEM.getFEM()->point_of_basic_dof(i);
-			loc_err[i]=gmm::abs(((*M_pressureSol)[i]) - M_Bulk->getDarcyData()->pEx(where,time) );
-		}
-	}	
-	error=L2Norm ( A22,loc_err, M_Bulk, *(M_PressureFEM.getFEM()), M_intMethod, -1);
-	error=error*M_timeLoop->dt();
-	std::cout <<"at time   "<<time<< "   error pressure   "<<error<<std::endl; 
-	return error;
+			for (size_type i=0;i<loc_err.size();++i)
+			{
+				bgeot::base_node where=M_PressureFEM.getFEM()->point_of_basic_dof(i);
+				loc_err[i]=gmm::abs(((*M_pressureSol)[i]) - M_Bulk->getDarcyData()->pEx(where,time) );
+			}
+		}	
+		error=L2Norm ( M_pressureMass,loc_err, M_Bulk, *(M_PressureFEM.getFEM()), M_intMethod, -1);
+
+		std::cout <<"at time   "<<time<< "   error pressure   "<<error<<std::endl; 
+		return error;
+	}
 }
 
 void DarcyProblemT::exportVtk(std::string folder, std::string what, int frame)

@@ -41,13 +41,23 @@ void massL2Local(sparseMatrixPtr_Type M, Bulk* medium, FEM& femV, FEM& femP,
 /// Mass matrix assembly on specific mesh region
 void massL2(sparseMatrixPtr_Type M, Bulk* medium, getfem::mesh_fem& femV,
             getfem::mesh_fem& femP, getfem::mesh_im& im, scalar_type dt, int region);
+/**
+ * @brief Assemble standard L2 mass matrix without time step scaling
+ * @param M Output mass matrix M = ∫ φ_i φ_j dΩ
+ * @param medium Bulk domain pointer
+ * @param femP Pressure finite element space
+ * @param femC Coefficient finite element space
+ * @param im Integration method
+ */
+void massL2Standard(sparseMatrixPtr_Type M,  FEM& femP, 
+                    FEM& femC, getfem::mesh_im& im);
 
 /// Compute L2 norm of scalar field
 scalar_type L2Norm(scalarVector_Type V, Bulk* medium, FEM& femP, getfem::mesh_im& im);
 
 /// Compute L2 norm of vector field
-scalar_type L2Norm(scalarVector_Type V, Bulk* medium, FEM& femV, FEM& femC,
-                   getfem::mesh_im& im);
+//scalar_type L2Norm(scalarVector_Type V, Bulk* medium, FEM& femV, FEM& femC,
+//                   getfem::mesh_im& im);
 
 /// Compute L2 norm using pointer to vector
 scalar_type L2Norm(scalarVectorPtr_Type V, Bulk* medium, FEM& femP,
