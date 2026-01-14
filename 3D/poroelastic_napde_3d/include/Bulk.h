@@ -59,6 +59,7 @@ public:
     /// Get domain length in z-direction
     inline scalar_type Lz() { return M_Lz; }
 
+    inline size_type getDim() {return M_dim;}
     /**
      * @brief Get the region map from Gmsh import
      * @return Map from physical names to region IDs
@@ -93,6 +94,7 @@ private:
     BulkElastData* M_ElastDataPtr;  ///< Pointer to elasticity data
     
     // Mesh discretization parameters
+    size_type M_dim;              ///< dimension of the problem
     size_type M_Nx, M_Ny, M_Nz;  ///< Number of elements in each direction
     scalar_type M_Lx, M_Ly, M_Lz; ///< Domain dimensions
     

@@ -53,8 +53,6 @@ public:
      */
     bgeot::base_node computeError(scalar_type t);
     
-    /// Build coupling operators between 3D bulk and 2D fracture
-    void build3D2DCoupling();
     
     /// Register DOFs with global linear system
     void addToSys(LinearSystem* sys);

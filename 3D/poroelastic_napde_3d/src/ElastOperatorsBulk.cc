@@ -1,4 +1,5 @@
 #include "../include/ElastOperatorsBulk.h"
+#include <stdexcept>
 
 void stiffElast( sparseMatrixPtr_Type M,
                Bulk* medium, FEM& FemD, FEM& FemC, getfem::mesh_im& im)
@@ -51,14 +52,25 @@ void bulkLoad( scalarVectorPtr_Type V,
     getfem::mesh_fem femD(*(FemD.getFEM()));
     getfem::mesh_fem femC((*FemC.getFEM()));
     
-   
+    size_type dim = femD.linked_mesh().dim();
+    
     getfem::generic_assembly assem;
     
-    assem.set("datax=data$1(#2);""datay=data$2(#2);"
-        "t=comp(vBase(#1).Base(#2));"
-        "V(#1)+=t(:,1,k).datax(k)+t(:,2,k).datay(k);");
+    if (dim == 2) {
+        assem.set("datax=data$1(#2);""datay=data$2(#2);"
+            "t=comp(vBase(#1).Base(#2));"
+            "V(#1)+=t(:,1,k).datax(k)+t(:,2,k).datay(k);");
+    }
+    else if (dim == 3) {
+        assem.set("datax=data$1(#2);""datay=data$2(#2);""dataz=data$3(#2);"
+            "t=comp(vBase(#1).Base(#2));"
+            "V(#1)+=t(:,1,k).datax(k)+t(:,2,k).datay(k)+t(:,3,k).dataz(k);");
+    }
+    else {
+        throw std::runtime_error("bulkLoad: unsupported dimension " + std::to_string(dim));
+    }
         
-      // Assign the mesh integration method
+    // Assign the mesh integration method
     assem.push_mi(im);
     // Assign the mesh finite element space
     assem.push_mf(femD);
@@ -66,8 +78,10 @@ void bulkLoad( scalarVectorPtr_Type V,
     // Assign the mesh finite element space for the coefficients
     assem.push_mf(femC);
     
+    // Declare all data vectors at same scope to ensure they remain valid until assembly
     scalarVector_Type datax(femC.nb_dof());
     scalarVector_Type datay(femC.nb_dof());
+    scalarVector_Type dataz;  // Only populated for 3D
     
     for (size_type i=0; i<femC.nb_dof();++i)
     {
@@ -78,11 +92,20 @@ void bulkLoad( scalarVectorPtr_Type V,
     assem.push_data(datax);
     assem.push_data(datay);
     
+    if (dim == 3) {
+        dataz.resize(femC.nb_dof());
+        for (size_type i=0; i<femC.nb_dof();++i)
+        {
+            dataz [ i ] = medium->getElastData()->bulkLoad(femC.point_of_basic_dof(i),time)[2];
+        }
+        assem.push_data(dataz);
+    }
+    
     // Set the matrices to save the evaluations
     assem.push_vec(*V);
     assem.assembly(-1);
 
-
+    std::cout << "elast :: bulk load (" << dim << "D)     [OK]" << std::endl;
 }
 
 

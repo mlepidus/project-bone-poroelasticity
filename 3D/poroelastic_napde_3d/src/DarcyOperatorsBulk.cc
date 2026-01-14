@@ -1,6 +1,6 @@
 #include "../include/DarcyOperatorsBulk.h"
 
-void massL2( sparseMatrixPtr_Type M,
+void massL2( sparseMatrixPtr_Type M,   
                Bulk* medium, FEM& FemP, FEM& FemC, getfem::mesh_im& im, scalar_type dt)
 {
 
@@ -112,7 +112,8 @@ void massL2( sparseMatrixPtr_Type M,
 
 }
 
-void massL2Standard(sparseMatrixPtr_Type M, Bulk* medium, FEM& femP, 
+//rivedi per dimensione
+void massL2Standard(sparseMatrixPtr_Type M,  FEM& femP, 
                     FEM& femC, getfem::mesh_im& im)
 {
     // Same as massL2 but with dt=1 and leakage=0
@@ -427,12 +428,24 @@ void vectorSource (scalarVectorPtr_Type V, Bulk* medium,  FEM& FemV, FEM& FemC, 
 {
 
 	  getfem::mesh_fem femV(*(FemV.getFEM()));
-          getfem::mesh_fem femC((*FemC.getFEM()));
+        getfem::mesh_fem femC((*FemC.getFEM()));
     
+     size_type dim = medium->getDim();
+
 	  getfem::generic_assembly assem;
-	  assem.set("vx=data$1(#2);" "vy=data$2(#2);"
+     if (dim == 2) {
+	      assem.set("vx=data$1(#2);" "vy=data$2(#2);"
 		       "a=comp(vBase(#1).Base(#2));"
 		       "V(#1)+=a(:,1,k).vx(k)+a(:,2,k).vy(k)");
+	  }
+	  else if (dim == 3) {
+	      assem.set("vx=data$1(#2);" "vy=data$2(#2);" "vz=data$3(#2);"
+		       "a=comp(vBase(#1).Base(#2));"
+		       "V(#1)+=a(:,1,k).vx(k)+a(:,2,k).vy(k)+a(:,3,k).vz(k)");
+	  }
+	  else {
+	      throw std::runtime_error("vectorSource: unsupported dimension " + std::to_string(dim));
+	  }
 
 	  std::vector<scalar_type>  sourceValX(femC.nb_dof(),0.0);
 	  std::vector<scalar_type>  sourceValY(femC.nb_dof(),0.0);

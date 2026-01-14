@@ -19,7 +19,7 @@ Bulk::Bulk ( const GetPot& dataFile,
 	        M_ElastData( dataFile),
             M_ElastDataPtr(nullptr),
 
-
+        M_dim(dataFile( ( M_sectionDomain+ "dimension").data(),3 ) ),
         M_Nx ( dataFile ( ( M_sectionDomain + "spatialDiscretizationX" ).data (), 10 ) ),
         M_Ny ( dataFile ( ( M_sectionDomain + "spatialDiscretizationY" ).data (), 10 ) ),
         M_Nz ( dataFile ( ( M_sectionDomain + "spatialDiscretizationZ" ).data (), 10 ) ),
@@ -48,17 +48,35 @@ Bulk::Bulk ( const GetPot& dataFile,
     // Check if external mesh file is specified
     if (M_meshFile.compare("none")==0)
     {
+           if (N != M_dim) {
+            std::ostringstream error_msg;
+            error_msg << "\n========================================\n"
+                      << "  DIMENSION MISMATCH ERROR\n"
+                      << "========================================\n"
+                      << "Requested dimension in input file: " << M_dim << "\n"
+                      << "Mesh type '" << M_meshType << "' has dimension: " << N << "\n\n"
+                      << "Please ensure that:\n"
+                      << "  1. The 'dimension' parameter matches your mesh type\n"
+                      << "  2. For 2D: use meshType = GT_PK(2,1) or GT_QK(2,1)\n"
+                      << "  3. For 3D: use meshType = GT_PK(3,1) or GT_QK(3,1)\n"
+                      << "========================================\n";
+            throw std::runtime_error(error_msg.str());
+        }
+
+        std::cout << "Domain dimension: " << N << "D" << std::endl;
     // Generate internal structured mesh
     std::cout << "Creating a semi-structured default mesh "<<std::endl;
     nsubdiv[0]= M_Nx; 
     nsubdiv[1]= M_Ny;
-    nsubdiv[2]= M_Nz;
+    if (N==3)
+        nsubdiv[2]= M_Nz;
     getfem::regular_unit_mesh(M_mesh, nsubdiv, pgt,false);  //creates a semi-structured mesh
 
     bgeot::base_matrix M(N,N);  //transformation matrix (scaling, shearing, etc)
     M(0,0)=M_Lx;  	        // scale the unit mesh to [LX,LY]
     M(1,1)=M_Ly; 
-    M(2,2)=M_Lz; 
+    if (N==3)
+        M(2,2)=M_Lz; 
   
     M_mesh.transformation(M);
     M_hasExternalMesh = false;
@@ -75,6 +93,22 @@ Bulk::Bulk ( const GetPot& dataFile,
        getfem::import_mesh_gmsh(M_meshFolder + M_meshFile, M_mesh, M_regmap); //read mesh and boundary regions
        M_hasExternalMesh = true;
        //std::cout << M_regmap.size() << "\n";
+
+        size_type meshDim = M_mesh.dim();
+       if (meshDim != M_dim) {
+           std::ostringstream error_msg;
+           error_msg << "\n========================================\n"
+                     << "  DIMENSION MISMATCH ERROR\n"
+                     << "========================================\n"
+                     << "Requested dimension in input file: " << M_dim << "\n"
+                     << "External mesh '" << M_meshFile << "' has dimension: " << meshDim << "\n\n"
+                     << "Please ensure that:\n"
+                     << "  1. The 'dimension' parameter matches your external mesh\n"
+                     << "  2. Or regenerate the mesh with the correct dimension\n"
+                     << "========================================\n";
+           throw std::runtime_error(error_msg.str());
+       }
+        std::cout << "Domain dimension: " << meshDim << "D" << std::endl;
         std::cout << "Mesh import successful!" << std::endl;
         std::cout << "Number of physical groups: " << M_regmap.size() << std::endl;
         
