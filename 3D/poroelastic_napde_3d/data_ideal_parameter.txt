@@ -65,7 +65,7 @@
 		
         [../]
 
-          [./mecc]
+        [./mecc]
 
 		bcflag = [0,1,1,1]  %0 means displacement   %%ext,int, low,up
 		nBoundaries = 4
@@ -88,4 +88,11 @@
 
         [../]
 
+[../]
+
+[solver]
+       type = BICGSTAB
+       preconditioner = ILU
+       maxIterations = 1000
+       tolerance = 1.0e-8
 [../]

@@ -37,9 +37,6 @@ BC::BC(const GetPot& dataFile,
     
 }
 
-// ============================================================================
-// Boundary Assignment from Gmsh Tags
-// ============================================================================
 
 void BC::setBoundariesFromTags(getfem::mesh* meshPtr, 
                                const std::map<std::string, size_type>& regmap)
@@ -158,6 +155,115 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
     
     std::cout << "=== Boundary assignment complete ===\n" << std::endl;
 }
+
+/*
+void BC::setBoundariesFromTags(getfem::mesh* meshPtr, 
+                               const std::map<std::string, size_type>& regmap)
+{
+    std::cout << "\n=== BC::setBoundariesFromTags ===" << std::endl;
+    std::cout << "Setting boundaries from Gmsh physical tags (by numerical order)..." << std::endl;
+    
+    // Get all regions that exist in the mesh
+    dal::bit_vector mesh_regions = meshPtr->regions_index();
+    
+    std::cout << "Available regions in mesh:" << std::endl;
+    for (dal::bv_visitor i(mesh_regions); !i.finished(); ++i) {
+        getfem::mesh_region region = meshPtr->region(i);
+        size_t count = 0;
+        for (getfem::mr_visitor it(region); !it.finished(); ++it) {
+            count++;
+        }
+        std::cout << "  Region " << i << ": " << count << " faces" << std::endl;
+    }
+    
+    std::cout << "\nPhysical names from Gmsh:" << std::endl;
+    for (const auto& pair : regmap) {
+        std::cout << "  '" << pair.first << "' -> Gmsh tag " << pair.second << std::endl;
+    }
+    
+    // Create a vector of (tag_id, name) pairs and sort by tag_id
+    std::vector<std::pair<size_type, std::string>> sorted_regions;
+    for (const auto& pair : regmap) {
+        sorted_regions.push_back({pair.second, pair.first});
+    }
+    
+    // Sort by tag ID (first element of pair)
+    std::sort(sorted_regions.begin(), sorted_regions.end());
+    
+    std::cout << "\nSorted regions by tag number:" << std::endl;
+    for (size_t i = 0; i < sorted_regions.size(); ++i) {
+        std::cout << "  Tag " << sorted_regions[i].first 
+                  << " ('" << sorted_regions[i].second 
+                  << "') -> internal region " << i << std::endl;
+    }
+    
+    // Verify we have enough boundaries defined
+    if (sorted_regions.size() > M_nBoundaries) {
+        std::cerr << "WARNING: Found " << sorted_regions.size() 
+                  << " Gmsh regions but only " << M_nBoundaries 
+                  << " boundaries defined in input file!" << std::endl;
+        std::cerr << "Only the first " << M_nBoundaries 
+                  << " regions will be assigned." << std::endl;
+    }
+    
+    // Assign Gmsh regions to internal regions based on tag order
+    std::cout << "\nAssigning Gmsh regions to internal regions..." << std::endl;
+    
+    for (size_t internal_id = 0; internal_id < std::min(sorted_regions.size(), (size_t)M_nBoundaries); ++internal_id) {
+        size_type gmsh_tag = sorted_regions[internal_id].first;
+        const std::string& physical_name = sorted_regions[internal_id].second;
+        
+        if (mesh_regions.is_in(gmsh_tag)) {
+            getfem::mesh_region gmsh_region = meshPtr->region(gmsh_tag);
+            
+            size_t face_count = 0;
+            for (getfem::mr_visitor face_it(gmsh_region); !face_it.finished(); ++face_it) {
+                meshPtr->region(internal_id).add(face_it.cv(), face_it.f());
+                face_count++;
+            }
+            
+            std::cout << "  ✓ Assigned " << face_count << " faces from '" 
+                      << physical_name << "' (Gmsh tag " << gmsh_tag 
+                      << ") to internal region " << internal_id << std::endl;
+        }
+        else {
+            std::cout << "  ✗ Warning: Gmsh tag " << gmsh_tag 
+                      << " for '" << physical_name << "' not found!" << std::endl;
+        }
+    }
+    
+    // Verify assignment
+    std::cout << "\nVerification - Internal regions after assignment:" << std::endl;
+    for (size_type i = 0; i < M_nBoundaries; ++i) {
+        size_t count = 0;
+        getfem::mesh_region region = meshPtr->region(i);
+        for (getfem::mr_visitor it(region); !it.finished(); ++it) {
+            count++;
+        }
+        
+        std::string bc_type = "Unknown";
+        if (M_BC[i] == 0) bc_type = "Dirichlet";
+        else if (M_BC[i] == 1) bc_type = "Neumann";
+        else if (M_BC[i] == 2) bc_type = "Mixed";
+        
+        std::cout << "  Region " << i << ": " << count 
+                  << " faces (BC type: " << bc_type << ")";
+        
+        // Show which Gmsh region this corresponds to
+        if (i < sorted_regions.size()) {
+            std::cout << " [from Gmsh tag " << sorted_regions[i].first 
+                      << " '" << sorted_regions[i].second << "']";
+        }
+        std::cout << std::endl;
+        
+        if (count == 0) {
+            std::cout << "    WARNING: No faces assigned!" << std::endl;
+        }
+    }
+    
+    std::cout << "=== Boundary assignment complete ===\n" << std::endl;
+}
+*/
 
 // ============================================================================
 // Geometric Boundary Detection (Fallback)

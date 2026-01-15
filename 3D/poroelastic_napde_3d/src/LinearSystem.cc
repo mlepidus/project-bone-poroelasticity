@@ -1,11 +1,24 @@
 #include "../include/LinearSystem.h"
 
+// ============================================================================
+// Constructor
+// ============================================================================
 
-LinearSystem::LinearSystem( ):
-		M_Matrix(),
-		M_RHS()
+LinearSystem::LinearSystem() :
+    M_Matrix(),
+    M_RHS(),
+    M_gotInverse(false),
+    M_ndof(0),
+    M_iterations(0),
+    M_residual(0.0),
+    M_converged(false),
+    M_solverType(SolverType::SUPERLU),          // Default to SuperLU
+    M_precondType(PreconditionerType::NONE),    // Default to no preconditioner
+    M_maxIter(1000),                            // Default max iterations
+    M_tolerance(1e-8),                          // Default tolerance
+    M_verbose(true)                             // Default verbose on
 {
-   M_gotInverse=false;
+	//configureSolver(dataFile, "solver")
 }
 
 void LinearSystem::addToMatrix(int ndof)
@@ -22,11 +35,67 @@ void LinearSystem::addToMatrix(int ndof)
 	else
 	{
 		M_RHS.reset(new scalarVector_Type (ndof));
-		M_Sol.reset(new scalarVector_Type (ndof));
-		
+		M_Sol.reset(new scalarVector_Type (ndof));		
 		M_Matrix.reset(new sparseMatrix_Type (ndof,ndof));
 	}
 }
+
+// ============================================================================
+// Solver Configuration from Data File
+// ============================================================================
+
+void LinearSystem::configureSolver(const GetPot& dataFile, const std::string& section)
+{
+    std::cout << "\n=== Reading Solver Configuration ===" << std::endl;
+    
+    // Read solver type
+    std::string solverStr = dataFile((section + "type").data(), "SUPERLU");
+    std::cout << "Solver type: " << solverStr << std::endl;
+    
+    if (solverStr == "SUPERLU" || solverStr == "superlu")
+        M_solverType = SolverType::SUPERLU;
+    else if (solverStr == "GMRES" || solverStr == "gmres")
+        M_solverType = SolverType::GMRES;
+    else if (solverStr == "BICGSTAB" || solverStr == "bicgstab" || solverStr == "BiCGSTAB")
+        M_solverType = SolverType::BICGSTAB;
+    else {
+        std::cerr << "WARNING: Unknown solver type '" << solverStr 
+                  << "', defaulting to SUPERLU" << std::endl;
+        M_solverType = SolverType::SUPERLU;
+    }
+    
+    // Read preconditioner type (only relevant for iterative solvers)
+    std::string precondStr = dataFile((section + "preconditioner").data(), "NONE");
+    std::cout << "Preconditioner: " << precondStr << std::endl;
+    
+    if (precondStr == "NONE" || precondStr == "none")
+        M_precondType = PreconditionerType::NONE;
+    else if (precondStr == "DIAGONAL" || precondStr == "diagonal" || precondStr == "jacobi")
+        M_precondType = PreconditionerType::DIAGONAL;
+    else if (precondStr == "ILU" || precondStr == "ilu")
+        M_precondType = PreconditionerType::ILU;
+    else if (precondStr == "ILUT" || precondStr == "ilut")
+        M_precondType = PreconditionerType::ILUT;
+    else {
+        std::cerr << "WARNING: Unknown preconditioner '" << precondStr 
+                  << "', defaulting to NONE" << std::endl;
+        M_precondType = PreconditionerType::NONE;
+    }
+    
+    // Read iteration parameters
+    M_maxIter = dataFile((section + "maxIterations").data(), 1000);
+    M_tolerance = dataFile((section + "tolerance").data(), 1e-8);
+    M_verbose = dataFile((section + "verbose").data(), 1) != 0;
+    
+    std::cout << "Max iterations: " << M_maxIter << std::endl;
+    std::cout << "Tolerance: " << M_tolerance << std::endl;
+    std::cout << "Verbose: " << (M_verbose ? "true" : "false") << std::endl;
+    std::cout << "====================================\n" << std::endl;
+}
+
+// ============================================================================
+// Matrix/Vector Assembly Operations
+// ============================================================================
 
 void LinearSystem::copySubMatrix(sparseMatrixPtr_Type M, int first_row, int first_column, scalar_type scale, bool transpose)
 {
@@ -140,20 +209,263 @@ void LinearSystem::multAddToRHS(sparseMatrixPtr_Type M, scalarVector_Type& V,  i
 	}
 }
 
+// ============================================================================
+// MAIN SOLVE FUNCTION - Uses Stored Configuration
+// ============================================================================
+
 void LinearSystem::solve()
 {
-   if (M_gotInverse) //da levare
-   {
-        gmm::clear(*M_Sol);
-	gmm::mult(*M_InverseMatrix, *M_RHS, *M_Sol);
-   }
-   else
-   {
-   	scalar_type rcond;
-  	gmm::clear(*M_Sol);
-	SuperLU_solve(*M_Matrix, *M_Sol, *M_RHS, rcond); //solver da cambiare //to do
-   }
+    // Reset convergence info
+    M_iterations = 0;
+    M_residual = 0.0;
+    M_converged = false;
+    
+    if (M_verbose)
+    {
+        std::cout << "\n=== Linear System Solve ===" << std::endl;
+        std::cout << "System size: " << M_ndof << " DOFs" << std::endl;
+        std::cout << "Matrix non-zeros: " << gmm::nnz(*M_Matrix) << std::endl;
+    }
+    
+    // Choose solver based on stored configuration
+    switch (M_solverType)
+    {
+        case SolverType::SUPERLU:
+            if (M_verbose) std::cout << "Solver: SuperLU (direct)" << std::endl;
+            solveDirect_SuperLU();
+            break;
+            
+        case SolverType::GMRES:
+            if (M_verbose)
+            {
+                std::cout << "Solver: GMRES (iterative)" << std::endl;
+                std::cout << "Max iterations: " << M_maxIter << std::endl;
+                std::cout << "Tolerance: " << M_tolerance << std::endl;
+            }
+            solveIterative_GMRES(M_precondType, M_maxIter, M_tolerance, M_verbose);
+            break;
+            
+        case SolverType::BICGSTAB:
+            if (M_verbose)
+            {
+                std::cout << "Solver: BiCGSTAB (iterative)" << std::endl;
+                std::cout << "Max iterations: " << M_maxIter << std::endl;
+                std::cout << "Tolerance: " << M_tolerance << std::endl;
+            }
+            solveIterative_BiCGSTAB(M_precondType, M_maxIter, M_tolerance, M_verbose);
+            break;
+            
+        default:
+            std::cerr << "ERROR: Unknown solver type, using SuperLU" << std::endl;
+            solveDirect_SuperLU();
+    }
+    
+    if (M_verbose)
+    {
+        if (M_converged)
+        {
+            std::cout << "✓ Solve successful";
+            if (M_iterations > 0)
+                std::cout << " (" << M_iterations << " iterations, residual: " 
+                          << M_residual << ")";
+            std::cout << std::endl;
+        }
+        else
+        {
+            std::cout << "✗ Solve failed or did not converge" << std::endl;
+        }
+        std::cout << "==========================\n" << std::endl;
+    }
 }
+
+// ============================================================================
+// DIRECT SOLVER
+// ============================================================================
+
+void LinearSystem::solveDirect_SuperLU()
+{
+    if (M_gotInverse)
+    {
+        // Use precomputed inverse
+        gmm::clear(*M_Sol);
+        gmm::mult(*M_InverseMatrix, *M_RHS, *M_Sol);
+        M_converged = true;
+    }
+    else
+    {
+        // Solve using SuperLU
+        scalar_type rcond;
+        gmm::clear(*M_Sol);
+        
+        try
+        {
+            SuperLU_solve(*M_Matrix, *M_Sol, *M_RHS, rcond);
+            M_converged = true;
+            
+            // Check condition number warning
+            if (rcond < 1e-12)
+            {
+                std::cout << "WARNING: Matrix is near-singular (rcond = " 
+                          << rcond << ")" << std::endl;
+            }
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "ERROR in SuperLU_solve: " << e.what() << std::endl;
+            M_converged = false;
+        }
+    }
+}
+
+// ============================================================================
+// ITERATIVE SOLVERS
+// ============================================================================
+
+void LinearSystem::solveIterative_GMRES(PreconditionerType precondType,
+                                       int maxIter,
+                                       scalar_type tol,
+                                       bool verbose)
+{
+    gmm::clear(*M_Sol);
+    
+    // Setup iteration object for convergence monitoring
+    gmm::iteration iter(tol);
+    iter.set_maxiter(maxIter);
+    iter.set_noisy(verbose ? 1 : 0);
+    
+    try
+    {
+        switch (precondType)
+        {
+            case PreconditionerType::NONE:
+            {
+                if (verbose) std::cout << "Preconditioner: None" << std::endl;
+                gmm::identity_matrix P;
+                gmm::gmres(*M_Matrix, *M_Sol, *M_RHS, P, 50, iter);
+                break;
+            }
+            
+            case PreconditionerType::DIAGONAL:
+            {
+                if (verbose) std::cout << "Preconditioner: Diagonal (Jacobi)" << std::endl;
+                gmm::diagonal_precond<sparseMatrix_Type> P(*M_Matrix);
+                gmm::gmres(*M_Matrix, *M_Sol, *M_RHS, P, 50, iter);
+                break;
+            }
+            
+            case PreconditionerType::ILU:
+            {
+                if (verbose) std::cout << "Preconditioner: ILU(0)" << std::endl;
+                gmm::ilu_precond<sparseMatrix_Type> P(*M_Matrix);
+                gmm::gmres(*M_Matrix, *M_Sol, *M_RHS, P, 50, iter);
+                break;
+            }
+            
+            case PreconditionerType::ILUT:
+            {
+                if (verbose) std::cout << "Preconditioner: ILUT" << std::endl;
+                gmm::ilut_precond<sparseMatrix_Type> P(*M_Matrix, 20, 1e-6);
+                gmm::gmres(*M_Matrix, *M_Sol, *M_RHS, P, 50, iter);
+                break;
+            }
+            
+            default:
+                std::cerr << "WARNING: Unknown preconditioner, using none" << std::endl;
+                gmm::identity_matrix P;
+                gmm::gmres(*M_Matrix, *M_Sol, *M_RHS, P, 50, iter);
+        }
+        
+        M_iterations = iter.get_iteration();
+        M_residual = iter.get_res();
+        M_converged = iter.converged();
+        
+        if (!M_converged)
+        {
+            std::cerr << "WARNING: GMRES did not converge in " << maxIter 
+                      << " iterations (residual: " << M_residual << ")" << std::endl;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "ERROR in GMRES solve: " << e.what() << std::endl;
+        M_converged = false;
+    }
+}
+
+void LinearSystem::solveIterative_BiCGSTAB(PreconditionerType precondType,
+                                           int maxIter,
+                                           scalar_type tol,
+                                           bool verbose)
+{
+    gmm::clear(*M_Sol);
+    
+    // Setup iteration object
+    gmm::iteration iter(tol);
+    iter.set_maxiter(maxIter);
+    iter.set_noisy(verbose ? 1 : 0);
+    
+    try
+    {
+        switch (precondType)
+        {
+            case PreconditionerType::NONE:
+            {
+                if (verbose) std::cout << "Preconditioner: None" << std::endl;
+                gmm::identity_matrix P;
+                gmm::bicgstab(*M_Matrix, *M_Sol, *M_RHS, P, iter);
+                break;
+            }
+            
+            case PreconditionerType::DIAGONAL:
+            {
+                if (verbose) std::cout << "Preconditioner: Diagonal (Jacobi)" << std::endl;
+                gmm::diagonal_precond<sparseMatrix_Type> P(*M_Matrix);
+                gmm::bicgstab(*M_Matrix, *M_Sol, *M_RHS, P, iter);
+                break;
+            }
+            
+            case PreconditionerType::ILU:
+            {
+                if (verbose) std::cout << "Preconditioner: ILU(0)" << std::endl;
+                gmm::ilu_precond<sparseMatrix_Type> P(*M_Matrix);
+                gmm::bicgstab(*M_Matrix, *M_Sol, *M_RHS, P, iter);
+                break;
+            }
+            
+            case PreconditionerType::ILUT:
+            {
+                if (verbose) std::cout << "Preconditioner: ILUT" << std::endl;
+                gmm::ilut_precond<sparseMatrix_Type> P(*M_Matrix, 20, 1e-6);
+                gmm::bicgstab(*M_Matrix, *M_Sol, *M_RHS, P, iter);
+                break;
+            }
+            
+            default:
+                std::cerr << "WARNING: Unknown preconditioner, using none" << std::endl;
+                gmm::identity_matrix P;
+                gmm::bicgstab(*M_Matrix, *M_Sol, *M_RHS, P, iter);
+        }
+        
+        M_iterations = iter.get_iteration();
+        M_residual = iter.get_res();
+        M_converged = iter.converged();
+        
+        if (!M_converged)
+        {
+            std::cerr << "WARNING: BiCGSTAB did not converge in " << maxIter 
+                      << " iterations (residual: " << M_residual << ")" << std::endl;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "ERROR in BiCGSTAB solve: " << e.what() << std::endl;
+        M_converged = false;
+    }
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
 void LinearSystem::computeInverse()  //lento
 {
@@ -181,4 +493,3 @@ void LinearSystem::saveMatrix(const char* nomefile)
 {
 	gmm::MatrixMarket_IO::write(nomefile , *M_Matrix); 
 }
-

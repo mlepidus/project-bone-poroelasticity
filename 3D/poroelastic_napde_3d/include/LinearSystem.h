@@ -7,11 +7,34 @@
 #include "Core.h"
 
 /**
+ * @enum SolverType
+ * @brief Available solver types for the linear system
+ */
+enum class SolverType {
+    SUPERLU,      ///< Direct solver (SuperLU) - always works, memory intensive
+    GMRES,        ///< Iterative GMRES - good for non-symmetric systems
+    BICGSTAB      ///< Iterative BiCGSTAB - often faster than GMRES
+};
+
+/**
+ * @enum PreconditionerType
+ * @brief Available preconditioners for iterative solvers
+ */
+enum class PreconditionerType {
+    NONE,         ///< No preconditioning
+    DIAGONAL,     ///< Diagonal (Jacobi) preconditioner
+    ILU,          ///< Incomplete LU factorization
+    ILUT          ///< ILU with threshold
+};
+
+
+/**
  * @class LinearSystem
  * @brief Container for sparse linear system Ax = b with block assembly support
  * 
  * Manages system matrix, right-hand side vector, and solution vector.
  * Supports block-wise assembly for coupled multi-physics problems.
+ * Solver configuration is read from data file and stored internally.
  */
 class LinearSystem {
 public:
@@ -81,11 +104,30 @@ public:
      * @brief Add subsystem RHS only (for time-stepping with constant matrix)
      * @param small Subsystem to add
      * @param shiftRows Row offset in global system
-     * @param shiftColumns Column offset (unused for RHS-only)
      */
     void addSubSystemRHS(LinearSystem* small, size_type shiftRows);
     
-    /// Solve the linear system Ax = b using direct solver
+    /**
+     * @brief Configure solver from data file and store settings internally
+     * @param dataFile GetPot parameter file
+     * @param section Section name in data file (default: "solver/")
+     * 
+     * Reads solver configuration from data file and stores in member variables.
+     * Expected format in data file:
+     * [solver]
+     *     type = BICGSTAB
+     *     preconditioner = ILU
+     *     maxIterations = 1000
+     *     tolerance = 1.0e-8
+     *     verbose = 1
+     * [../]
+     */
+    void configureSolver(const GetPot& dataFile, const std::string& section = "solver/");
+    
+    /**
+     * @brief Solve the linear system using stored configuration
+     * Uses the solver settings loaded via configureSolver()
+     */
     void solve();
     
     /// Compute and store matrix inverse (for small systems only)
@@ -137,13 +179,38 @@ public:
         (*M_RHS)[i] = value;
     }
 
+    /// Get solver convergence information
+    inline int getIterations() const { return M_iterations; }
+    inline scalar_type getResidual() const { return M_residual; }
+    inline bool hasConverged() const { return M_converged; }
+
 private:
     sparseMatrixPtr_Type M_Matrix;        ///< System matrix A
     sparseMatrixPtr_Type M_InverseMatrix; ///< Inverse matrix A^{-1} (if computed)
     scalarVectorPtr_Type M_RHS;           ///< Right-hand side vector b
     scalarVectorPtr_Type M_Sol;           ///< Solution vector x
+
     bool M_gotInverse;                    ///< Flag indicating if inverse is available
-    size_type M_ndof;                           ///< Number of degrees of freedom
+    size_type M_ndof;                     ///< Number of degrees of freedom
+
+    // Solver convergence information
+    int M_iterations;                     ///< Number of iterations performed
+    scalar_type M_residual;               ///< Final residual norm
+    bool M_converged;                     ///< Convergence flag
+    
+    // Solver configuration (stored internally, read from data file)
+    SolverType M_solverType;              ///< Selected solver type
+    PreconditionerType M_precondType;     ///< Selected preconditioner type
+    int M_maxIter;                        ///< Maximum iterations for iterative solvers
+    scalar_type M_tolerance;              ///< Convergence tolerance
+    bool M_verbose;                       ///< Verbose output flag
+    
+    // Private solver methods
+    void solveDirect_SuperLU();
+    void solveIterative_GMRES(PreconditionerType precond, int maxIter, 
+                             scalar_type tol, bool verbose);
+    void solveIterative_BiCGSTAB(PreconditionerType precond, int maxIter,
+                                scalar_type tol, bool verbose);
 };
 
 #endif // LINEARSYSTEM_H

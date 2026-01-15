@@ -69,3 +69,9 @@
         u_ini = [0,0,0]
     [../]
 [../]
+[solver]
+       type = BICGSTAB
+       preconditioner = ILU
+       maxIterations = 1000
+       tolerance = 1.0e-8
+[../]
