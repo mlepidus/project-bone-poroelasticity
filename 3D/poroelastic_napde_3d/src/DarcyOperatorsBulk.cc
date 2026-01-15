@@ -1,5 +1,5 @@
 #include "../include/DarcyOperatorsBulk.h"
-
+/*
 void massL2( sparseMatrixPtr_Type M,   
                Bulk* medium, FEM& FemP, FEM& FemC, getfem::mesh_im& im, scalar_type dt)
 {
@@ -111,6 +111,7 @@ void massL2( sparseMatrixPtr_Type M,
     std::cout << "DARCY :: operator mass(volume)      [OK]" << std::endl;
 
 }
+*/
 
 //rivedi per dimensione
 void massL2Standard(sparseMatrixPtr_Type M,  FEM& femP, 
@@ -137,13 +138,13 @@ void massL2Standard(sparseMatrixPtr_Type M,  FEM& femP,
 
 
 //without providing mass matrix, recompute it
-scalar_type L2Norm ( scalarVectorPtr_Type V, Bulk* medium, FEM& femP, getfem::mesh_im& im)
+scalar_type L2Norm ( scalarVectorPtr_Type V,  FEM& femP, getfem::mesh_im& im)
 {
 	
  	sparseMatrixPtr_Type M;
 	M.reset(new sparseMatrix_Type (femP.nb_dof(),femP.nb_dof()));
 			gmm::clear(*M);
-	massL2(M,  medium, femP,  femP, im, 1);
+	massL2Standard(M, femP,  femP, im);
 	scalarVector_Type VV(V->size(),0);
 	gmm::mult(*M, *V,VV);
 	scalar_type norm=gmm::vect_sp(*V, VV);
@@ -152,12 +153,12 @@ scalar_type L2Norm ( scalarVectorPtr_Type V, Bulk* medium, FEM& femP, getfem::me
 }
 
 
-scalar_type L2Norm ( scalarVector_Type V, Bulk* medium, FEM& femP, getfem::mesh_im& im)
+scalar_type L2Norm ( scalarVector_Type V, FEM& femP, getfem::mesh_im& im)
 {
  	sparseMatrixPtr_Type M;
 	M.reset(new sparseMatrix_Type (femP.nb_dof(),femP.nb_dof()));
 			gmm::clear(*M);
-	massL2(M,  medium, femP,  femP, im, 1);
+		massL2Standard(M, femP,  femP, im);
 	scalarVector_Type VV(V.size(),0);
 	gmm::mult(*M, V,VV);
 	scalar_type norm=gmm::vect_sp(V, VV);
@@ -180,13 +181,13 @@ scalar_type L2Norm ( scalarVector_Type V, Bulk* medium, FEM& femV,FEM& femP, get
 }
 */
 
-scalar_type L2Norm ( sparseMatrixPtr_Type M, scalarVector_Type V, Bulk* medium, getfem::mesh_fem& femP, getfem::mesh_im& im, int region)
+scalar_type L2Norm ( sparseMatrixPtr_Type M, scalarVector_Type V, FEM& femP, getfem::mesh_im& im)
 {
 	if (M==nullptr){
         sparseMatrixPtr_Type M;
         M.reset(new sparseMatrix_Type (femP.nb_dof(),femP.nb_dof()));
                 gmm::clear(*M);
-        massL2(M,  medium, femP,  femP, im, 1, region);
+       	massL2Standard(M, femP,  femP, im);
     }
 	scalarVector_Type VV(V.size(),0);
 	gmm::mult(*M, V,VV);
@@ -427,51 +428,61 @@ void scalarSource (scalarVectorPtr_Type V, Bulk* medium,  FEM& FemP, FEM& FemC, 
 void vectorSource (scalarVectorPtr_Type V, Bulk* medium,  FEM& FemV, FEM& FemC, getfem::mesh_im& im)
 {
 
-	  getfem::mesh_fem femV(*(FemV.getFEM()));
-        getfem::mesh_fem femC((*FemC.getFEM()));
+	getfem::mesh_fem femV(*(FemV.getFEM()));
+    getfem::mesh_fem femC((*FemC.getFEM()));
     
-     size_type dim = medium->getDim();
+    size_type dim = medium->getDim();
 
-	  getfem::generic_assembly assem;
-     if (dim == 2) {
-	      assem.set("vx=data$1(#2);" "vy=data$2(#2);"
-		       "a=comp(vBase(#1).Base(#2));"
-		       "V(#1)+=a(:,1,k).vx(k)+a(:,2,k).vy(k)");
+    std::vector<scalar_type> sourceValX(femC.nb_dof(),0.0);
+    std::vector<scalar_type> sourceValY(femC.nb_dof(),0.0);
+    std::vector<scalar_type> sourceValZ;
+
+	getfem::generic_assembly assem;
+    if (dim == 2) {
+        assem.set("vx=data$1(#2);" "vy=data$2(#2);"
+                  "a=comp(vBase(#1).Base(#2));"
+                  "V(#1)+=a(:,1,k).vx(k)+a(:,2,k).vy(k)");
+        
+        for (size_type i=0; i<femC.nb_dof();++i) {
+            sourceValX[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[0];
+            sourceValY[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[1];
+        }
+        
+        assem.push_mi(im);
+        assem.push_mf(femV);
+        assem.push_mf(femC);
+        assem.push_data(sourceValX);
+        assem.push_data(sourceValY);
+        assem.push_vec(*V);
+        assem.assembly(-1);
+    }
+    else if (dim == 3) {
+        assem.set("vx=data$1(#2);" "vy=data$2(#2);" "vz=data$3(#2);"
+                  "a=comp(vBase(#1).Base(#2));"
+                  "V(#1)+=a(:,1,k).vx(k)+a(:,2,k).vy(k)+a(:,3,k).vz(k)");
+        
+        sourceValZ.resize(femC.nb_dof(), 0.0);  
+        
+        for (size_type i=0; i<femC.nb_dof();++i) {
+            sourceValX[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[0];
+            sourceValY[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[1];
+            sourceValZ[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[2];  
+        }
+        
+        assem.push_mi(im);
+        assem.push_mf(femV);
+        assem.push_mf(femC);
+        assem.push_data(sourceValX);
+        assem.push_data(sourceValY);
+        assem.push_data(sourceValZ);  
+        assem.push_vec(*V);
+        assem.assembly(-1);
+    }
+
+	else {
+	throw std::runtime_error("vectorSource: unsupported dimension " + std::to_string(dim));
 	  }
-	  else if (dim == 3) {
-	      assem.set("vx=data$1(#2);" "vy=data$2(#2);" "vz=data$3(#2);"
-		       "a=comp(vBase(#1).Base(#2));"
-		       "V(#1)+=a(:,1,k).vx(k)+a(:,2,k).vy(k)+a(:,3,k).vz(k)");
-	  }
-	  else {
-	      throw std::runtime_error("vectorSource: unsupported dimension " + std::to_string(dim));
-	  }
-
-	  std::vector<scalar_type>  sourceValX(femC.nb_dof(),0.0);
-	  std::vector<scalar_type>  sourceValY(femC.nb_dof(),0.0);
-	
-	  for (size_type i=0; i<femC.nb_dof();++i)
-	  {
-	  	sourceValX[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[0];
-	  	sourceValY[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[1];
-	  }  	     
-
-          // Assign the mesh integration method
-    	  assem.push_mi(im);
-
-	  // Assign the mesh finite element space
-          assem.push_mf(femV);
-          // Assign the mesh finite element space for the coefficients
-    	  assem.push_mf(femC);
-	  assem.push_data(sourceValX);
-	  assem.push_data(sourceValY);
-	  
-          // Set the matrices to save the evaluations
-          assem.push_vec(*V);
-
-          // Computes the matrices
-          assem.assembly(-1);      
-
+  
 }
 
 void vectorSource (scalarVectorPtr_Type V, FEM& FemV, FEM& FemC, scalarVectorPtr_Type data, getfem::mesh_im& im)

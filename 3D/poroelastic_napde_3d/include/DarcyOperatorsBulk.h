@@ -31,16 +31,17 @@ void massHdiv(sparseMatrixPtr_Type M, Bulk* medium, FEM& femV, FEM& femP,
  * @param im Integration method
  * @param dt Time step size
  */
-void massL2(sparseMatrixPtr_Type M, Bulk* medium, FEM& femV, FEM& femP,
-            getfem::mesh_im& im, scalar_type dt);
+// void massL2(sparseMatrixPtr_Type M, Bulk* medium, FEM& femV, FEM& femP,
+//            getfem::mesh_im& im, scalar_type dt);
 
 /// Local mass matrix assembly for control volume icv
-void massL2Local(sparseMatrixPtr_Type M, Bulk* medium, FEM& femV, FEM& femP,
-                 getfem::mesh_im& im, scalar_type dt, size_type icv);
+// void massL2Local(sparseMatrixPtr_Type M, Bulk* medium, FEM& femV, FEM& femP,
+//                 getfem::mesh_im& im, scalar_type dt, size_type icv);
 
 /// Mass matrix assembly on specific mesh region
-void massL2(sparseMatrixPtr_Type M, Bulk* medium, getfem::mesh_fem& femV,
-            getfem::mesh_fem& femP, getfem::mesh_im& im, scalar_type dt, int region);
+// void massL2(sparseMatrixPtr_Type M, Bulk* medium, getfem::mesh_fem& femV,
+// getfem::mesh_fem& femP, getfem::mesh_im& im, scalar_type dt, int region);
+
 /**
  * @brief Assemble standard L2 mass matrix without time step scaling
  * @param M Output mass matrix M = ∫ φ_i φ_j dΩ
@@ -53,19 +54,19 @@ void massL2Standard(sparseMatrixPtr_Type M,  FEM& femP,
                     FEM& femC, getfem::mesh_im& im);
 
 /// Compute L2 norm of scalar field
-scalar_type L2Norm(scalarVector_Type V, Bulk* medium, FEM& femP, getfem::mesh_im& im);
+scalar_type L2Norm(scalarVector_Type V,  FEM& femP, getfem::mesh_im& im);
 
 /// Compute L2 norm of vector field
 //scalar_type L2Norm(scalarVector_Type V, Bulk* medium, FEM& femV, FEM& femC,
 //                   getfem::mesh_im& im);
 
 /// Compute L2 norm using pointer to vector
-scalar_type L2Norm(scalarVectorPtr_Type V, Bulk* medium, FEM& femP,
+scalar_type L2Norm(scalarVectorPtr_Type V, FEM& femP,
                    getfem::mesh_im& im);
 
 /// Compute weighted L2 norm with mass matrix M
-scalar_type L2Norm(sparseMatrixPtr_Type M, scalarVector_Type V, Bulk* medium,
-                   getfem::mesh_fem& femP, getfem::mesh_im& im, int region = -1);
+scalar_type L2Norm(sparseMatrixPtr_Type M, scalarVector_Type V, 
+                  FEM& femP, getfem::mesh_im& im);
 
 /**
  * @brief Assemble divergence operator B in mixed formulation

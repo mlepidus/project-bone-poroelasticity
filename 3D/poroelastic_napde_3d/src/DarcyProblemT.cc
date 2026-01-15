@@ -133,7 +133,7 @@ void DarcyProblemT::assembleMatrix()
 		gmm::clear(*A22);
 		
 		scalar_type M_v = M_Bulk->getDarcyData()->M();
-		scalar_type gamma = M_Bulk->getDarcyData()->getLeakage();
+		scalar_type gamma = M_Bulk->getDarcyData()->getLeakage(); //IF Russian Doll
 		if (M_v<=0.0){
 			std::cerr << "ERROR: Biot modulus must be positive. M_v = " 
                 	  << M_v << std::endl;
@@ -299,7 +299,7 @@ scalar_type DarcyProblemT::computeError(std::string what, scalar_type time)
 				loc_err[i]=gmm::abs(((*M_pressureSol)[i]) - M_Bulk->getDarcyData()->pEx(where,time) );
 			}
 		}	
-		error=L2Norm ( M_pressureMass,loc_err, M_Bulk, *(M_PressureFEM.getFEM()), M_intMethod, -1);
+		error=L2Norm ( M_pressureMass,loc_err, M_PressureFEM, M_intMethod);
 
 		std::cout <<"at time   "<<time<< "   error pressure   "<<error<<std::endl; 
 		return error;

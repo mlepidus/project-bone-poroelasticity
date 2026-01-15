@@ -52,7 +52,11 @@ void bulkLoad( scalarVectorPtr_Type V,
     getfem::mesh_fem femD(*(FemD.getFEM()));
     getfem::mesh_fem femC((*FemC.getFEM()));
     
-    size_type dim = femD.linked_mesh().dim();
+    size_type dim = medium->getDim();
+    
+    scalarVector_Type datax(femC.nb_dof());
+    scalarVector_Type datay(femC.nb_dof());
+    scalarVector_Type dataz;  // Only populated for 3D
     
     getfem::generic_assembly assem;
     
@@ -78,15 +82,13 @@ void bulkLoad( scalarVectorPtr_Type V,
     // Assign the mesh finite element space for the coefficients
     assem.push_mf(femC);
     
-    // Declare all data vectors at same scope to ensure they remain valid until assembly
-    scalarVector_Type datax(femC.nb_dof());
-    scalarVector_Type datay(femC.nb_dof());
-    scalarVector_Type dataz;  // Only populated for 3D
+
     
     for (size_type i=0; i<femC.nb_dof();++i)
     {
     	datax [ i ] = medium->getElastData()->bulkLoad(femC.point_of_basic_dof(i),time)[0];
     	datay [ i ] = medium->getElastData()->bulkLoad(femC.point_of_basic_dof(i),time)[1];
+
     }
     
     assem.push_data(datax);
