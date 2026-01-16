@@ -1,7 +1,7 @@
 #include "../include/LinearSystem.h"
 
 // ============================================================================
-// Constructor
+// Constructors
 // ============================================================================
 
 LinearSystem::LinearSystem() :
@@ -12,13 +12,33 @@ LinearSystem::LinearSystem() :
     M_iterations(0),
     M_residual(0.0),
     M_converged(false),
-    M_solverType(SolverType::SUPERLU),          // Default to SuperLU
-    M_precondType(PreconditionerType::NONE),    // Default to no preconditioner
-    M_maxIter(1000),                            // Default max iterations
-    M_tolerance(1e-8),                          // Default tolerance
-    M_verbose(true)                             // Default verbose on
+    M_solverType(SolverType::SUPERLU),
+    M_precondType(PreconditionerType::NONE),
+    M_maxIter(1000),
+    M_tolerance(1e-8),
+    M_verbose(false),
+    M_configured(false)  
 {
-	//configureSolver(dataFile, "solver")
+    std::cout << "LinearSystem created (unconfigured - call configureSolver() or use other constructor)" << std::endl;
+}
+
+LinearSystem::LinearSystem(const GetPot& dataFile, const std::string& section) :
+    M_Matrix(),
+    M_RHS(),
+    M_gotInverse(false),
+    M_ndof(0),
+    M_iterations(0),
+    M_residual(0.0),
+    M_converged(false),
+    M_solverType(SolverType::SUPERLU),
+    M_precondType(PreconditionerType::NONE),
+    M_maxIter(1000),
+    M_tolerance(1e-8),
+    M_verbose(false),
+    M_configured(false)
+{
+    // Automatically configure solver from data file
+    configureSolver(dataFile, section);
 }
 
 void LinearSystem::addToMatrix(int ndof)
@@ -40,62 +60,7 @@ void LinearSystem::addToMatrix(int ndof)
 	}
 }
 
-// ============================================================================
-// Solver Configuration from Data File
-// ============================================================================
 
-void LinearSystem::configureSolver(const GetPot& dataFile, const std::string& section)
-{
-    std::cout << "\n=== Reading Solver Configuration ===" << std::endl;
-    
-    // Read solver type
-    std::string solverStr = dataFile((section + "type").data(), "SUPERLU");
-    std::cout << "Solver type: " << solverStr << std::endl;
-    
-    if (solverStr == "SUPERLU" || solverStr == "superlu")
-        M_solverType = SolverType::SUPERLU;
-    else if (solverStr == "GMRES" || solverStr == "gmres")
-        M_solverType = SolverType::GMRES;
-    else if (solverStr == "BICGSTAB" || solverStr == "bicgstab" || solverStr == "BiCGSTAB")
-        M_solverType = SolverType::BICGSTAB;
-    else {
-        std::cerr << "WARNING: Unknown solver type '" << solverStr 
-                  << "', defaulting to SUPERLU" << std::endl;
-        M_solverType = SolverType::SUPERLU;
-    }
-    
-    // Read preconditioner type (only relevant for iterative solvers)
-    std::string precondStr = dataFile((section + "preconditioner").data(), "NONE");
-    std::cout << "Preconditioner: " << precondStr << std::endl;
-    
-    if (precondStr == "NONE" || precondStr == "none")
-        M_precondType = PreconditionerType::NONE;
-    else if (precondStr == "DIAGONAL" || precondStr == "diagonal" || precondStr == "jacobi")
-        M_precondType = PreconditionerType::DIAGONAL;
-    else if (precondStr == "ILU" || precondStr == "ilu")
-        M_precondType = PreconditionerType::ILU;
-    else if (precondStr == "ILUT" || precondStr == "ilut")
-        M_precondType = PreconditionerType::ILUT;
-    else {
-        std::cerr << "WARNING: Unknown preconditioner '" << precondStr 
-                  << "', defaulting to NONE" << std::endl;
-        M_precondType = PreconditionerType::NONE;
-    }
-    
-    // Read iteration parameters
-    M_maxIter = dataFile((section + "maxIterations").data(), 1000);
-    M_tolerance = dataFile((section + "tolerance").data(), 1e-8);
-    M_verbose = dataFile((section + "verbose").data(), 1) != 0;
-    
-    std::cout << "Max iterations: " << M_maxIter << std::endl;
-    std::cout << "Tolerance: " << M_tolerance << std::endl;
-    std::cout << "Verbose: " << (M_verbose ? "true" : "false") << std::endl;
-    std::cout << "====================================\n" << std::endl;
-}
-
-// ============================================================================
-// Matrix/Vector Assembly Operations
-// ============================================================================
 
 void LinearSystem::copySubMatrix(sparseMatrixPtr_Type M, int first_row, int first_column, scalar_type scale, bool transpose)
 {
@@ -209,13 +174,71 @@ void LinearSystem::multAddToRHS(sparseMatrixPtr_Type M, scalarVector_Type& V,  i
 	}
 }
 
+
+void LinearSystem::configureSolver(const GetPot& dataFile, const std::string& section)
+{
+    std::cout << "\n=== Configuring Linear Solver ===" << std::endl;
+    
+    // Read solver type
+    std::string solverStr = dataFile((section + "type").data(), "SUPERLU");
+    std::cout << "Solver type: " << solverStr << std::endl;
+    
+    if (solverStr == "SUPERLU" || solverStr == "superlu")
+        M_solverType = SolverType::SUPERLU;
+    else if (solverStr == "GMRES" || solverStr == "gmres")
+        M_solverType = SolverType::GMRES;
+    else if (solverStr == "BICGSTAB" || solverStr == "bicgstab" || solverStr == "BiCGSTAB")
+        M_solverType = SolverType::BICGSTAB;
+    else {
+        std::cerr << "WARNING: Unknown solver type '" << solverStr 
+                  << "', defaulting to SUPERLU" << std::endl;
+        M_solverType = SolverType::SUPERLU;
+    }
+    
+    // Read preconditioner type
+    std::string precondStr = dataFile((section + "preconditioner").data(), "NONE");
+    std::cout << "Preconditioner: " << precondStr << std::endl;
+    
+    if (precondStr == "NONE" || precondStr == "none")
+        M_precondType = PreconditionerType::NONE;
+    else if (precondStr == "DIAGONAL" || precondStr == "diagonal" || precondStr == "jacobi")
+        M_precondType = PreconditionerType::DIAGONAL;
+    else if (precondStr == "ILU" || precondStr == "ilu")
+        M_precondType = PreconditionerType::ILU;
+    else if (precondStr == "ILUT" || precondStr == "ilut")
+        M_precondType = PreconditionerType::ILUT;
+    else {
+        std::cerr << "WARNING: Unknown preconditioner '" << precondStr 
+                  << "', defaulting to NONE" << std::endl;
+        M_precondType = PreconditionerType::NONE;
+    }
+    
+    // Read iteration parameters
+    M_maxIter = dataFile((section + "maxIterations").data(), 1000);
+    M_tolerance = dataFile((section + "tolerance").data(), 1e-8);
+    M_verbose = dataFile((section + "verbose").data(), 1) != 0;
+    
+    std::cout << "Max iterations: " << M_maxIter << std::endl;
+    std::cout << "Tolerance: " << M_tolerance << std::endl;
+    std::cout << "Verbose: " << (M_verbose ? "true" : "false") << std::endl;
+    
+    M_configured = true;  // Mark as configured
+    std::cout << "=== Solver Configuration Complete ===\n" << std::endl;
+}
+
 // ============================================================================
-// MAIN SOLVE FUNCTION - Uses Stored Configuration
+// Main Solve - Uses Stored Configuration
 // ============================================================================
 
 void LinearSystem::solve()
 {
-    // Reset convergence info
+    // Check if solver was configured
+    if (!M_configured)
+    {
+        std::cerr << "WARNING: Solver not configured! Using default settings (SuperLU)." << std::endl;
+        std::cerr << "Call configureSolver() or use the constructor with dataFile parameter." << std::endl;
+    }
+    
     M_iterations = 0;
     M_residual = 0.0;
     M_converged = false;
@@ -227,7 +250,6 @@ void LinearSystem::solve()
         std::cout << "Matrix non-zeros: " << gmm::nnz(*M_Matrix) << std::endl;
     }
     
-    // Choose solver based on stored configuration
     switch (M_solverType)
     {
         case SolverType::SUPERLU:
@@ -278,22 +300,18 @@ void LinearSystem::solve()
     }
 }
 
-// ============================================================================
-// DIRECT SOLVER
-// ============================================================================
+// [Keep all the existing solver implementation methods as they are]
 
 void LinearSystem::solveDirect_SuperLU()
 {
     if (M_gotInverse)
     {
-        // Use precomputed inverse
         gmm::clear(*M_Sol);
         gmm::mult(*M_InverseMatrix, *M_RHS, *M_Sol);
         M_converged = true;
     }
     else
     {
-        // Solve using SuperLU
         scalar_type rcond;
         gmm::clear(*M_Sol);
         
@@ -302,7 +320,6 @@ void LinearSystem::solveDirect_SuperLU()
             SuperLU_solve(*M_Matrix, *M_Sol, *M_RHS, rcond);
             M_converged = true;
             
-            // Check condition number warning
             if (rcond < 1e-12)
             {
                 std::cout << "WARNING: Matrix is near-singular (rcond = " 
@@ -317,10 +334,6 @@ void LinearSystem::solveDirect_SuperLU()
     }
 }
 
-// ============================================================================
-// ITERATIVE SOLVERS
-// ============================================================================
-
 void LinearSystem::solveIterative_GMRES(PreconditionerType precondType,
                                        int maxIter,
                                        scalar_type tol,
@@ -328,7 +341,6 @@ void LinearSystem::solveIterative_GMRES(PreconditionerType precondType,
 {
     gmm::clear(*M_Sol);
     
-    // Setup iteration object for convergence monitoring
     gmm::iteration iter(tol);
     iter.set_maxiter(maxIter);
     iter.set_noisy(verbose ? 1 : 0);
@@ -399,7 +411,6 @@ void LinearSystem::solveIterative_BiCGSTAB(PreconditionerType precondType,
 {
     gmm::clear(*M_Sol);
     
-    // Setup iteration object
     gmm::iteration iter(tol);
     iter.set_maxiter(maxIter);
     iter.set_noisy(verbose ? 1 : 0);
@@ -463,11 +474,7 @@ void LinearSystem::solveIterative_BiCGSTAB(PreconditionerType precondType,
     }
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-void LinearSystem::computeInverse()  //lento
+void LinearSystem::computeInverse()
 {
     std::vector<scalar_type> RHS(M_ndof,0.0);
     std::vector<scalar_type> provv(M_ndof,0.0);

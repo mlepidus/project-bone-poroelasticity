@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
     
     std::cout << "\n--- Assembly Phase ---" << std::endl;
     
-    LinearSystem mySys;
+    LinearSystem mySys(dataFile, "solver/");
     
     std::cout << "Registering degrees of freedom..." << std::endl;
     myCP.addToSys(&mySys);
