@@ -1,16 +1,3 @@
-// DarcyOperators.h - Combined header for Darcy operators
-#ifndef DARCYOPERATORS_H
-#define DARCYOPERATORS_H
-
-#include "Core.h"
-#include "FEM.h"
-#include "Bulk.h"
-#include "BC.h"
-#include "DarcyOperatorsBulk.h"
-#include "DarcyOperatorsBD.h"
-
-#endif // DARCYOPERATORS_H
-
 // ============================================================================
 // Elasticity Operator Headers
 // ============================================================================

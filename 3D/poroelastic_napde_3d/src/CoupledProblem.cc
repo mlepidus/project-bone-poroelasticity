@@ -3,7 +3,9 @@
 CoupledProblem::CoupledProblem (const GetPot& dataFile, Bulk* bulk,  TimeLoop* time ):
 			M_Bulk(bulk),
 			M_time(time),
-			M_Sys(),
+    		M_Sys(nullptr),
+      		M_ElastPB(nullptr),
+     		M_DarcyPB(nullptr),
 			M_intMethod(*(bulk->getMesh()) ),
 			step(0)
 

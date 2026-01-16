@@ -1,11 +1,13 @@
 #include "../include/ElastProblem.h"
 
 ElastProblem::ElastProblem(const GetPot& dataFile, Bulk* bulk):
+    M_time(nullptr),
     M_Bulk(bulk),
     M_BC(dataFile, "mecc/"),
     M_DispFEM(bulk->getMesh(), dataFile, "mecc/", "Displacement", "bulkData/"),
     M_CoeffFEM(bulk->getMesh(), dataFile, "mecc/", "Coeff", "bulkData/"),
-    M_Sys(NULL),
+    M_Sys(nullptr),
+    M_nbTotDOF(0),
     M_intMethod(*(bulk->getMesh()))
 {
     M_nbTotDOF = M_DispFEM.nb_dof();

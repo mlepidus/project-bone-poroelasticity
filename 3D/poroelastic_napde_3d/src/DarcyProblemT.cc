@@ -1,13 +1,16 @@
 #include "../include/DarcyProblemT.h"
 
 DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk):
+			//M_dt(0.0),
+			M_timeLoop(nullptr),
 			M_Bulk(bulk),
 			M_BC(dataFile, "darcy/"),
 			M_PressureFEM( bulk->getMesh(), dataFile, "darcy/", "Pressure", "bulkData/"),
 			M_CoeffFEM( bulk->getMesh(), dataFile, "darcy/", "Coeff", "bulkData/"),
 			M_VelocityFEM( bulk->getMesh(), dataFile, "darcy/", "Velocity", "bulkData/"),
 			M_visualizationVFEM( bulk->getMesh(), dataFile, "darcy/", "VelocityVis", "bulkData/"),
-			M_Sys(),			
+			M_Sys(nullptr),
+			M_nbTotDOF(0),			
 			M_intMethod(*(bulk->getMesh()) )
 
 
@@ -304,6 +307,7 @@ scalar_type DarcyProblemT::computeError(std::string what, scalar_type time)
 		std::cout <<"at time   "<<time<< "   error pressure   "<<error<<std::endl; 
 		return error;
 	}
+	else return -1;
 }
 
 void DarcyProblemT::exportVtk(std::string folder, std::string what, int frame)

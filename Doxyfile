@@ -1,0 +1,73 @@
+# Doxyfile - Save as 'Doxyfile' in project root
+
+PROJECT_NAME           = "Poroelastic Solver"
+PROJECT_NUMBER         = "1.0.0"
+PROJECT_BRIEF          = "Coupled Poroelasticity Finite Element Solver using GetFEM++"
+PROJECT_LOGO           = 
+
+OUTPUT_DIRECTORY       = docs
+CREATE_SUBDIRS         = YES
+
+# Input settings
+INPUT                  = include src main_coupled.cc README.md
+FILE_PATTERNS          = *.h *.cc *.cpp *.md
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */GetPot
+
+# Build settings
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+
+# Documentation style
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+MULTILINE_CPP_IS_BRIEF = NO
+
+# Output formats
+GENERATE_HTML          = YES
+GENERATE_LATEX         = YES
+GENERATE_XML           = YES
+
+# HTML settings
+HTML_OUTPUT            = html
+HTML_COLORSTYLE_HUE    = 220
+HTML_COLORSTYLE_SAT    = 100
+HTML_COLORSTYLE_GAMMA  = 80
+HTML_DYNAMIC_SECTIONS  = YES
+GENERATE_TREEVIEW      = YES
+
+# LaTeX settings
+LATEX_OUTPUT           = latex
+LATEX_CMD_NAME         = pdflatex
+USE_PDFLATEX           = YES
+
+# Graphs (requires Graphviz)
+HAVE_DOT               = YES
+DOT_NUM_THREADS        = 4
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+DIRECTORY_GRAPH        = YES
+
+# Additional settings
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+
+# Source browsing
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+# Preprocessing
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = NO
+PREDEFINED             = "DOXYGEN_SHOULD_SKIP_THIS"

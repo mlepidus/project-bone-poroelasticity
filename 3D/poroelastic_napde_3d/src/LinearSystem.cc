@@ -300,7 +300,6 @@ void LinearSystem::solve()
     }
 }
 
-// [Keep all the existing solver implementation methods as they are]
 
 void LinearSystem::solveDirect_SuperLU()
 {

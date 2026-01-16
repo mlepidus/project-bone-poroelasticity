@@ -19,7 +19,7 @@ Bulk::Bulk ( const GetPot& dataFile,
 	        M_ElastData( dataFile),
             M_ElastDataPtr(nullptr),
 
-        M_dim(dataFile( ( M_sectionDomain+ "dimension").data(),3 ) ),
+        M_dim(dataFile( ( M_sectionDomain+ "spaceDimension").data(),3 ) ),
         M_Nx ( dataFile ( ( M_sectionDomain + "spatialDiscretizationX" ).data (), 10 ) ),
         M_Ny ( dataFile ( ( M_sectionDomain + "spatialDiscretizationY" ).data (), 10 ) ),
         M_Nz ( dataFile ( ( M_sectionDomain + "spatialDiscretizationZ" ).data (), 10 ) ),
