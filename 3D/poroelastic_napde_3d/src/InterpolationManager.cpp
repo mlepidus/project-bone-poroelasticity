@@ -2,12 +2,13 @@
 // InterpolationManager.cpp - Implementation of solution transfer between meshes
 // ============================================================================
 
-#include "InterpolationManager.h"
+#include "../include/InterpolationManager.h"
 #include <getfem/getfem_interpolation.h>
-#include <Eigen/Dense>
-#include <Eigen/QR>
+// Removed: #include <Eigen/Dense>
+// Removed: #include <Eigen/QR>
 #include <iostream>
 #include <cmath>
+#include <limits>
 
 // ============================================================================
 // Constructor
@@ -119,89 +120,180 @@ void InterpolationManager::extractAlongLine(const scalarVectorPtr_Type& solution
     arc_coords.reserve(profile.num_samples);
     values.reserve(profile.num_samples);
     
-    // Compute total arc length
+    // Compute total arc length and direction
     bgeot::base_node diff = profile.end_point - profile.start_point;
     scalar_type total_length = gmm::vect_norm2(diff);
     
-    // Create temporary 1D mesh for interpolation target
+    // -------------------------------------------------------------------------
+    // Method: Create a temporary 1D mesh along the line and use GetFEM interp
+    // -------------------------------------------------------------------------
+    
+    // Store sample points with their parametric coordinate t
+    std::vector<bgeot::base_node> sample_points(profile.num_samples);
+    std::vector<scalar_type> sample_t(profile.num_samples);
+    
+    // Create 1D mesh with points along the line
     getfem::mesh mesh_1d;
-    std::vector<size_type> point_indices;
+    std::vector<size_type> pt_ids;
+    pt_ids.reserve(profile.num_samples);
     
     for (size_type i = 0; i < profile.num_samples; ++i) {
         scalar_type t = static_cast<scalar_type>(i) / (profile.num_samples - 1);
-        bgeot::base_node pt = interpolatePoint(profile, t);
-        point_indices.push_back(mesh_1d.add_point(pt));
-        arc_coords.push_back(t * total_length);
+        sample_t[i] = t;
+        sample_points[i] = interpolatePoint(profile, t);
+        pt_ids.push_back(mesh_1d.add_point(sample_points[i]));
     }
     
-    // Add 1D elements (optional, for mesh_fem)
+    // Add 1D segments connecting consecutive points
     for (size_type i = 0; i < profile.num_samples - 1; ++i) {
-        std::vector<size_type> ind = {point_indices[i], point_indices[i+1]};
+        std::vector<size_type> ind = {pt_ids[i], pt_ids[i+1]};
         mesh_1d.add_convex(bgeot::simplex_geotrans(1, 1), ind.begin());
     }
     
-    // Create mesh_fem on 1D mesh
-    getfem::mesh_fem mf_1d(mesh_1d, 1);
+    // Create mesh_fem on 1D mesh (P1 Lagrange - DOFs at vertices)
+    getfem::mesh_fem mf_1d(mesh_1d, 1);  // qdim = 1 (scalar)
     mf_1d.set_classical_finite_element(1);  // P1 elements
     
-    // Allocate target vector
-    std::vector<scalar_type> interp_values(mf_1d.nb_dof());
+    // Verify DOF count matches sample count (should be true for P1)
+    size_type nb_dof_1d = mf_1d.nb_dof();
+    if (nb_dof_1d != profile.num_samples) {
+        std::cerr << "[InterpolationManager] Warning: DOF count (" << nb_dof_1d 
+                  << ") != sample count (" << profile.num_samples << ")" << std::endl;
+    }
     
-    // Perform interpolation from 3D to 1D
+    // Allocate interpolation target vector
+    std::vector<scalar_type> interp_values(nb_dof_1d, 0.0);
+    
+    // Perform 3D -> 1D interpolation using GetFEM
+    // GetFEM finds which 3D elements contain the 1D DOF points and evaluates
     getfem::interpolation(mf_source, mf_1d, *solution, interp_values);
     
-    // Extract values at nodes (P1 DOFs are at vertices)
+    // -------------------------------------------------------------------------
+    // Map DOFs back to sample points using DOF coordinates
+    // This handles any DOF reordering that GetFEM might do
+    // -------------------------------------------------------------------------
     values.resize(profile.num_samples);
+    arc_coords.resize(profile.num_samples);
+    
+    // For each sample point, find the corresponding DOF
     for (size_type i = 0; i < profile.num_samples; ++i) {
-        // For P1 elements, DOF i corresponds to vertex i
-        values[i] = interp_values[i];
+        arc_coords[i] = sample_t[i] * total_length;
+        
+        // Find DOF closest to this sample point
+        scalar_type min_dist = std::numeric_limits<scalar_type>::max();
+        size_type best_dof = 0;
+        
+        for (size_type d = 0; d < nb_dof_1d; ++d) {
+            bgeot::base_node dof_pt = mf_1d.point_of_basic_dof(d);
+            scalar_type dist = gmm::vect_dist2(sample_points[i], dof_pt);
+            if (dist < min_dist) {
+                min_dist = dist;
+                best_dof = d;
+            }
+        }
+        
+        values[i] = interp_values[best_dof];
     }
     
     std::cout << "[InterpolationManager] Extracted " << values.size() 
-              << " samples along line '" << profile.name << "'" << std::endl;
+              << " samples along line '" << profile.name 
+              << "' (length = " << total_length << ")" << std::endl;
 }
 
 // ============================================================================
-// Approach 1: Fit Polynomial Using OLS
+// GMM Helper: Solve Normal Equations (replaces Eigen QR)
+// ============================================================================
+void InterpolationManager::solveNormalEquations(const gmm::dense_matrix<scalar_type>& VtV,
+                                                const std::vector<scalar_type>& Vty,
+                                                std::vector<scalar_type>& coeffs) {
+    size_type n = gmm::mat_nrows(VtV);
+    
+    // Copy VtV because LU modifies it
+    gmm::dense_matrix<scalar_type> A(n, n);
+    gmm::copy(VtV, A);
+    
+    // Add small regularization for numerical stability
+    for (size_type i = 0; i < n; ++i) {
+        A(i, i) += 1.0e-12;
+    }
+    
+    // LU factorization
+    std::vector<size_type> ipvt(n);
+    gmm::lu_factor(A, ipvt);
+    
+    // Solve
+    coeffs.resize(n);
+    gmm::copy(Vty, coeffs);
+    gmm::lu_solve(A, ipvt, coeffs, Vty);
+}
+
+// ============================================================================
+// Approach 1: Fit Polynomial Using OLS (GMM version)
 // ============================================================================
 PolynomialFit InterpolationManager::fitPolynomial(const std::vector<scalar_type>& arc_coords,
                                                   const std::vector<scalar_type>& values,
                                                   size_type order) {
     PolynomialFit result;
     size_type n = values.size();
+    size_type m = order + 1;  // Number of coefficients
     
     // Normalize arc coordinates to [0, 1]
     scalar_type max_arc = arc_coords.back();
     result.arc_length = max_arc;
+    if (max_arc < 1.0e-15) max_arc = 1.0;  // Avoid division by zero
     
-    // Build Vandermonde matrix for polynomial fitting
-    Eigen::MatrixXd V(n, order + 1);
-    Eigen::VectorXd y(n);
+    // Build Vandermonde matrix V (n x m) using GMM dense matrix
+    gmm::dense_matrix<scalar_type> V(n, m);
+    gmm::clear(V);
     
     for (size_type i = 0; i < n; ++i) {
         scalar_type t = arc_coords[i] / max_arc;  // Normalized coordinate
         scalar_type t_power = 1.0;
-        for (size_type j = 0; j <= order; ++j) {
+        for (size_type j = 0; j < m; ++j) {
             V(i, j) = t_power;
             t_power *= t;
         }
-        y(i) = values[i];
     }
     
-    // Solve least squares: V * coeffs = y
-    // Using QR decomposition for stability
-    Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(V);
-    result.coefficients = qr.solve(y);
+    // Compute V^T * V (m x m)
+    gmm::dense_matrix<scalar_type> VtV(m, m);
+    gmm::clear(VtV);
+    gmm::mult(gmm::transposed(V), V, VtV);
+    
+    // Compute V^T * y (m x 1)
+    std::vector<scalar_type> Vty(m, 0.0);
+    gmm::mult(gmm::transposed(V), values, Vty);
+    
+    // Solve normal equations: (V^T V) * coeffs = V^T * y
+    solveNormalEquations(VtV, Vty, result.coefficients);
     
     // Compute R² goodness of fit
-    Eigen::VectorXd y_pred = V * result.coefficients;
-    Eigen::VectorXd residuals = y - y_pred;
+    // y_pred = V * coeffs
+    std::vector<scalar_type> y_pred(n, 0.0);
+    gmm::mult(V, result.coefficients, y_pred);
     
-    scalar_type ss_res = residuals.squaredNorm();
-    scalar_type mean_y = y.mean();
-    scalar_type ss_tot = (y.array() - mean_y).matrix().squaredNorm();
+    // ss_res = sum((y - y_pred)^2)
+    scalar_type ss_res = 0.0;
+    for (size_type i = 0; i < n; ++i) {
+        scalar_type residual = values[i] - y_pred[i];
+        ss_res += residual * residual;
+    }
     
-    result.r_squared = 1.0 - ss_res / ss_tot;
+    // mean_y
+    scalar_type mean_y = 0.0;
+    for (size_type i = 0; i < n; ++i) {
+        mean_y += values[i];
+    }
+    mean_y /= n;
+    
+    // ss_tot = sum((y - mean_y)^2)
+    scalar_type ss_tot = 0.0;
+    for (size_type i = 0; i < n; ++i) {
+        scalar_type diff = values[i] - mean_y;
+        ss_tot += diff * diff;
+    }
+    
+    result.r_squared = (ss_tot > 1.0e-15) ? (1.0 - ss_res / ss_tot) : 1.0;
     
     std::cout << "[InterpolationManager] Polynomial fit (order " << order 
               << "): R² = " << result.r_squared << std::endl;
@@ -224,8 +316,10 @@ void InterpolationManager::applyPolynomialBC(const PolynomialFit& fit,
     scalar_type line_length = gmm::vect_norm2(dir);
     
     // Normalize direction
-    for (int d = 0; d < 3; ++d) {
-        dir[d] /= line_length;
+    if (line_length > 1.0e-15) {
+        for (int d = 0; d < 3; ++d) {
+            dir[d] /= line_length;
+        }
     }
     
     // For each DOF, find its projection onto the line and evaluate polynomial

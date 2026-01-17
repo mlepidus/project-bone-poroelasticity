@@ -2,7 +2,7 @@
 // InterpolationManager.cpp - Implementation of solution transfer between meshes
 // ============================================================================
 
-#include "InterpolationManager.h"
+#include "../include/InterpolationManager.h"
 #include <getfem/getfem_interpolation.h>
 #include <Eigen/Dense>
 #include <Eigen/QR>

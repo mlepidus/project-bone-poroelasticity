@@ -7,7 +7,7 @@
 #include "Core.h"
 #include "LinearSystem.h"
 #include "CoupledProblem.h"
-//#include "PLCProblem.h"
+#include "PLCProblem.h"
 #include "InterpolationManager.h"
 #include "TimeLoop.h"
 

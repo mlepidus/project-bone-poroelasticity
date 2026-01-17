@@ -2,7 +2,7 @@
 // RussianDollProblem.cpp - Implementation of dual-porosity coupled problem
 // ============================================================================
 
-#include "RussianDollProblem.h"
+#include "../include/RussianDollProblem.h"
 #include <iostream>
 #include <cmath>
 

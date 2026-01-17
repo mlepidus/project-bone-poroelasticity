@@ -57,10 +57,6 @@ public:
      */
     void solve();
     
-    // ========================================================================
-    // NEW: Simple setter methods for runtime parameter changes
-    // ========================================================================
-    
     /// Change solver type at runtime
     void setSolverType(SolverType type) { 
         M_solverType = type; 

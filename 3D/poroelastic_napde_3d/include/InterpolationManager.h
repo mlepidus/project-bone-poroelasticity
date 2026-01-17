@@ -7,7 +7,7 @@
 #include "Core.h"
 #include "Bulk.h"
 #include <getfem/getfem_interpolation.h>
-#include <Eigen/Dense>
+// Removed: #include <Eigen/Dense> - using GMM instead
 
 /**
  * @class InterpolationManager
@@ -35,19 +35,21 @@ struct LineProfile {
 };
 
 // ============================================================================
-// Polynomial Fit Result
+// Polynomial Fit Result (GMM version - no Eigen)
 // ============================================================================
 struct PolynomialFit {
-    Eigen::VectorXd coefficients;    ///< Polynomial coefficients [a0, a1, ..., an]
-    scalar_type r_squared;           ///< R² goodness of fit
-    scalar_type arc_length;          ///< Total arc length of the line
+    std::vector<scalar_type> coefficients;    ///< Polynomial coefficients [a0, a1, ..., an]
+    scalar_type r_squared;                     ///< R² goodness of fit
+    scalar_type arc_length;                    ///< Total arc length of the line
+    
+    PolynomialFit() : r_squared(0.0), arc_length(0.0) {}
     
     /// Evaluate polynomial at normalized parameter t ∈ [0, 1]
     scalar_type evaluate(scalar_type t) const {
         scalar_type result = 0.0;
         scalar_type t_power = 1.0;
-        for (int i = 0; i < coefficients.size(); ++i) {
-            result += coefficients(i) * t_power;
+        for (size_type i = 0; i < coefficients.size(); ++i) {
+            result += coefficients[i] * t_power;
             t_power *= t;
         }
         return result;
@@ -111,7 +113,7 @@ public:
                           std::vector<scalar_type>& values);
     
     /**
-     * @brief Fit polynomial to extracted data using OLS
+     * @brief Fit polynomial to extracted data using OLS (GMM version)
      * @param arc_coords Arc-length coordinates (normalized to [0,1])
      * @param values Solution values
      * @param order Polynomial order
@@ -222,6 +224,11 @@ private:
     // Helper methods
     void readLineProfilesFromFile(const GetPot& dataFile);
     bgeot::base_node interpolatePoint(const LineProfile& profile, scalar_type t);
+    
+    // GMM helper for solving normal equations (replaces Eigen QR)
+    void solveNormalEquations(const gmm::dense_matrix<scalar_type>& VtV,
+                              const std::vector<scalar_type>& Vty,
+                              std::vector<scalar_type>& coeffs);
 };
 
 #endif // INTERPOLATIONMANAGER_H

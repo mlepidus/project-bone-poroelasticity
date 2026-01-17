@@ -25,9 +25,16 @@ public:
      * @param dataFile GetPot parameter file
      * @param bulk Pointer to bulk domain
      * @param time Pointer to time loop manager
+     * @param section Data file section (default: root, can be "plc/" for PLCProblem)
      */
-    CoupledProblem(const GetPot& dataFile, Bulk* bulk = NULL, TimeLoop* time = NULL);
+    CoupledProblem(const GetPot& dataFile, Bulk* bulk = NULL, 
+                   TimeLoop* time = NULL, const std::string& section = "");
     
+    /**
+     * @brief Virtual destructor for proper inheritance
+     */
+    virtual ~CoupledProblem() = default;
+
     /**
      * @brief Register elasticity sub-problem
      * @param elast Pointer to ElastProblem object
@@ -51,21 +58,21 @@ public:
      * @param t Current time
      * @return Error vector (pressure error, displacement error)
      */
-    bgeot::base_node computeError(scalar_type t);
+    bgeot::base_node computeError(scalar_type t); //virtual?
     
     
     /// Register DOFs with global linear system
-    void addToSys(LinearSystem* sys);
+    void addToSys(LinearSystem* sys); 
     
     /**
      * @brief Assemble global system matrix
      */
-    void assembleMatrix();
+    virtual void assembleMatrix(); //virtual?
     
     /**
      * @brief Assemble global right-hand side vector
      */
-    void assembleRHS();
+    virtual void assembleRHS();
     
     /// Add sub-problem matrices to global system
     void addSubSystems();
@@ -80,10 +87,10 @@ public:
     void clearSubSystemsRHS();
     
     /// Solve coupled system
-    void solve();
+    virtual void solve();
     
     /// Update solution for next time step
-    void updateSol();
+    virtual void updateSol();
     
     /**
      * @brief Export solution to VTK format
@@ -91,7 +98,7 @@ public:
      * @param what Variables to export ("all", "darcy", "elast")
      * @param frame Time frame number
      */
-    void exportVtk(std::string folder = "./vtk", std::string what = "all", int frame = -1);
+    virtual void exportVtk(std::string folder = "./vtk", std::string what = "all", int frame = -1);
     
     /**
      * @brief Export time history data to file
@@ -106,12 +113,69 @@ public:
      * @brief Enforce boundary conditions
      * @param firstTime If true, modify matrix and RHS; if false, only RHS
      */
-    void enforceStrongBC(bool firstTime);
+    virtual void enforceStrongBC(bool firstTime);
 
-private:
+    // ========================================================================
+    // Getters (for PLCProblem and RussianDollProblem access)
+    // ========================================================================
+    
+    /// Get pointer to elasticity problem
+    inline ElastProblem* getElastPB() { return M_ElastPB; }
+    
+    /// Get pointer to Darcy problem
+    inline DarcyProblemT* getDarcyPB() { return M_DarcyPB; }
+    
+    /// Get pointer to linear system
+    inline LinearSystem* getSys() { return M_Sys; }
+    
+    /// Get pointer to bulk domain
+    inline Bulk* getBulk() { return M_Bulk; }
+    
+    /// Get pointer to time manager
+    inline TimeLoop* getTime() { return M_time; }
+    
+    /// Get pressure solution from Darcy sub-problem
+    inline scalarVectorPtr_Type getPressure() {
+        return M_DarcyPB ? std::make_shared<scalarVector_Type>(M_DarcyPB->getPressureSolution()) : nullptr;
+    }
+    
+    /// Get displacement solution
+    inline scalarVectorPtr_Type getDisplacement() { return M_solEl; }
+    
+    /// Get pressure mesh_fem
+    inline const getfem::mesh_fem& getMfPressure() const {
+        return *(M_DarcyPB->getFEM("Pressure")->getFEM());
+    }
+    
+    /// Get displacement mesh_fem
+    inline const getfem::mesh_fem& getMfDisplacement() const {
+        return *(M_ElastPB->getFEM()->getFEM());
+    }
+    
+    /// Get total DOFs
+    inline size_type getNbTotDOF() const { return M_nbTotDOF; }
+    
+    /// Get number of pressure DOFs
+    size_type getNbPressureDOF() const { 
+        return M_DarcyPB ? M_DarcyPB->getNDOF("Pressure") : 0; 
+    }
+    
+    /// Get number of velocity DOFs
+    size_type getNbVelocityDOF() const { 
+        return M_DarcyPB ? M_DarcyPB->getNDOF("Velocity") : 0; 
+    }
+    
+    /// Get number of elasticity DOFs
+    size_type getNbElastDOF() const { 
+        return M_ElastPB ? M_ElastPB->getNDOF() : 0; 
+    }
+
+protected:
+
     Bulk* M_Bulk;          ///< Pointer to bulk domain
     TimeLoop* M_time;      ///< Pointer to time manager
-    
+    std::string M_section; ///< Data file section prefix
+
     LinearSystem* M_Sys;       ///< Global coupled system
     LinearSystem M_elastSys;   ///< Elasticity sub-system
     LinearSystem M_darcySys;   ///< Darcy sub-system
