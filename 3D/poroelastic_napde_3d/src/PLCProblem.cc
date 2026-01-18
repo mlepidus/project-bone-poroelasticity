@@ -49,8 +49,7 @@ void PLCProblem::setCouplingSource(const scalarVectorPtr_Type& pv_on_PLC) {
     }
     
     // Copy the coupling source
-    M_couplingSource = std::make_shared<scalarVector_Type>(*pv_on_PLC);
-    
+    M_couplingSource.reset(new scalarVector_Type(*pv_on_PLC));    
     std::cout << "[PLCProblem] Coupling source set (norm = " 
               << gmm::vect_norm2(*M_couplingSource) << ")" << std::endl;
 }
@@ -71,7 +70,7 @@ void PLCProblem::buildPressureMassMatrix() {
     size_type nbPressureDOF = getNbPressureDOF();
     
     // Allocate pressure mass matrix
-    M_pressureMass = std::make_shared<sparseMatrix_Type>(nbPressureDOF, nbPressureDOF);
+    M_pressureMass.reset(new sparseMatrix_Type(nbPressureDOF, nbPressureDOF));
     gmm::clear(*M_pressureMass);
     
     // Get pressure FEM and integration method
@@ -139,7 +138,8 @@ void PLCProblem::assembleCouplingRHS() {
     size_type nbElastDOF = getNbElastDOF();
     
     // Compute coupling RHS: γ * M * p_v
-    scalarVectorPtr_Type couplingRHS = std::make_shared<scalarVector_Type>(nbPressureDOF, 0.0);
+   scalarVectorPtr_Type couplingRHS;
+    couplingRHS.reset(new scalarVector_Type(nbPressureDOF, 0.0));
     
     // Matrix-vector multiplication: couplingRHS = M * p_v
     gmm::mult(*M_pressureMass, *M_couplingSource, *couplingRHS);

@@ -136,7 +136,12 @@ public:
     
     /// Get pressure solution from Darcy sub-problem
     inline scalarVectorPtr_Type getPressure() {
-        return M_DarcyPB ? std::make_shared<scalarVector_Type>(M_DarcyPB->getPressureSolution()) : nullptr;
+        if (M_DarcyPB) {
+            scalarVectorPtr_Type pressure;
+            pressure.reset(new scalarVector_Type(M_DarcyPB->getPressureSolution()));
+            return pressure;
+        }
+        return scalarVectorPtr_Type();
     }
     
     /// Get displacement solution

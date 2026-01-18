@@ -1,8 +1,9 @@
 #include "../include/CoupledProblem.h"
 
-CoupledProblem::CoupledProblem (const GetPot& dataFile, Bulk* bulk,  TimeLoop* time ):
+CoupledProblem::CoupledProblem (const GetPot& dataFile, Bulk* bulk,  TimeLoop* time,const std::string& section):
 			M_Bulk(bulk),
 			M_time(time),
+			M_section(section),
     		M_Sys(nullptr),
       		M_ElastPB(nullptr),
      		M_DarcyPB(nullptr),

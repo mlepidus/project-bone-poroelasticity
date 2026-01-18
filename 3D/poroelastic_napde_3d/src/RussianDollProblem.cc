@@ -57,8 +57,7 @@ void RussianDollProblem::initialize() {
     
     // Allocate solution transfer vector
     size_type nbPressureDOF_PLC = M_plcProblem->getNbPressureDOF();
-    M_pv_on_PLC = std::make_shared<scalarVector_Type>(nbPressureDOF_PLC, 0.0);
-    
+    M_pv_on_PLC.reset(new scalarVector_Type(nbPressureDOF_PLC, 0.0));  
     M_initialized = true;
     
     std::cout << "[RussianDoll] Initialized successfully" << std::endl;

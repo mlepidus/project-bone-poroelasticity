@@ -309,8 +309,7 @@ void InterpolationManager::applyPolynomialBC(const PolynomialFit& fit,
                                              const getfem::mesh_fem& mf_target,
                                              scalarVectorPtr_Type& bc_values) {
     size_type nb_dof = mf_target.nb_dof();
-    bc_values = std::make_shared<scalarVector_Type>(nb_dof);
-    
+    bc_values.reset(new scalarVector_Type(nb_dof));    
     // Compute direction vector of the line
     bgeot::base_node dir = profile.end_point - profile.start_point;
     scalar_type line_length = gmm::vect_norm2(dir);
@@ -377,7 +376,7 @@ void InterpolationManager::interpolateViaMesh(const scalarVectorPtr_Type& source
                                               const getfem::mesh_fem& mf_target) {
     // Allocate target vector
     size_type nb_dof_target = mf_target.nb_dof();
-    target_solution = std::make_shared<scalarVector_Type>(nb_dof_target);
+    target_solution.reset(new scalarVector_Type(nb_dof_target));
     
     // Use GetFEM's built-in interpolation
     // This handles the case where target mesh is inside source mesh
@@ -421,7 +420,7 @@ void InterpolationManager::interpolateViaMatrix(const scalarVectorPtr_Type& sour
     }
     
     size_type nb_dof_target = gmm::mat_nrows(M_interpMatrix);
-    target_solution = std::make_shared<scalarVector_Type>(nb_dof_target);
+    target_solution.reset(new scalarVector_Type(nb_dof_target));
     
     // target = M * source
     gmm::mult(M_interpMatrix, *source_solution, *target_solution);

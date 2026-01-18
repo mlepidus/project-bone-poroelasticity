@@ -119,7 +119,7 @@ void DarcyProblemT::assembleMatrix()
 		A12.reset(new sparseMatrix_Type (M_VelocityFEM.nb_dof(),M_PressureFEM.nb_dof()));
 		gmm::clear(*A12);
 
-		if (M_pressureMass == NULL) {
+		if (!M_pressureMass) {
 			M_pressureMass.reset(new sparseMatrix_Type(M_PressureFEM.nb_dof(), M_PressureFEM.nb_dof()));
 			gmm::clear(*M_pressureMass);
 			massL2Standard(M_pressureMass, M_PressureFEM, M_CoeffFEM, M_intMethod);
