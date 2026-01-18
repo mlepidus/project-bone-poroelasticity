@@ -2,7 +2,7 @@
 // PLCProblem.cpp - Implementation of lacuno-canalicular porosity problem
 // ============================================================================
 
-#include "PLCProblem.h"
+#include "../include/PLCProblem.h"
 
 // ============================================================================
 // Constructor

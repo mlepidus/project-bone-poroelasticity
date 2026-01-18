@@ -7,28 +7,39 @@
 #include "Core.h"
 #include "LinearSystem.h"
 #include "CoupledProblem.h"
-//#include "PLCProblem.h"
+#include "PLCProblem.h"
 #include "InterpolationManager.h"
 #include "TimeLoop.h"
-
-/**
- * @class RussianDollProblem
- * @brief Manages dual-porosity coupling between PV (vascular) and PLC (lacuno-canalicular)
- * 
- * The coupling occurs through leakage terms:
- * - PV equation gets: +γM p_l^N  (interpolated from PLC)
- * - PLC equation gets: +γM p_v^N (interpolated from PV)
- * 
- * Two coupling approaches are supported:
- * 1. LINE_INTERPOLATION: Extract PV solution along 1D lines, fit polynomial, apply as BC
- * 2. MESH_INTERPOLATION: Direct 3D mesh-to-mesh interpolation via GetFEM
- */
 
 enum class CouplingApproach {
     LINE_INTERPOLATION,    // 1D line extraction + polynomial fitting
     MESH_INTERPOLATION     // Direct 3D-to-3D interpolation
 };
-
+/**
+ * @class RussianDollProblem
+ * @brief Manages dual-porosity coupling between PV (vascular) and PLC (lacuno-canalicular)
+ * 
+ * The coupling occurs through leakage terms:
+ * - PV equation gets: +γM p_l^N  (interpolated from PLC) [optional, set to 0 by default]
+ * - PLC equation gets: +γM p_v^N (interpolated from PV)
+ * 
+ * Two coupling approaches are supported:
+ * 1. LINE_INTERPOLATION: Extract PV solution along 1D lines, fit polynomial, apply to PLC
+ * 2. MESH_INTERPOLATION: Direct 3D mesh-to-mesh interpolation via GetFEM
+ * 
+ * Typical usage:
+ * @code
+ *   RussianDollProblem russian(dataFile, bulkPV, bulkPLC, time);
+ *   russian.setPVProblem(&pvProblem);
+ *   russian.setPLCProblem(&plcProblem);
+ *   russian.initialize();
+ *   
+ *   for each time step:
+ *       russian.solveTimeStep();
+ *       russian.exportVtk(folder, step);
+ *       russian.updateSolutions();
+ * @endcode
+ */
 class RussianDollProblem {
 public:
     /**
@@ -75,10 +86,9 @@ public:
      * @brief Perform one time step with staggered coupling
      * 
      * Algorithm:
-     * 1. Solve PV problem with p_l from previous step
+     * 1. Solve PV problem (with p_l = 0, i.e., one-way coupling)
      * 2. Interpolate p_v to PLC mesh
-     * 3. Solve PLC problem with interpolated p_v
-     * 4. (Optional) Iterate for convergence
+     * 3. Solve PLC problem with interpolated p_v as coupling source
      */
     void solveTimeStep();
     
@@ -94,38 +104,14 @@ public:
     
     /**
      * @brief Transfer solution from PV to PLC domain
-     * Uses the selected coupling approach
+     * Uses the selected interpolation approach (LINE or MESH)
      */
     void interpolatePVtoPLC();
-    
-    /**
-     * @brief Transfer solution from PLC to PV domain (for feedback)
-     * Only needed if PLC feeds back to PV
-     */
-    void interpolatePLCtoPV();
     
     /**
      * @brief Update solutions for next time step
      */
     void updateSolutions();
-    
-    // ========================================================================
-    // Assembly Methods
-    // ========================================================================
-    
-    /**
-     * @brief Assemble leakage coupling term for PV equation
-     * Adds: +γ * ∫ φ_i * p_l dΩ to PV RHS
-     * @param p_l_on_PV Pressure from PLC interpolated onto PV mesh
-     */
-    void assembleLeakageRHS_PV(const scalarVectorPtr_Type& p_l_on_PV);
-    
-    /**
-     * @brief Assemble leakage coupling term for PLC equation  
-     * Adds: +γ * ∫ φ_i * p_v dΩ to PLC RHS
-     * @param p_v_on_PLC Pressure from PV interpolated onto PLC mesh
-     */
-    void assembleLeakageRHS_PLC(const scalarVectorPtr_Type& p_v_on_PLC);
     
     // ========================================================================
     // Output Methods
@@ -155,6 +141,9 @@ public:
     
     /// Get leakage coefficient γ
     inline scalar_type getLeakageCoeff() const { return M_gamma; }
+    
+    /// Get PV pressure interpolated onto PLC mesh
+    inline scalarVectorPtr_Type getPVonPLC() const { return M_pv_on_PLC; }
 
 private:
     // Domain pointers
@@ -164,24 +153,16 @@ private:
     
     // Sub-problems
     CoupledProblem* M_pvProblem;    ///< PV poroelasticity problem
-    //PLCProblem* M_plcProblem;       ///< PLC poroelasticity problem
+    PLCProblem* M_plcProblem;       ///< PLC poroelasticity problem
     
     // Interpolation
     std::unique_ptr<InterpolationManager> M_interpManager;
     CouplingApproach M_couplingApproach;
-    
     // Coupling parameters
     scalar_type M_gamma;             ///< Leakage coefficient
-    size_type M_maxCouplingIter;     ///< Max iterations for staggered coupling
-    scalar_type M_couplingTolerance; ///< Convergence tolerance
     
     // Solution transfer vectors
     scalarVectorPtr_Type M_pv_on_PLC;  ///< PV pressure interpolated to PLC mesh
-    scalarVectorPtr_Type M_pl_on_PV;   ///< PLC pressure interpolated to PV mesh
-    
-    // Previous step solutions (for coupling)
-    scalarVectorPtr_Type M_pv_old;     ///< Previous PV pressure
-    scalarVectorPtr_Type M_pl_old;     ///< Previous PLC pressure
     
     // Configuration
     std::string M_section;           ///< Data file section
