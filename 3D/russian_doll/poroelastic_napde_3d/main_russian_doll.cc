@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
 
     const std::string vtkFolder = "output_vtk/";
 
-    Bulk myDomain(dataFile);
+    Bulk myDomain(dataFile, "");
  
     //initial export   
 

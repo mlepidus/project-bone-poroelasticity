@@ -4,8 +4,6 @@
 
 #include "../include/InterpolationManager.h"
 #include <getfem/getfem_interpolation.h>
-// Removed: #include <Eigen/Dense>
-// Removed: #include <Eigen/QR>
 #include <iostream>
 #include <cmath>
 #include <limits>
@@ -175,6 +173,36 @@ void InterpolationManager::extractAlongLine(const scalarVectorPtr_Type& solution
     values.resize(profile.num_samples);
     arc_coords.resize(profile.num_samples);
     
+    //check if the dof are inside the domain
+/*
+// Add this diagnostic in extractAlongLine:
+std::cout << "Checking if line is inside PV mesh..." << std::endl;
+size_type points_found = 0;
+for (size_type i = 0; i < profile.num_samples; ++i) {
+    bgeot::base_node pt = interpolatePoint(profile, 
+        static_cast<scalar_type>(i) / (profile.num_samples - 1));
+    
+    // Check if point is in any element
+    bool found = false;
+    for (const auto& cv : mf_source.linked_mesh().convex_index()) {
+        if (mf_source.linked_mesh().is_in_convex(cv, pt)) {
+            found = true;
+            points_found++;
+            break;
+        }
+    }
+    
+    if (!found && i % 10 == 0) {  // Print every 10th point
+        std::cerr << "WARNING: Point " << i << " at (" 
+                  << pt[0] << "," << pt[1] << "," << pt[2] 
+                  << ") not in PV mesh!" << std::endl;
+    }
+}
+
+std::cout << points_found << " / " << profile.num_samples 
+          << " points found in PV mesh" << std::endl;
+*/
+
     // For each sample point, find the corresponding DOF
     for (size_type i = 0; i < profile.num_samples; ++i) {
         arc_coords[i] = sample_t[i] * total_length;

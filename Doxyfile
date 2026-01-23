@@ -1,73 +1,121 @@
-# Doxyfile - Save as 'Doxyfile' in project root
+cat > Doxyfile_graphs << 'EOF'
+PROJECT_NAME = "Poroelastic Solver - Complete Documentation"
+PROJECT_NUMBER = "1.0.0"
+PROJECT_BRIEF = "Coupled Poroelasticity Finite Element Solver using GetFEM++"
 
-PROJECT_NAME           = "Poroelastic Solver"
-PROJECT_NUMBER         = "1.0.0"
-PROJECT_BRIEF          = "Coupled Poroelasticity Finite Element Solver using GetFEM++"
-PROJECT_LOGO           = 
-
-OUTPUT_DIRECTORY       = docs
-CREATE_SUBDIRS         = YES
+OUTPUT_DIRECTORY = docs_graphs
+CREATE_SUBDIRS = NO
 
 # Input settings
-INPUT                  = include src main_coupled.cc README.md
-FILE_PATTERNS          = *.h *.cc *.cpp *.md
-RECURSIVE              = YES
-EXCLUDE_PATTERNS       = */GetPot
+INPUT = ./3D/poroelastic_napde_3d/include \
+        ./3D/poroelastic_napde_3d/src \
+        ./3D/poroelastic_napde_3d/main_coupled.cc \
+        ./3D/poroelastic_napde_3d/README.md \
+		./3D/poroelastic_napde_3d/main_coupled.cc
 
-# Build settings
-EXTRACT_ALL            = YES
-EXTRACT_PRIVATE        = YES
-EXTRACT_STATIC         = YES
-EXTRACT_LOCAL_CLASSES  = YES
+FILE_PATTERNS = *.h *.hh *.hpp *.hxx *.cc *.cpp *.cxx *.c++ *.c
+RECURSIVE = YES
+EXCLUDE_PATTERNS = */GetPot
 
-# Documentation style
-JAVADOC_AUTOBRIEF      = YES
-QT_AUTOBRIEF           = YES
-MULTILINE_CPP_IS_BRIEF = NO
+# Documentation extraction
+EXTRACT_ALL = YES
+EXTRACT_PRIVATE = YES
+EXTRACT_STATIC = YES
+EXTRACT_LOCAL_CLASSES = YES
+HIDE_UNDOC_MEMBERS = NO
+HIDE_UNDOC_CLASSES = NO
 
 # Output formats
-GENERATE_HTML          = YES
-GENERATE_LATEX         = YES
-GENERATE_XML           = YES
+GENERATE_HTML = YES
+GENERATE_LATEX = NO
+GENERATE_XML = NO
+GENERATE_RTF = NO
 
-# HTML settings
-HTML_OUTPUT            = html
-HTML_COLORSTYLE_HUE    = 220
-HTML_COLORSTYLE_SAT    = 100
-HTML_COLORSTYLE_GAMMA  = 80
-HTML_DYNAMIC_SECTIONS  = YES
-GENERATE_TREEVIEW      = YES
+# HTML output
+HTML_OUTPUT = html
+HTML_COLORSTYLE_HUE = 220
+HTML_COLORSTYLE_SAT = 100
+HTML_COLORSTYLE_GAMMA = 80
+HTML_DYNAMIC_SECTIONS = YES
+GENERATE_TREEVIEW = YES
+DISABLE_INDEX = NO
+SEARCHENGINE = YES
+SERVER_BASED_SEARCH = NO
 
-# LaTeX settings
-LATEX_OUTPUT           = latex
-LATEX_CMD_NAME         = pdflatex
-USE_PDFLATEX           = YES
+# ============== GRAPH SETTINGS ==============
+# Graphviz configuration
+HAVE_DOT = YES
+DOT_NUM_THREADS = 4
+DOT_IMAGE_FORMAT = png
+DOT_GRAPH_MAX_NODES = 300
+MAX_DOT_GRAPH_DEPTH = 3
+DOT_TRANSPARENT = YES
+DOT_MULTI_TARGETS = YES
 
-# Graphs (requires Graphviz)
-HAVE_DOT               = YES
-DOT_NUM_THREADS        = 4
-CALL_GRAPH             = YES
-CALLER_GRAPH           = YES
-CLASS_GRAPH            = YES
-COLLABORATION_GRAPH    = YES
-INCLUDE_GRAPH          = YES
-INCLUDED_BY_GRAPH      = YES
-DIRECTORY_GRAPH        = YES
+# Include dependency graphs (what you want!)
+INCLUDE_GRAPH = YES        # Graph showing what this file includes
+INCLUDED_BY_GRAPH = YES    # Graph showing what files include this file
 
-# Additional settings
-WARN_IF_UNDOCUMENTED   = YES
-WARN_IF_DOC_ERROR      = YES
-WARN_NO_PARAMDOC       = YES
+# Class diagrams
+CLASS_GRAPH = YES          # Inheritance diagrams
+COLLABORATION_GRAPH = YES  # Collaboration between classes
+GRAPHICAL_HIERARCHY = YES  # Graphical class hierarchy
+CLASS_DIAGRAMS = YES
+
+# Call graphs
+CALL_GRAPH = YES           # Who this function calls
+CALLER_GRAPH = YES         # Who calls this function
+
+# Directory structure
+DIRECTORY_GRAPH = YES      # Directory dependencies
+DIR_GRAPH_MAX_DEPTH = 3
+
+# Template relationships
+TEMPLATE_RELATIONS = YES
+
+# UML style (optional - can make graphs cleaner)
+UML_LOOK = NO
+UML_LIMIT_NUM_FIELDS = 50
+
+# Hide some edges to reduce clutter
+HIDE_UNDOC_RELATIONS = NO
+SHOW_DIRECTORIES = YES
+SHOW_FILES = YES
+SHOW_NAMESPACES = YES
 
 # Source browsing
-SOURCE_BROWSER         = YES
-INLINE_SOURCES         = NO
-STRIP_CODE_COMMENTS    = NO
+SOURCE_BROWSER = YES
+INLINE_SOURCES = NO
+STRIP_CODE_COMMENTS = NO
 REFERENCED_BY_RELATION = YES
-REFERENCES_RELATION    = YES
+REFERENCES_RELATION = YES
+
+# Search
+SEARCHENGINE = YES
 
 # Preprocessing
-ENABLE_PREPROCESSING   = YES
-MACRO_EXPANSION        = YES
-EXPAND_ONLY_PREDEF     = NO
-PREDEFINED             = "DOXYGEN_SHOULD_SKIP_THIS"
+ENABLE_PREPROCESSING = YES
+MACRO_EXPANSION = NO
+EXPAND_ONLY_PREDEF = YES
+PREDEFINED = 
+
+# Warning settings
+QUIET = NO
+WARNINGS = YES
+WARN_IF_UNDOCUMENTED = NO
+WARN_IF_DOC_ERROR = YES
+WARN_NO_PARAMDOC = NO
+WARN_FORMAT = "$file:$line: $text"
+
+# Aliases for custom commands
+ALIASES = "contributor=\author" \
+          "maintainer=\author"
+
+# Optimize for C++
+OPTIMIZE_OUTPUT_FOR_C = NO
+OPTIMIZE_OUTPUT_JAVA = NO
+BUILTIN_STL_SUPPORT = YES
+CPP_CLI_SUPPORT = NO
+SIP_SUPPORT = NO
+IDL_PROPERTY_SUPPORT = YES
+EOF
