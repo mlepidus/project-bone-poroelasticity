@@ -294,7 +294,7 @@ void PLCProblem::enforceOuterWallBC(bool firstTime) {
         if (!it.is_face()) continue;
         
         size_type cv = it.cv();
-        short int f = it.f();
+       // short int f = it.f();
         
         // Get DOFs on this face
         getfem::pfem pf = mf_pressure.fem_of_element(cv);

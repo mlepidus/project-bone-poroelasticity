@@ -1,24 +1,25 @@
 #include "../include/DarcyProblemT.h"
 
-DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk):
-			//M_dt(0.0),
-			M_timeLoop(nullptr),
-			M_Bulk(bulk),
-			M_BC(dataFile, "darcy/"),
-			M_PressureFEM( bulk->getMesh(), dataFile, "darcy/", "Pressure", "bulkData/"),
-			M_CoeffFEM( bulk->getMesh(), dataFile, "darcy/", "Coeff", "bulkData/"),
-			M_VelocityFEM( bulk->getMesh(), dataFile, "darcy/", "Velocity", "bulkData/"),
-			M_visualizationVFEM( bulk->getMesh(), dataFile, "darcy/", "VelocityVis", "bulkData/"),
-			M_Sys(nullptr),
-			M_nbTotDOF(0),			
-			M_intMethod(*(bulk->getMesh()) )
-
-
+DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk,
+                              const std::string& basePath ):
+    M_timeLoop(nullptr),
+    M_Bulk(bulk),
+    M_BC(dataFile, "darcy/", basePath),  // Pass basePath to BC
+    M_PressureFEM( bulk->getMesh(), dataFile, "darcy/", "Pressure", basePath),
+    M_CoeffFEM( bulk->getMesh(), dataFile, "darcy/", "Coeff", basePath),
+    M_VelocityFEM( bulk->getMesh(), dataFile, "darcy/", "Velocity", basePath),
+    M_visualizationVFEM( bulk->getMesh(), dataFile, "darcy/", "VelocityVis", basePath),
+    M_Sys(nullptr),
+    M_nbTotDOF(0),			
+    M_intMethod(*(bulk->getMesh()))
 {  
-   M_nbTotDOF=M_PressureFEM.nb_dof()+M_VelocityFEM.nb_dof();
+   M_nbTotDOF = M_PressureFEM.nb_dof() + M_VelocityFEM.nb_dof();
   
-   std::string intMethod(dataFile ( std::string("bulkData/darcy/integrationMethod" ).data (), "IM_TETRAHEDRON(2)" ) );
-   M_intMethod.set_integration_method(bulk->getMesh()->convex_index(),getfem::int_method_descriptor(intMethod) );
+   // Use the basePath parameter
+   std::string intMethodKey = basePath + "darcy/integrationMethod";
+   std::string intMethod(dataFile(intMethodKey.data(), "IM_TETRAHEDRON(2)"));
+   M_intMethod.set_integration_method(bulk->getMesh()->convex_index(),
+                                      getfem::int_method_descriptor(intMethod));
    
    M_Bulk->getDarcyData()->setKxx(M_CoeffFEM.getDOFpoints());
    M_Bulk->getDarcyData()->setKyy(M_CoeffFEM.getDOFpoints());
@@ -27,14 +28,13 @@ DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk):
    M_Bulk->getDarcyData()->setKxz(M_CoeffFEM.getDOFpoints());
    M_Bulk->getDarcyData()->setKyz(M_CoeffFEM.getDOFpoints());
 
-      if (M_Bulk->hasExternalMesh()) {
+   if (M_Bulk->hasExternalMesh()) {
        std::cout << "Using Gmsh physical tags for boundary conditions..." << std::endl;
        M_BC.setBoundariesFromTags(M_Bulk->getMesh(), M_Bulk->getRegionMap());
    } else {
        std::cout << "Using geometric detection for boundary conditions..." << std::endl;
        M_BC.setBoundaries(M_Bulk->getMesh());
    }
-   
 }
 
 FEM* DarcyProblemT::getFEM(const std::string variable)

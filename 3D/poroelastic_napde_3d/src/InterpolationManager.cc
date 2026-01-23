@@ -14,12 +14,12 @@
 InterpolationManager::InterpolationManager(const GetPot& dataFile,
                                            Bulk* sourceBulk,
                                            Bulk* targetBulk)
-    : M_sourceBulk(sourceBulk),
+    :  M_section("russian_doll/interpolation/"),
+      M_sourceBulk(sourceBulk),
       M_targetBulk(targetBulk),
-      M_matrixBuilt(false),
-      M_section("russian_doll/interpolation/"),
       M_z_min(0.0),
-      M_z_max(1.0)  
+      M_z_max(1.0),
+      M_matrixBuilt(false)
 {
     // Read approach from data file
     std::string approach_str = dataFile((M_section + "approach").c_str(), "mesh");
@@ -98,9 +98,6 @@ void InterpolationManager::addLineProfile(const LineProfile& profile) {
     M_lineProfiles.push_back(profile);
 }
 
-void InterpolationManager::clearLineProfiles() {
-    M_lineProfiles.clear();
-}
 
 const PolynomialFit& InterpolationManager::getLastPolynomialFit() const {
     if (M_polynomialFits.empty()) {

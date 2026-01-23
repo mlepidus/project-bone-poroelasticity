@@ -28,7 +28,7 @@ public:
      * @param dataFile GetPot parameter file
      * @param bulk Pointer to bulk domain
      */
-    DarcyProblemT(const GetPot& dataFile, Bulk* bulk = NULL);
+    DarcyProblemT(const GetPot& dataFile, Bulk* bulk = NULL, const std::string& basePath = "bulkData/");
     
     /**
      * @brief Set time loop pointer for time-dependent BC and source terms

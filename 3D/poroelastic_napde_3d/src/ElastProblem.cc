@@ -1,18 +1,21 @@
 #include "../include/ElastProblem.h"
 
-ElastProblem::ElastProblem(const GetPot& dataFile, Bulk* bulk):
+ElastProblem::ElastProblem(const GetPot& dataFile, Bulk* bulk, 
+                          const std::string& basePath):
     M_time(nullptr),
     M_Bulk(bulk),
-    M_BC(dataFile, "mecc/"),
-    M_DispFEM(bulk->getMesh(), dataFile, "mecc/", "Displacement", "bulkData/"),
-    M_CoeffFEM(bulk->getMesh(), dataFile, "mecc/", "Coeff", "bulkData/"),
+    M_BC(dataFile, "mecc/", basePath), 
+    M_DispFEM(bulk->getMesh(), dataFile, "mecc/", "Displacement", basePath),
+    M_CoeffFEM(bulk->getMesh(), dataFile, "mecc/", "Coeff", basePath),
     M_Sys(nullptr),
     M_nbTotDOF(0),
     M_intMethod(*(bulk->getMesh()))
 {
     M_nbTotDOF = M_DispFEM.nb_dof();
     
-    std::string intMethod(dataFile(std::string("bulkData/mecc/integrationMethod").data(), "IM_TETRAHEDRON(2)"));
+    // Use the basePath parameter
+    std::string intMethodKey = basePath + "mecc/integrationMethod";
+    std::string intMethod(dataFile(intMethodKey.data(), "IM_TETRAHEDRON(2)"));
     M_intMethod.set_integration_method(bulk->getMesh()->convex_index(), 
                                        getfem::int_method_descriptor(intMethod));
     

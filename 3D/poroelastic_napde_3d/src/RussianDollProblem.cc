@@ -23,9 +23,9 @@ RussianDollProblem::RussianDollProblem(const GetPot& dataFile,
       M_time(time),
       M_pvProblem(nullptr),
       M_plcProblem(nullptr),
-      M_gamma(0.0),  // One-way coupling: no feedback from PLC to PV
       M_z_min(0.0),
       M_z_max(1.0),
+      M_gamma(0.0),  // One-way coupling: no feedback from PLC to PV
       M_section("russian_doll/"),
       M_initialized(false),
       M_polynomialOrder(3)

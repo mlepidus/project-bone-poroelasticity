@@ -23,7 +23,8 @@ public:
      * @param dataFile GetPot parameter file
      * @param bulk Pointer to bulk domain
      */
-    ElastProblem(const GetPot& dataFile, Bulk* bulk = NULL);
+    ElastProblem(const GetPot& dataFile, Bulk* bul=NULL, 
+                          const std::string& basePath = "bulkData/");
     
     /**
      * @brief Set time pointer for time-dependent BC and loads
