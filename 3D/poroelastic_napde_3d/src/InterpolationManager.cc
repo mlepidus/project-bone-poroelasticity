@@ -17,7 +17,9 @@ InterpolationManager::InterpolationManager(const GetPot& dataFile,
     : M_sourceBulk(sourceBulk),
       M_targetBulk(targetBulk),
       M_matrixBuilt(false),
-      M_section("russian_doll/interpolation/")
+      M_section("russian_doll/interpolation/"),
+      M_z_min(0.0),
+      M_z_max(1.0)  
 {
     // Read approach from data file
     std::string approach_str = dataFile((M_section + "approach").c_str(), "mesh");
@@ -89,8 +91,41 @@ void InterpolationManager::readLineProfilesFromFile(const GetPot& dataFile) {
     }
 }
 
+// ============================================================================
+// Public Methods
+// ============================================================================
 void InterpolationManager::addLineProfile(const LineProfile& profile) {
     M_lineProfiles.push_back(profile);
+}
+
+void InterpolationManager::clearLineProfiles() {
+    M_lineProfiles.clear();
+}
+
+const PolynomialFit& InterpolationManager::getLastPolynomialFit() const {
+    if (M_polynomialFits.empty()) {
+        throw std::runtime_error("No polynomial fits available");
+    }
+    return M_polynomialFits.back();
+}
+
+const std::vector<scalar_type>& InterpolationManager::getPolynomialCoefficients() const {
+    if (M_polynomialFits.empty()) {
+        throw std::runtime_error("No polynomial fits available");
+    }
+    return M_polynomialFits.back().coefficients;
+}
+
+void InterpolationManager::getZRange(scalar_type& z_min, scalar_type& z_max) const {
+    z_min = M_z_min;
+    z_max = M_z_max;
+}
+
+scalar_type InterpolationManager::evaluateAtZ(scalar_type z) const {
+    if (M_polynomialFits.empty()) {
+        throw std::runtime_error("No polynomial fits available");
+    }
+    return M_polynomialFits.back().evaluateAtZ(z, M_z_min, M_z_max);
 }
 
 // ============================================================================
@@ -106,7 +141,10 @@ bgeot::base_node InterpolationManager::interpolatePoint(const LineProfile& profi
 }
 
 // ============================================================================
-// Approach 1: Extract Solution Along a Line
+// Approach 1: Extract Solution Along a Line (FIXED VERSION)
+// ============================================================================
+// ============================================================================
+// Approach 1: Extract Solution Along a Line (FIXED VERSION)
 // ============================================================================
 void InterpolationManager::extractAlongLine(const scalarVectorPtr_Type& solution,
                                             const getfem::mesh_fem& mf_source,
@@ -117,6 +155,10 @@ void InterpolationManager::extractAlongLine(const scalarVectorPtr_Type& solution
     values.clear();
     arc_coords.reserve(profile.num_samples);
     values.reserve(profile.num_samples);
+    
+    // Initialize z-range
+    M_z_min = std::numeric_limits<scalar_type>::max();
+    M_z_max = std::numeric_limits<scalar_type>::lowest();
     
     // Compute total arc length and direction
     bgeot::base_node diff = profile.end_point - profile.start_point;
@@ -140,6 +182,11 @@ void InterpolationManager::extractAlongLine(const scalarVectorPtr_Type& solution
         sample_t[i] = t;
         sample_points[i] = interpolatePoint(profile, t);
         pt_ids.push_back(mesh_1d.add_point(sample_points[i]));
+        
+        // Update z-range (assuming z is the 3rd coordinate)
+        scalar_type z = sample_points[i][2];
+        if (z < M_z_min) M_z_min = z;
+        if (z > M_z_max) M_z_max = z;
     }
     
     // Add 1D segments connecting consecutive points
@@ -159,50 +206,64 @@ void InterpolationManager::extractAlongLine(const scalarVectorPtr_Type& solution
                   << ") != sample count (" << profile.num_samples << ")" << std::endl;
     }
     
+    /*
+    // Check if points are inside the source mesh (diagnostic)
+    std::cout << "[InterpolationManager] Checking if line is inside PV mesh..." << std::endl;
+    size_type points_found = 0;
+    
+    // Get the mesh from the mesh_fem
+    const getfem::mesh& source_mesh = mf_source.linked_mesh();
+    
+    for (size_type i = 0; i < profile.num_samples; ++i) {
+        bgeot::base_node pt = sample_points[i];
+        
+        // Method 1: Using convex_of_point - returns -1 if not found
+        size_type cv = source_mesh.convex_of_point(pt);
+        bool found = (cv != size_type(-1));
+        
+        // Alternative Method 2: If convex_of_point doesn't work well, you can try:
+        // bool found = false;
+        // for (getfem::mr_visitor cv(source_mesh.convex_index()); !cv.finished(); ++cv) {
+        //     if (source_mesh.convex_contains_point(cv.cv(), pt)) {
+        //         found = true;
+        //         break;
+        //     }
+        // }
+        
+        if (found) {
+            points_found++;
+        } else if (i % 10 == 0) {  // Print every 10th point
+            std::cerr << "[InterpolationManager] WARNING: Point " << i << " at (" 
+                      << pt[0] << "," << pt[1] << "," << pt[2] 
+                      << ") not in PV mesh!" << std::endl;
+        }
+    }
+    
+    std::cout << "[InterpolationManager] " << points_found << " / " << profile.num_samples 
+              << " points found in PV mesh" << std::endl;
+    
+    if (points_found == 0) {
+        std::cerr << "[InterpolationManager] ERROR: No points found in PV mesh!" << std::endl;
+        return;
+    }
+    */
     // Allocate interpolation target vector
     std::vector<scalar_type> interp_values(nb_dof_1d, 0.0);
     
-    // Perform 3D -> 1D interpolation using GetFEM
-    // GetFEM finds which 3D elements contain the 1D DOF points and evaluates
-    getfem::interpolation(mf_source, mf_1d, *solution, interp_values);
+    try {
+        // Perform 3D -> 1D interpolation using GetFEM
+        getfem::interpolation(mf_source, mf_1d, *solution, interp_values);
+    } catch (std::exception& e) {
+        std::cerr << "[InterpolationManager] Interpolation failed: " << e.what() << std::endl;
+        return;
+    }
     
     // -------------------------------------------------------------------------
     // Map DOFs back to sample points using DOF coordinates
-    // This handles any DOF reordering that GetFEM might do
     // -------------------------------------------------------------------------
     values.resize(profile.num_samples);
     arc_coords.resize(profile.num_samples);
     
-    //check if the dof are inside the domain
-/*
-// Add this diagnostic in extractAlongLine:
-std::cout << "Checking if line is inside PV mesh..." << std::endl;
-size_type points_found = 0;
-for (size_type i = 0; i < profile.num_samples; ++i) {
-    bgeot::base_node pt = interpolatePoint(profile, 
-        static_cast<scalar_type>(i) / (profile.num_samples - 1));
-    
-    // Check if point is in any element
-    bool found = false;
-    for (const auto& cv : mf_source.linked_mesh().convex_index()) {
-        if (mf_source.linked_mesh().is_in_convex(cv, pt)) {
-            found = true;
-            points_found++;
-            break;
-        }
-    }
-    
-    if (!found && i % 10 == 0) {  // Print every 10th point
-        std::cerr << "WARNING: Point " << i << " at (" 
-                  << pt[0] << "," << pt[1] << "," << pt[2] 
-                  << ") not in PV mesh!" << std::endl;
-    }
-}
-
-std::cout << points_found << " / " << profile.num_samples 
-          << " points found in PV mesh" << std::endl;
-*/
-
     // For each sample point, find the corresponding DOF
     for (size_type i = 0; i < profile.num_samples; ++i) {
         arc_coords[i] = sample_t[i] * total_length;
@@ -225,7 +286,8 @@ std::cout << points_found << " / " << profile.num_samples
     
     std::cout << "[InterpolationManager] Extracted " << values.size() 
               << " samples along line '" << profile.name 
-              << "' (length = " << total_length << ")" << std::endl;
+              << "' (length = " << total_length 
+              << ", z-range = [" << M_z_min << ", " << M_z_max << "])" << std::endl;
 }
 
 // ============================================================================
@@ -264,6 +326,12 @@ PolynomialFit InterpolationManager::fitPolynomial(const std::vector<scalar_type>
     PolynomialFit result;
     size_type n = values.size();
     size_type m = order + 1;  // Number of coefficients
+    
+    if (n < m) {
+        std::cerr << "[InterpolationManager] Error: Not enough points (" << n 
+                  << ") for polynomial order " << order << std::endl;
+        return result;
+    }
     
     // Normalize arc coordinates to [0, 1]
     scalar_type max_arc = arc_coords.back();
@@ -324,7 +392,13 @@ PolynomialFit InterpolationManager::fitPolynomial(const std::vector<scalar_type>
     result.r_squared = (ss_tot > 1.0e-15) ? (1.0 - ss_res / ss_tot) : 1.0;
     
     std::cout << "[InterpolationManager] Polynomial fit (order " << order 
-              << "): R² = " << result.r_squared << std::endl;
+              << "): R² = " << result.r_squared 
+              << ", coefficients = [";
+    for (size_type i = 0; i < result.coefficients.size(); ++i) {
+        if (i > 0) std::cout << ", ";
+        std::cout << result.coefficients[i];
+    }
+    std::cout << "]" << std::endl;
     
     return result;
 }
@@ -337,28 +411,26 @@ void InterpolationManager::applyPolynomialBC(const PolynomialFit& fit,
                                              const getfem::mesh_fem& mf_target,
                                              scalarVectorPtr_Type& bc_values) {
     size_type nb_dof = mf_target.nb_dof();
-    bc_values.reset(new scalarVector_Type(nb_dof));    
-    // Compute direction vector of the line
-    bgeot::base_node dir = profile.end_point - profile.start_point;
-    scalar_type line_length = gmm::vect_norm2(dir);
+    bc_values.reset(new scalarVector_Type(nb_dof, 0.0));  // Initialize to zero
     
-    // Normalize direction
-    if (line_length > 1.0e-15) {
-        for (int d = 0; d < 3; ++d) {
-            dir[d] /= line_length;
-        }
-    }
+    // For cylindrical geometry, we assume the line is vertical (along z-axis)
+    // So we just use the z-coordinate for projection
     
-    // For each DOF, find its projection onto the line and evaluate polynomial
+    // Find min and max z from the line profile
+    scalar_type line_z_min = std::min(profile.start_point[2], profile.end_point[2]);
+    scalar_type line_z_max = std::max(profile.start_point[2], profile.end_point[2]);
+    
+    // For each DOF, evaluate polynomial based on its z-coordinate
     for (size_type i = 0; i < nb_dof; ++i) {
         bgeot::base_node dof_pt = mf_target.point_of_basic_dof(i);
+        scalar_type z = dof_pt[2];
         
-        // Project DOF point onto line
-        bgeot::base_node v = dof_pt - profile.start_point;
-        scalar_type projection = gmm::vect_sp(v, dir);  // Dot product
-        
-        // Clamp to [0, line_length] and normalize
-        scalar_type t = std::max(0.0, std::min(projection, line_length)) / line_length;
+        // Normalize z to [0, 1] range of the line
+        scalar_type t = 0.0;
+        if (std::abs(line_z_max - line_z_min) > 1e-15) {
+            t = (z - line_z_min) / (line_z_max - line_z_min);
+        }
+        t = std::max(0.0, std::min(1.0, t));  // Clamp to [0, 1]
         
         // Evaluate polynomial
         (*bc_values)[i] = fit.evaluate(t);
@@ -380,19 +452,31 @@ void InterpolationManager::interpolateViaLines(const scalarVectorPtr_Type& sourc
     M_polynomialFits.clear();
     
     // For now, use the first line profile
-    // TODO: Support multiple lines with averaging or selection logic
     const LineProfile& profile = M_lineProfiles[0];
+    
+    std::cout << "[InterpolationManager] Starting line interpolation via '" 
+              << profile.name << "'" << std::endl;
     
     // Step 1: Extract values along line
     std::vector<scalar_type> arc_coords, values;
     extractAlongLine(source_solution, mf_source, profile, arc_coords, values);
     
+    if (values.empty()) {
+        std::cerr << "[InterpolationManager] Error: No values extracted!" << std::endl;
+        return;
+    }
+    
     // Step 2: Fit polynomial
     PolynomialFit fit = fitPolynomial(arc_coords, values, profile.polynomial_order);
+    fit.t_min = 0.0;
+    fit.t_max = 1.0;
     M_polynomialFits.push_back(fit);
     
     // Step 3: Apply to target mesh
     applyPolynomialBC(fit, profile, mf_target, target_solution);
+    
+    std::cout << "[InterpolationManager] Line interpolation complete. "
+              << "Target solution has " << target_solution->size() << " DOFs" << std::endl;
 }
 
 // ============================================================================
@@ -404,15 +488,17 @@ void InterpolationManager::interpolateViaMesh(const scalarVectorPtr_Type& source
                                               const getfem::mesh_fem& mf_target) {
     // Allocate target vector
     size_type nb_dof_target = mf_target.nb_dof();
-    target_solution.reset(new scalarVector_Type(nb_dof_target));
+    target_solution.reset(new scalarVector_Type(nb_dof_target, 0.0));
     
     // Use GetFEM's built-in interpolation
-    // This handles the case where target mesh is inside source mesh
-    getfem::interpolation(mf_source, mf_target, *source_solution, *target_solution);
-    
-    std::cout << "[InterpolationManager] Mesh interpolation: " 
-              << mf_source.nb_dof() << " DOFs -> " 
-              << nb_dof_target << " DOFs" << std::endl;
+    try {
+        getfem::interpolation(mf_source, mf_target, *source_solution, *target_solution);
+        std::cout << "[InterpolationManager] Mesh interpolation: " 
+                  << mf_source.nb_dof() << " DOFs -> " 
+                  << nb_dof_target << " DOFs" << std::endl;
+    } catch (std::exception& e) {
+        std::cerr << "[InterpolationManager] Mesh interpolation failed: " << e.what() << std::endl;
+    }
 }
 
 // ============================================================================
@@ -428,13 +514,15 @@ void InterpolationManager::buildInterpolationMatrix(const getfem::mesh_fem& mf_s
     gmm::clear(M_interpMatrix);
     
     // Build the interpolation matrix using GetFEM
-    // This computes M such that: target = M * source
-    getfem::interpolation(mf_source, mf_target, M_interpMatrix);
-    
-    M_matrixBuilt = true;
-    
-    std::cout << "[InterpolationManager] Built interpolation matrix: " 
-              << nb_dof_target << " x " << nb_dof_source << std::endl;
+    try {
+        getfem::interpolation(mf_source, mf_target, M_interpMatrix);
+        M_matrixBuilt = true;
+        std::cout << "[InterpolationManager] Built interpolation matrix: " 
+                  << nb_dof_target << " x " << nb_dof_source << std::endl;
+    } catch (std::exception& e) {
+        std::cerr << "[InterpolationManager] Failed to build interpolation matrix: " 
+                  << e.what() << std::endl;
+    }
 }
 
 // ============================================================================
@@ -452,6 +540,10 @@ void InterpolationManager::interpolateViaMatrix(const scalarVectorPtr_Type& sour
     
     // target = M * source
     gmm::mult(M_interpMatrix, *source_solution, *target_solution);
+    
+    std::cout << "[InterpolationManager] Matrix interpolation: " 
+              << source_solution->size() << " -> " 
+              << nb_dof_target << " DOFs" << std::endl;
 }
 
 // ============================================================================
@@ -461,6 +553,8 @@ void InterpolationManager::interpolate(const scalarVectorPtr_Type& source_soluti
                                        const getfem::mesh_fem& mf_source,
                                        scalarVectorPtr_Type& target_solution,
                                        const getfem::mesh_fem& mf_target) {
+    std::cout << "[InterpolationManager] Starting interpolation..." << std::endl;
+    
     if (M_approach == Approach::LINE_INTERPOLATION) {
         interpolateViaLines(source_solution, mf_source, target_solution, mf_target);
     } else {
