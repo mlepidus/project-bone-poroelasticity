@@ -59,13 +59,6 @@
 
                 meshExternal = mesh_tag2.msh
                 meshFolder = ./meshes/
-                %spatialDiscretizationX = 10
-                %spatialDiscretizationY = 10
-                %spatialInclination = 0.
-                %lengthAbscissa = 1
-                %lengthOrdinate = 1
-                %lengthQuota = 1.
-                %meshType = GT_PK(3,1)
                 spaceDimension = 3
                 nBoundaries = 4
                 interpolationDegree=5
@@ -145,7 +138,7 @@
 [extra]
 
         [solver]
-                type = BICGSTAB
+                type = SUPERLU
                 preconditioner = ILU
                 maxIterations = 1000
                 tolerance = 1.0e-8
