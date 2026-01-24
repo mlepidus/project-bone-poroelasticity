@@ -1,8 +1,13 @@
 // ============================================================================
 // RussianDollProblem.cc - Implementation of dual-porosity coupling
 // ============================================================================
-// This version implements one-way coupling from PV to PLC with polynomial
-// BC coefficients extracted via line interpolation.
+// Complete workflow:
+// 1. Solve PV problem
+// 2. Extract PV pressure/displacement along line
+// 3. Fit polynomials and store coefficients
+// 4. Update PLC boundary conditions
+// 5. Compute coupling RHS: +gamma * M * p_v
+// 6. Solve PLC problem
 // ============================================================================
 
 #include "../include/RussianDollProblem.h"
@@ -10,6 +15,7 @@
 #include <fstream>
 #include <cmath>
 #include <algorithm>
+#include <iomanip>
 
 // ============================================================================
 // Constructor
@@ -25,14 +31,17 @@ RussianDollProblem::RussianDollProblem(const GetPot& dataFile,
       M_plcProblem(nullptr),
       M_z_min(0.0),
       M_z_max(1.0),
-      M_gamma(0.0),  // One-way coupling: no feedback from PLC to PV
+      M_gamma(0.0),
       M_section("russian_doll/"),
       M_initialized(false),
-      M_polynomialOrder(3)
+      M_polynomialOrder(3),
+      M_pvPressureOnPLC(nullptr)
 {
     // Read coupling parameters from data file
-    M_gamma = dataFile((M_section + "leakage_coefficient").c_str(), 0.0);
-    M_polynomialOrder = dataFile((M_section + "polynomial_order").c_str(), 3);
+    M_gamma = dataFile((M_section + "leakage_coefficient").c_str(), 
+                       dataFile("bulkDataPLC/darcy/leakage", 0.0));
+    M_polynomialOrder = dataFile((M_section + "polynomial_order").c_str(), 
+                                  dataFile((M_section + "interpolation/line0/polynomial_order").c_str(), 3));
     
     // Read coupling approach
     std::string approach_str = dataFile((M_section + "interpolation/approach").c_str(), "line");
@@ -45,15 +54,18 @@ RussianDollProblem::RussianDollProblem(const GetPot& dataFile,
     // Create interpolation manager
     M_interpManager = std::make_unique<InterpolationManager>(dataFile, bulkPV, bulkPLC);
     
-    // Initialize coefficient vector
-    M_pvBCCoefficients.resize(M_polynomialOrder + 1, 0.0);
+    // Initialize coefficient vectors
+    M_pressureCoefficients.resize(M_polynomialOrder + 1, 0.0);
+    M_displacementXCoefficients.resize(M_polynomialOrder + 1, 0.0);
+    M_displacementYCoefficients.resize(M_polynomialOrder + 1, 0.0);
+    M_displacementZCoefficients.resize(M_polynomialOrder + 1, 0.0);
     
     std::cout << "=====================================================" << std::endl;
-    std::cout << " RussianDollProblem Configuration (One-Way Coupling)" << std::endl;
+    std::cout << " RussianDollProblem Configuration" << std::endl;
     std::cout << "=====================================================" << std::endl;
     std::cout << " Leakage coefficient (gamma): " << M_gamma << std::endl;
     std::cout << " Polynomial order: " << M_polynomialOrder << std::endl;
-    std::cout << " Coupling approach: " 
+    std::cout << " Interpolation approach: " 
               << (M_couplingApproach == CouplingApproach::LINE_INTERPOLATION 
                   ? "LINE_INTERPOLATION" : "MESH_INTERPOLATION") << std::endl;
     std::cout << "=====================================================" << std::endl;
@@ -70,16 +82,13 @@ void RussianDollProblem::setPVProblem(CoupledProblem* pvProblem) {
 void RussianDollProblem::setPLCProblem(PLCProblem* plcProblem) {
     M_plcProblem = plcProblem;
     
-    // Set leakage coefficient if doing two-way coupling (typically 0 for one-way)
+    // Set leakage coefficient in PLC problem
     M_plcProblem->setLeakageCoefficient(M_gamma);
     
-    std::cout << "[RussianDoll] PLC problem registered" << std::endl;
+    std::cout << "[RussianDoll] PLC problem registered with gamma = " << M_gamma << std::endl;
 }
 
 void RussianDollProblem::setupLineProfile() {
-    // Setup a vertical line profile through the domain center
-    // This line is used to extract PV pressure vs z
-    
     // Get domain bounds from PV mesh
     const getfem::mesh& mesh = *(M_bulkPV->getMesh());
     
@@ -118,19 +127,19 @@ void RussianDollProblem::setupLineProfile() {
     profile.end_point[1] = y_center;
     profile.end_point[2] = M_z_max;
     
-    profile.num_samples = 100;  // Adequate for polynomial fitting
+    profile.num_samples = 100;
     profile.polynomial_order = M_polynomialOrder;
     profile.name = "pv_vertical_line";
     
-    // Add to interpolation manager
-    M_interpManager->addLineProfile(profile);
+    // Add to interpolation manager if not already configured
+    if (M_interpManager->getLineProfiles().empty()) {
+        M_interpManager->addLineProfile(profile);
+    }
     
-    std::cout << "[RussianDoll] Line profile created:" << std::endl;
-    std::cout << "  Start: (" << profile.start_point[0] << ", " 
-              << profile.start_point[1] << ", " << profile.start_point[2] << ")" << std::endl;
-    std::cout << "  End: (" << profile.end_point[0] << ", " 
-              << profile.end_point[1] << ", " << profile.end_point[2] << ")" << std::endl;
+    std::cout << "[RussianDoll] Line profile configured:" << std::endl;
+    std::cout << "  Center: (" << x_center << ", " << y_center << ")" << std::endl;
     std::cout << "  Z range: [" << M_z_min << ", " << M_z_max << "]" << std::endl;
+    std::cout << "  Polynomial order: " << M_polynomialOrder << std::endl;
 }
 
 void RussianDollProblem::initialize() {
@@ -148,15 +157,15 @@ void RussianDollProblem::initialize() {
     M_interpManager->initialize();
     
     // Setup BC callback in PLC problem
-    // Capture 'this' to access polynomial evaluation
     M_plcProblem->setOuterWallBCCallback(
         [this](scalar_type z) -> scalar_type {
             return this->evaluatePVPressure(z);
         }
     );
     
-    // Set z-range in PLC for proper normalization
-    // (Will be updated after first interpolation)
+    // Allocate PV pressure vector for PLC DOFs
+    size_type nbPressureDOF = M_plcProblem->getNbPressureDOF();
+    M_pvPressureOnPLC.reset(new scalarVector_Type(nbPressureDOF, 0.0));
     
     M_initialized = true;
     
@@ -177,40 +186,38 @@ void RussianDollProblem::solveTimeStep() {
     std::cout << "\n=== RussianDoll Time Step ===" << std::endl;
     
     // Step 1: Solve PV problem (standalone, one-way coupling)
+    std::cout << "Step 1: Solving PV problem..." << std::endl;
     solvePV();
     
     // Step 2: Extract PV pressure and fit polynomial
+    std::cout << "Step 2: Interpolating PV -> PLC..." << std::endl;
     interpolatePVtoPLC();
     
-    // Step 3: Update PLC boundary coefficients
+    // Step 3: Update PLC boundary coefficients and coupling source
+    std::cout << "Step 3: Updating PLC boundary and coupling..." << std::endl;
     updatePLCBoundaryCoefficients();
     
     // Step 4: Solve PLC problem with polynomial BC
+    std::cout << "Step 4: Solving PLC problem..." << std::endl;
     solvePLC();
     
     std::cout << "=== Time Step Complete ===" << std::endl;
 }
 
 void RussianDollProblem::solvePV() {
-    std::cout << "[RussianDoll] Solving PV problem..." << std::endl;
-    
     // PV is solved standalone - no coupling from PLC (one-way)
-    // The assembly and solve are handled by the main time loop
-    // This method is called after PV has been assembled
-    
-    // Note: The actual solve happens in the main time loop
-    // Here we just mark that PV solution is ready for interpolation
+    // The actual assembly and solve are handled by the main time loop
+    std::cout << "[RussianDoll] PV solve marked complete" << std::endl;
 }
 
 void RussianDollProblem::solvePLC() {
-    std::cout << "[RussianDoll] Solving PLC problem..." << std::endl;
-    
     // PLC uses the polynomial BC set via updatePLCBoundaryCoefficients()
-    // The actual solve happens in the main time loop
+    // The actual assembly and solve are handled by the main time loop
+    std::cout << "[RussianDoll] PLC solve marked complete" << std::endl;
 }
 
 void RussianDollProblem::interpolatePVtoPLC() {
-    std::cout << "[RussianDoll] Interpolating PV pressure to polynomial..." << std::endl;
+    std::cout << "[RussianDoll] Starting interpolation..." << std::endl;
     
     // Get PV pressure solution
     scalarVectorPtr_Type pvPressure = M_pvProblem->getPressure();
@@ -220,45 +227,41 @@ void RussianDollProblem::interpolatePVtoPLC() {
         return;
     }
     
+    std::cout << "  PV pressure solution: " << pvPressure->size() << " DOFs, "
+              << "norm = " << gmm::vect_norm2(*pvPressure) << std::endl;
+    
     if (M_couplingApproach == CouplingApproach::LINE_INTERPOLATION) {
         // Use line interpolation approach
         const getfem::mesh_fem& mf_pv = M_pvProblem->getMfPressure();
         
-        // Get line profiles
-        const std::vector<LineProfile>& profiles = M_interpManager->getLineProfiles();
+        // Interpolate pressure
+        PolynomialFit pressureFit = M_interpManager->interpolatePressure(pvPressure, mf_pv);
         
-        if (profiles.empty()) {
-            std::cerr << "[RussianDoll] Error: No line profiles defined!" << std::endl;
-            return;
+        // Store pressure coefficients
+        M_pressureCoefficients = pressureFit.coefficients;
+        M_z_min = pressureFit.z_min;
+        M_z_max = pressureFit.z_max;
+        
+        // Optionally interpolate displacement
+        scalarVectorPtr_Type pvDisplacement = M_pvProblem->getDisplacement();
+        if (pvDisplacement && pvDisplacement->size() > 0) {
+            const getfem::mesh_fem& mf_disp = M_pvProblem->getMfDisplacement();
+            
+            PolynomialFit fit_x, fit_y, fit_z;
+            M_interpManager->interpolateDisplacement(pvDisplacement, mf_disp,
+                                                     fit_x, fit_y, fit_z);
+            
+            M_displacementXCoefficients = fit_x.coefficients;
+            M_displacementYCoefficients = fit_y.coefficients;
+            M_displacementZCoefficients = fit_z.coefficients;
         }
         
-        // Use first line profile (vertical line)
-        const LineProfile& profile = profiles[0];
-        
-        // Extract values along line
-        std::vector<scalar_type> arc_coords, values;
-        M_interpManager->extractAlongLine(pvPressure, mf_pv, profile, arc_coords, values);
-        
-        // Fit polynomial
-        PolynomialFit fit = M_interpManager->fitPolynomial(arc_coords, values, profile.polynomial_order);
-        
-        // Store coefficients
-        M_pvBCCoefficients = fit.coefficients;
-        
-        std::cout << "[RussianDoll] Polynomial fit complete:" << std::endl;
-        std::cout << "  Order: " << profile.polynomial_order << std::endl;
-        std::cout << "  R² = " << fit.r_squared << std::endl;
-        std::cout << "  Coefficients: [";
-        for (size_t i = 0; i < M_pvBCCoefficients.size(); ++i) {
-            std::cout << M_pvBCCoefficients[i];
-            if (i < M_pvBCCoefficients.size() - 1) std::cout << ", ";
-        }
-        std::cout << "]" << std::endl;
+        // Print coefficient information
+        printCoefficients();
         
     } else {
-        // Mesh interpolation approach - not typical for BC transfer
-        // Would need different handling (direct interpolation to all PLC DOFs)
-        std::cerr << "[RussianDoll] Warning: MESH_INTERPOLATION not ideal for BC transfer" << std::endl;
+        // Mesh interpolation approach
+        std::cerr << "[RussianDoll] Warning: MESH_INTERPOLATION requires different handling" << std::endl;
     }
 }
 
@@ -266,15 +269,47 @@ void RussianDollProblem::updatePLCBoundaryCoefficients() {
     std::cout << "[RussianDoll] Updating PLC boundary coefficients..." << std::endl;
     
     // Pass polynomial coefficients to PLC problem
-    M_plcProblem->setOuterWallBCCoefficients(M_pvBCCoefficients, M_z_min, M_z_max);
+    M_plcProblem->setOuterWallBCCoefficients(M_pressureCoefficients, M_z_min, M_z_max);
     
-    // The BC callback was already set in initialize(), so PLC can evaluate p_v(z)
+    // Compute PV pressure at PLC DOF locations for coupling RHS
+    computePVPressureOnPLCDOFs();
+    
+    // Set the coupling source in PLC problem
+    M_plcProblem->setCouplingSource(M_pvPressureOnPLC);
+    
+    std::cout << "[RussianDoll] PLC coupling updated" << std::endl;
+}
+
+void RussianDollProblem::computePVPressureOnPLCDOFs() {
+    if (!M_plcProblem || !M_plcProblem->getDarcyPB()) {
+        std::cerr << "[RussianDoll] Error: PLC Darcy problem not available!" << std::endl;
+        return;
+    }
+    
+    // Get PLC pressure mesh_fem
+    const getfem::mesh_fem& mf_plc_pressure = 
+        *(M_plcProblem->getDarcyPB()->getFEM("Pressure")->getFEM());
+    
+    size_type nbPressureDOF = mf_plc_pressure.nb_dof();
+    
+    // Resize if needed
+    if (M_pvPressureOnPLC->size() != nbPressureDOF) {
+        M_pvPressureOnPLC.reset(new scalarVector_Type(nbPressureDOF, 0.0));
+    }
+    
+    // Evaluate polynomial at each PLC pressure DOF location
+    for (size_type i = 0; i < nbPressureDOF; ++i) {
+        bgeot::base_node pt = mf_plc_pressure.point_of_basic_dof(i);
+        scalar_type z = pt[2];
+        (*M_pvPressureOnPLC)[i] = evaluatePVPressure(z);
+    }
+    
+    std::cout << "[RussianDoll] Computed PV pressure at " << nbPressureDOF 
+              << " PLC DOFs (norm = " << gmm::vect_norm2(*M_pvPressureOnPLC) << ")" << std::endl;
 }
 
 void RussianDollProblem::updateSolutions() {
     std::cout << "[RussianDoll] Updating solutions for next time step..." << std::endl;
-    
-    // Update is handled by individual problems in main time loop
     M_pvProblem->updateSol();
     M_plcProblem->updateSol();
 }
@@ -282,8 +317,19 @@ void RussianDollProblem::updateSolutions() {
 // ============================================================================
 // Coefficient Access
 // ============================================================================
+const std::vector<scalar_type>& RussianDollProblem::getDisplacementCoefficients(int component) const {
+    switch (component) {
+        case 0: return M_displacementXCoefficients;
+        case 1: return M_displacementYCoefficients;
+        case 2: return M_displacementZCoefficients;
+        default: 
+            static std::vector<scalar_type> empty;
+            return empty;
+    }
+}
+
 scalar_type RussianDollProblem::evaluatePVPressure(scalar_type z) const {
-    if (M_pvBCCoefficients.empty()) {
+    if (M_pressureCoefficients.empty()) {
         return 0.0;
     }
     
@@ -300,12 +346,35 @@ scalar_type RussianDollProblem::evaluatePVPressure(scalar_type z) const {
     scalar_type result = 0.0;
     scalar_type t_power = 1.0;
     
-    for (size_type i = 0; i < M_pvBCCoefficients.size(); ++i) {
-        result += M_pvBCCoefficients[i] * t_power;
+    for (size_type i = 0; i < M_pressureCoefficients.size(); ++i) {
+        result += M_pressureCoefficients[i] * t_power;
         t_power *= t;
     }
     
     return result;
+}
+
+void RussianDollProblem::evaluatePVDisplacement(scalar_type z, 
+                                                 scalar_type& ux, 
+                                                 scalar_type& uy, 
+                                                 scalar_type& uz) const {
+    // Normalize z to [0, 1]
+    scalar_type t = 0.0;
+    if (std::abs(M_z_max - M_z_min) > 1e-15) {
+        t = (z - M_z_min) / (M_z_max - M_z_min);
+    }
+    t = std::max(0.0, std::min(1.0, t));
+    
+    // Evaluate each component
+    ux = 0.0; uy = 0.0; uz = 0.0;
+    scalar_type t_power = 1.0;
+    
+    for (size_type i = 0; i < M_displacementXCoefficients.size(); ++i) {
+        ux += M_displacementXCoefficients[i] * t_power;
+        uy += M_displacementYCoefficients[i] * t_power;
+        uz += M_displacementZCoefficients[i] * t_power;
+        t_power *= t;
+    }
 }
 
 void RussianDollProblem::getZRange(scalar_type& z_min, scalar_type& z_max) const {
@@ -336,29 +405,103 @@ void RussianDollProblem::exportInterpolationData(const std::string& folder, int 
         return;
     }
     
+    file << std::setprecision(12);
     file << "# RussianDoll Interpolation Data - Frame " << frame << std::endl;
+    file << "# =================================================" << std::endl;
     file << "# Z range: [" << M_z_min << ", " << M_z_max << "]" << std::endl;
     file << "# Polynomial order: " << M_polynomialOrder << std::endl;
-    file << "# Coefficients (c0, c1, c2, ...):" << std::endl;
+    file << "# Leakage coefficient (gamma): " << M_gamma << std::endl;
+    file << "#" << std::endl;
     
-    for (size_type i = 0; i < M_pvBCCoefficients.size(); ++i) {
-        file << "c" << i << " = " << M_pvBCCoefficients[i] << std::endl;
+    // Pressure coefficients
+    file << "# Pressure polynomial coefficients p_v(t) = sum_i c_i * t^i" << std::endl;
+    file << "# where t = (z - z_min) / (z_max - z_min)" << std::endl;
+    file << "[pressure_coefficients]" << std::endl;
+    for (size_type i = 0; i < M_pressureCoefficients.size(); ++i) {
+        file << "c" << i << " = " << M_pressureCoefficients[i] << std::endl;
     }
-    
     file << std::endl;
+    
+    // Displacement coefficients
+    file << "[displacement_x_coefficients]" << std::endl;
+    for (size_type i = 0; i < M_displacementXCoefficients.size(); ++i) {
+        file << "c" << i << " = " << M_displacementXCoefficients[i] << std::endl;
+    }
+    file << std::endl;
+    
+    file << "[displacement_y_coefficients]" << std::endl;
+    for (size_type i = 0; i < M_displacementYCoefficients.size(); ++i) {
+        file << "c" << i << " = " << M_displacementYCoefficients[i] << std::endl;
+    }
+    file << std::endl;
+    
+    file << "[displacement_z_coefficients]" << std::endl;
+    for (size_type i = 0; i < M_displacementZCoefficients.size(); ++i) {
+        file << "c" << i << " = " << M_displacementZCoefficients[i] << std::endl;
+    }
+    file << std::endl;
+    
+    // Sampled values
     file << "# Polynomial values at sampled z:" << std::endl;
-    file << "# z\tp_v(z)" << std::endl;
+    file << "# z\tt\tp_v(z)\tu_x(z)\tu_y(z)\tu_z(z)" << std::endl;
+    file << "[sampled_values]" << std::endl;
     
     size_type num_samples = 50;
     for (size_type i = 0; i <= num_samples; ++i) {
-        scalar_type t = static_cast<scalar_type>(i) / num_samples;
-        scalar_type z = M_z_min + t * (M_z_max - M_z_min);
+        scalar_type t_val = static_cast<scalar_type>(i) / num_samples;
+        scalar_type z = M_z_min + t_val * (M_z_max - M_z_min);
         scalar_type p = evaluatePVPressure(z);
-        file << z << "\t" << p << std::endl;
+        scalar_type ux, uy, uz;
+        evaluatePVDisplacement(z, ux, uy, uz);
+        
+        file << z << "\t" << t_val << "\t" << p << "\t" 
+             << ux << "\t" << uy << "\t" << uz << std::endl;
     }
     
     file.close();
     std::cout << "[RussianDoll] Interpolation data exported to " << filename << std::endl;
+}
+
+void RussianDollProblem::exportCoefficients(const std::string& filename) const {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "[RussianDoll] Could not open " << filename << std::endl;
+        return;
+    }
+    
+    file << std::setprecision(15);
+    
+    // Export in a format that can be easily read back
+    file << "# Polynomial coefficients for Russian Doll coupling" << std::endl;
+    file << "z_min " << M_z_min << std::endl;
+    file << "z_max " << M_z_max << std::endl;
+    file << "order " << M_polynomialOrder << std::endl;
+    
+    file << "pressure " << M_pressureCoefficients.size();
+    for (const auto& c : M_pressureCoefficients) {
+        file << " " << c;
+    }
+    file << std::endl;
+    
+    file << "disp_x " << M_displacementXCoefficients.size();
+    for (const auto& c : M_displacementXCoefficients) {
+        file << " " << c;
+    }
+    file << std::endl;
+    
+    file << "disp_y " << M_displacementYCoefficients.size();
+    for (const auto& c : M_displacementYCoefficients) {
+        file << " " << c;
+    }
+    file << std::endl;
+    
+    file << "disp_z " << M_displacementZCoefficients.size();
+    for (const auto& c : M_displacementZCoefficients) {
+        file << " " << c;
+    }
+    file << std::endl;
+    
+    file.close();
 }
 
 std::vector<scalar_type> RussianDollProblem::computeErrors(scalar_type time) {
@@ -379,4 +522,47 @@ std::vector<scalar_type> RussianDollProblem::computeErrors(scalar_type time) {
     std::cout << "  PLC: p_error=" << errors[2] << ", u_error=" << errors[3] << std::endl;
     
     return errors;
+}
+
+// ============================================================================
+// Private Helper Methods
+// ============================================================================
+void RussianDollProblem::printCoefficients() const {
+    std::cout << "[RussianDoll] Polynomial coefficients:" << std::endl;
+    std::cout << "  Z-range: [" << M_z_min << ", " << M_z_max << "]" << std::endl;
+    
+    std::cout << "  Pressure: [";
+    for (size_t i = 0; i < M_pressureCoefficients.size(); ++i) {
+        if (i > 0) std::cout << ", ";
+        std::cout << M_pressureCoefficients[i];
+    }
+    std::cout << "]" << std::endl;
+    
+    std::cout << "  Disp X: [";
+    for (size_t i = 0; i < M_displacementXCoefficients.size(); ++i) {
+        if (i > 0) std::cout << ", ";
+        std::cout << M_displacementXCoefficients[i];
+    }
+    std::cout << "]" << std::endl;
+    
+    std::cout << "  Disp Y: [";
+    for (size_t i = 0; i < M_displacementYCoefficients.size(); ++i) {
+        if (i > 0) std::cout << ", ";
+        std::cout << M_displacementYCoefficients[i];
+    }
+    std::cout << "]" << std::endl;
+    
+    std::cout << "  Disp Z: [";
+    for (size_t i = 0; i < M_displacementZCoefficients.size(); ++i) {
+        if (i > 0) std::cout << ", ";
+        std::cout << M_displacementZCoefficients[i];
+    }
+    std::cout << "]" << std::endl;
+    
+    // Print sample values
+    std::cout << "  Sample p_v values:" << std::endl;
+    std::cout << "    p(z_min=" << M_z_min << ") = " << evaluatePVPressure(M_z_min) << std::endl;
+    std::cout << "    p(z_mid=" << (M_z_min+M_z_max)/2 << ") = " 
+              << evaluatePVPressure((M_z_min+M_z_max)/2) << std::endl;
+    std::cout << "    p(z_max=" << M_z_max << ") = " << evaluatePVPressure(M_z_max) << std::endl;
 }

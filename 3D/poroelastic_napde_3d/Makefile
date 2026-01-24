@@ -38,8 +38,8 @@ EXEC = main
 FOLDER = src/
 
 # Find all C++ source files in src and add the main file
-SRC_FILES = $(wildcard $(FOLDER)*.cc) ./main_coupled.cc
-#SRC_FILES = $(wildcard $(FOLDER)*.cc) ./main_russian_doll.cc
+#SRC_FILES = $(wildcard $(FOLDER)*.cc) ./main_coupled.cc
+SRC_FILES = $(wildcard $(FOLDER)*.cc) ./main_russian_doll.cc
 
 # Object files
 OBJS = $(SRC_FILES:.cc=.o)

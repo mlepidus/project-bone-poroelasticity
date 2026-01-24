@@ -75,14 +75,7 @@ void CoupledProblem::addSubSystemsRHS()
 
 	M_Sys->multAddToRHS(M_ElastPB->getOldSol(), M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"),0 ,M_DarcyPB->getNDOF("Pressure"),  M_ElastPB->getNDOF("Disp") );
 	
-	/*scalar_type alpha = M_Bulk->getDarcyData()->getBiotAlpha();
-scalar_type dt = M_dt;
 
-// Compute (α/Δt) D u_old
-scalarVectorPtr_Type temp(new scalarVector_Type(M_PressureFEM.nb_dof()));
-gmm::mult(gmm::transposed(*M_PressureStress), *(M_ElastPB->getOldSol()), *temp);
-gmm::scale(*temp, alpha/dt);
-M_Sys->addToRHS(temp, M_DarcyPB->getNDOF("Velocity"));*/
 }
 
 void CoupledProblem::clearSubSystems()

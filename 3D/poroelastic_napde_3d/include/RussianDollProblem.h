@@ -1,8 +1,11 @@
 // ============================================================================
 // RussianDollProblem.h - Dual-porosity (PV + PLC) coupled problem
 // ============================================================================
-// This version incorporates the InterpolationManager for one-way coupling
-// from PV to PLC with polynomial BC coefficients.
+// Enhanced version with:
+// - Line interpolation for pressure and displacement
+// - Polynomial coefficient computation and storage
+// - One-way and two-way coupling support
+// - Complete workflow: solve PV -> interpolate -> modify RHS -> solve PLC
 // ============================================================================
 #ifndef RUSSIANDOLLPROBLEM_H
 #define RUSSIANDOLLPROBLEM_H
@@ -27,39 +30,35 @@ enum class CouplingApproach {
  * @class RussianDollProblem
  * @brief Manages dual-porosity coupling between PV (vascular) and PLC (lacuno-canalicular)
  * 
- * This class orchestrates a one-way coupling from PV to PLC:
- * - PV is solved first (uncoupled from PLC, i.e., p_l = 0 in PV equation)
- * - PV pressure is interpolated to PLC boundary via line extraction + polynomial fit
- * - PLC is solved with the interpolated PV pressure as Dirichlet BC on outer wall
+ * This class orchestrates the coupling workflow:
+ * 
+ * For ONE_WAY coupling:
+ * 1. Solve PV problem (uncoupled from PLC, i.e., p_l = 0 in PV equation)
+ * 2. Extract PV pressure and displacement along a vertical line (z-direction)
+ * 3. Fit polynomials: p_v(z) = c0 + c1*z + c2*z^2 + ..., similarly for u_v(z)
+ * 4. Store polynomial coefficients for BC evaluation
+ * 5. Update PLC outer wall BC: p_l|_outer = p_v(z)
+ * 6. Add coupling RHS: +gamma * M * p_v
+ * 7. Solve PLC problem
+ * 8. Export results
  * 
  * The governing equations are:
  * 
  * PV (Vascular Porosity):
- *   K u_v^N - α_v C p_v^N = R_v^N
- *   α_v C^T u̇_v^N + H_v p_v^N + (1/M_v) M ṗ_v^N = Q_v^N
+ *   K u_v^N - alpha_v C p_v^N = R_v^N
+ *   alpha_v C^T u_dot_v^N + H_v p_v^N + (1/M_v) M p_dot_v^N = Q_v^N
  * 
  * PLC (Lacuno-canalicular Porosity):
- *   K u_l^N - α_l C p_l^N = R_l^N
- *   α_l C^T u̇_l^N + H_l p_l^N + (1/M_l) M ṗ_l^N = Q_l^N
+ *   K u_l^N - alpha_l C p_l^N = R_l^N
+ *   alpha_l C^T u_dot_l^N + (H_l + gamma*M) p_l^N + (1/M_l) M p_dot_l^N 
+ *       = Q_l^N + gamma*M*p_v^N
  *   with BC: p_l = p_v(z) on outer wall (Dirichlet from interpolated PV pressure)
  * 
  * Key Features:
- * - InterpolationManager is incorporated directly for clean coefficient management
- * - Polynomial coefficients from PV → PLC transfer are stored for BC evaluation
- * - PLCProblem's BC class can access these coefficients through callbacks
- * 
- * Typical Usage:
- * @code
- *   RussianDollProblem russian(dataFile, bulkPV, bulkPLC, time);
- *   russian.setPVProblem(&pvProblem);
- *   russian.setPLCProblem(&plcProblem);
- *   russian.initialize();
- *   
- *   for each time step:
- *       russian.solveTimeStep();
- *       russian.exportVtk(folder, step);
- *       russian.updateSolutions();
- * @endcode
+ * - Polynomial coefficients from PV -> PLC transfer are explicitly stored
+ * - Supports pressure and displacement interpolation
+ * - PLCProblem's BC class uses coefficients through callbacks
+ * - Complete export of interpolation data for debugging
  */
 class RussianDollProblem {
 public:
@@ -95,15 +94,11 @@ public:
     /**
      * @brief Register the PLC (lacuno-canalicular) problem
      * @param plcProblem Pointer to the PLCProblem
-     * 
-     * Also sets up the BC callback for polynomial-based Dirichlet conditions
      */
     void setPLCProblem(PLCProblem* plcProblem);
     
     /**
      * @brief Initialize both problems and interpolation structures
-     * 
-     * This must be called after setPVProblem() and setPLCProblem()
      */
     void initialize();
     
@@ -112,39 +107,37 @@ public:
     // ========================================================================
     
     /**
-     * @brief Perform one time step with one-way coupling (PV → PLC)
+     * @brief Perform one time step with one-way coupling (PV -> PLC)
      * 
      * Algorithm:
      * 1. Solve PV problem (standalone, p_l = 0)
      * 2. Extract PV pressure along vertical line
      * 3. Fit polynomial p_v(z)
      * 4. Update PLC boundary coefficients
-     * 5. Solve PLC problem with polynomial BC on outer wall
+     * 5. Add coupling RHS: +gamma * M * p_v
+     * 6. Solve PLC problem with polynomial BC on outer wall
      */
     void solveTimeStep();
     
     /**
      * @brief Solve PV problem for current time step
-     * 
-     * PV is solved independently (one-way coupling means p_l = 0 in PV eq.)
      */
     void solvePV();
     
     /**
      * @brief Solve PLC problem for current time step
-     * 
-     * Uses the polynomial BC coefficients from interpolatePVtoPLC()
      */
     void solvePLC();
     
     /**
-     * @brief Transfer PV pressure to PLC boundary via polynomial fitting
+     * @brief Transfer PV solution to PLC boundary via polynomial fitting
      * 
      * Steps:
      * 1. Extract PV pressure along a vertical line (z-direction)
-     * 2. Fit polynomial: p_v(z) = c0 + c1*z + c2*z^2 + ...
-     * 3. Store coefficients in M_pvBCCoefficients
-     * 4. Pass coefficients to PLC problem for BC evaluation
+     * 2. Extract PV displacement along the same line
+     * 3. Fit polynomials: p_v(z), u_v_x(z), u_v_y(z), u_v_z(z)
+     * 4. Store coefficients for BC evaluation
+     * 5. Pass coefficients to PLC problem
      */
     void interpolatePVtoPLC();
     
@@ -154,19 +147,23 @@ public:
     void updateSolutions();
     
     // ========================================================================
-    // Coefficient Access (for PLC BC evaluation)
+    // Coefficient Access
     // ========================================================================
     
     /**
      * @brief Get polynomial coefficients for PV pressure BC
      * @return Const reference to coefficient vector [c0, c1, c2, ...]
-     * 
-     * The polynomial is: p_v(z) = c0 + c1*z + c2*z^2 + ... + cn*z^n
-     * where z is normalized to [0,1] or uses actual z coordinates
      */
-    const std::vector<scalar_type>& getPVBCCoefficients() const { 
-        return M_pvBCCoefficients; 
+    const std::vector<scalar_type>& getPressureCoefficients() const { 
+        return M_pressureCoefficients; 
     }
+    
+    /**
+     * @brief Get polynomial coefficients for PV displacement
+     * @param component 0=x, 1=y, 2=z
+     * @return Const reference to coefficient vector
+     */
+    const std::vector<scalar_type>& getDisplacementCoefficients(int component) const;
     
     /**
      * @brief Evaluate PV pressure at a given z coordinate
@@ -174,6 +171,15 @@ public:
      * @return Interpolated pressure value p_v(z)
      */
     scalar_type evaluatePVPressure(scalar_type z) const;
+    
+    /**
+     * @brief Evaluate PV displacement at a given z coordinate
+     * @param z Z-coordinate
+     * @param[out] ux X-component
+     * @param[out] uy Y-component
+     * @param[out] uz Z-component
+     */
+    void evaluatePVDisplacement(scalar_type z, scalar_type& ux, scalar_type& uy, scalar_type& uz) const;
     
     /**
      * @brief Get the z-coordinate range for the interpolation
@@ -197,8 +203,19 @@ public:
      * @brief Export interpolation data for debugging/visualization
      * @param folder Output directory
      * @param frame Time frame number
+     * 
+     * Outputs:
+     * - Polynomial coefficients
+     * - Sampled values along the interpolation line
+     * - BC values at sample z-coordinates
      */
     void exportInterpolationData(const std::string& folder, int frame);
+    
+    /**
+     * @brief Export polynomial coefficients to file
+     * @param filename Output file path
+     */
+    void exportCoefficients(const std::string& filename) const;
     
     /**
      * @brief Compute errors against exact solutions (if available)
@@ -216,7 +233,7 @@ public:
     inline InterpolationManager* getInterpolationManager() { return M_interpManager.get(); }
     inline TimeLoop* getTime() { return M_time; }
     
-    /// Get leakage coefficient γ (for potential future two-way coupling)
+    /// Get leakage coefficient gamma
     inline scalar_type getLeakageCoeff() const { return M_gamma; }
     
     /// Get coupling approach
@@ -224,6 +241,9 @@ public:
     
     /// Check if initialized
     inline bool isInitialized() const { return M_initialized; }
+    
+    /// Get polynomial order
+    inline size_type getPolynomialOrder() const { return M_polynomialOrder; }
 
 private:
     // ========================================================================
@@ -232,17 +252,25 @@ private:
     
     /**
      * @brief Setup interpolation line profile based on geometry
-     * 
-     * Creates a vertical line through the domain center for z-sampling
      */
     void setupLineProfile();
     
     /**
      * @brief Update PLC boundary conditions with new coefficients
-     * 
-     * Passes polynomial coefficients to PLC problem's BC handler
      */
     void updatePLCBoundaryCoefficients();
+    
+    /**
+     * @brief Compute PV pressure at all PLC pressure DOF locations
+     * 
+     * Uses polynomial coefficients to evaluate p_v(z) at each PLC DOF
+     */
+    void computePVPressureOnPLCDOFs();
+    
+    /**
+     * @brief Print polynomial coefficient information
+     */
+    void printCoefficients() const;
     
     // ========================================================================
     // Member Variables - Domains
@@ -270,7 +298,12 @@ private:
     CouplingApproach M_couplingApproach;
     
     /// Polynomial coefficients for PV pressure: p_v(z) = sum_i c_i * z^i
-    std::vector<scalar_type> M_pvBCCoefficients;
+    std::vector<scalar_type> M_pressureCoefficients;
+    
+    /// Polynomial coefficients for PV displacement components
+    std::vector<scalar_type> M_displacementXCoefficients;
+    std::vector<scalar_type> M_displacementYCoefficients;
+    std::vector<scalar_type> M_displacementZCoefficients;
     
     /// Z-coordinate range for normalization
     scalar_type M_z_min;
@@ -280,7 +313,7 @@ private:
     // Member Variables - Coupling Parameters
     // ========================================================================
     
-    /// Leakage coefficient γ (for potential two-way coupling)
+    /// Leakage coefficient gamma
     scalar_type M_gamma;
     
     // ========================================================================
@@ -290,6 +323,9 @@ private:
     std::string M_section;           ///< Data file section
     bool M_initialized;              ///< Initialization flag
     size_type M_polynomialOrder;     ///< Order of polynomial fit
+    
+    /// Store PV pressure evaluated at PLC DOFs for coupling RHS
+    scalarVectorPtr_Type M_pvPressureOnPLC;
 };
 
 #endif // RUSSIANDOLLPROBLEM_H

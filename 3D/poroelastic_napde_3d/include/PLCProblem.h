@@ -1,8 +1,10 @@
 // ============================================================================
 // PLCProblem.h - Lacuno-canalicular porosity (PLC) poroelasticity problem
 // ============================================================================
-// This version supports polynomial-based boundary conditions from RussianDoll
-// coupling. The outer wall BC can be set via polynomial coefficients p_v(z).
+// Enhanced version with:
+// - Polynomial BC from PV pressure (outer wall Dirichlet)
+// - Coupling RHS term gamma * M * p_v for mass balance equation
+// - Support for both one-way and two-way coupling
 // ============================================================================
 #ifndef PLCPROBLEM_H
 #define PLCPROBLEM_H
@@ -12,6 +14,9 @@
 
 // Forward declaration
 class RussianDollProblem;
+class InterpolationManager;
+struct PolynomialFit;
+struct FieldPolynomials;
 
 /**
  * @class PLCProblem
@@ -19,12 +24,14 @@ class RussianDollProblem;
  * 
  * Inherits from CoupledProblem and adds:
  * 1. Support for polynomial-based Dirichlet BC on outer wall (from PV pressure)
- * 2. Optional coupling source term (for two-way coupling, not used in one-way)
+ * 2. Coupling RHS term: +gamma * M * p_v for the mass balance equation
+ * 3. Access to polynomial coefficients for debugging/export
  * 
  * The governing equations are:
  * 
- *   K u_l^N - α_l C p_l^N = R_l^N                                     (momentum)
- *   α_l C^T u̇_l^N + H_l p_l^N + (1/M_l) M ṗ_l^N = Q_l^N              (mass)
+ *   K u_l^N - alpha_l C p_l^N = R_l^N                                      (momentum)
+ *   alpha_l C^T u_dot_l^N + (H_l + gamma*M) p_l^N + (1/M_l) M p_dot_l^N 
+ *       = Q_l^N + gamma*M*p_v^N                                            (mass)
  * 
  * Boundary Conditions:
  *   - Outer wall: p_l = p_v(z) where p_v(z) is polynomial from RussianDoll
@@ -33,22 +40,8 @@ class RussianDollProblem;
  * For the one-way coupling approach, the outer wall BC uses:
  *   p_l(x,y,z) = f(z) where f(z) = c0 + c1*z + c2*z^2 + ...
  * 
- * Usage:
- * @code
- *   PLCProblem plc(dataFile, bulkPLC, time, "plc/");
- *   plc.addElastPB(&elastPLC);
- *   plc.addDarcyPB(&darcyPLC);
- *   
- *   // Set polynomial BC callback from RussianDoll
- *   plc.setOuterWallBCCallback([&russian](scalar_type z) {
- *       return russian.evaluatePVPressure(z);
- *   });
- *   
- *   // In time loop:
- *   plc.assembleRHS();
- *   plc.enforceStrongBC(false);  // Uses polynomial callback for outer wall
- *   plc.solve();
- * @endcode
+ * The coupling RHS adds +gamma * M * p_v where p_v is evaluated at each DOF
+ * using the polynomial fit, allowing the leakage term to be included.
  */
 class PLCProblem : public CoupledProblem {
 public:
@@ -59,9 +52,6 @@ public:
     /**
      * @typedef BCCallback
      * @brief Function type for evaluating pressure BC as a function of z
-     * 
-     * The callback takes z-coordinate and returns pressure value.
-     * This allows RussianDoll to provide polynomial evaluation.
      */
     using BCCallback = std::function<scalar_type(scalar_type z)>;
     
@@ -74,12 +64,12 @@ public:
      * @param dataFile GetPot parameter file
      * @param bulk Pointer to PLC bulk domain (inner mesh)
      * @param time Pointer to time loop manager
-     * @param section Data file section for PLC parameters (default: "plc/")
+     * @param section Data file section for PLC parameters (default: "bulkDataPLC/")
      */
     PLCProblem(const GetPot& dataFile, 
                Bulk* bulk = nullptr, 
                TimeLoop* time = nullptr,
-               const std::string& section = "plc/");
+               const std::string& section = "bulkDataPLC/");
     
     /// Virtual destructor
     virtual ~PLCProblem() = default;
@@ -91,29 +81,11 @@ public:
     /**
      * @brief Set callback for evaluating outer wall pressure BC
      * @param callback Function that evaluates p_v(z) at given z
-     * 
-     * This callback is used in enforceStrongBC() to set Dirichlet values
-     * on the outer wall based on the polynomial fit from PV pressure.
-     * 
-     * Example:
-     * @code
-     *   plc.setOuterWallBCCallback([coeffs, z_min, z_max](scalar_type z) {
-     *       scalar_type t = (z - z_min) / (z_max - z_min);  // normalize
-     *       scalar_type val = coeffs[0];
-     *       scalar_type t_pow = t;
-     *       for (size_t i = 1; i < coeffs.size(); ++i) {
-     *           val += coeffs[i] * t_pow;
-     *           t_pow *= t;
-     *       }
-     *       return val;
-     *   });
-     * @endcode
      */
     void setOuterWallBCCallback(BCCallback callback);
     
     /**
      * @brief Check if outer wall BC callback is set
-     * @return true if callback is set and valid
      */
     inline bool hasOuterWallBCCallback() const { return M_outerWallBCCallback != nullptr; }
     
@@ -122,15 +94,12 @@ public:
      * @param coefficients Polynomial coefficients [c0, c1, c2, ...]
      * @param z_min Minimum z-coordinate for normalization
      * @param z_max Maximum z-coordinate for normalization
-     * 
-     * Alternative to setOuterWallBCCallback() - creates internal callback
      */
     void setOuterWallBCCoefficients(const std::vector<scalar_type>& coefficients,
                                     scalar_type z_min, scalar_type z_max);
     
     /**
      * @brief Get stored polynomial coefficients
-     * @return Const reference to coefficient vector
      */
     const std::vector<scalar_type>& getOuterWallBCCoefficients() const {
         return M_bcCoefficients;
@@ -145,25 +114,29 @@ public:
     
     /**
      * @brief Get outer wall region ID
-     * @return Region ID for outer wall boundary
      */
     inline size_type getOuterWallRegion() const { return M_outerWallRegion; }
     
     /**
      * @brief Set outer wall region ID
-     * @param region Region ID
      */
     void setOuterWallRegion(size_type region) { M_outerWallRegion = region; }
     
+    /**
+     * @brief Get z-range for BC evaluation
+     */
+    void getZRange(scalar_type& z_min, scalar_type& z_max) const {
+        z_min = M_z_min;
+        z_max = M_z_max;
+    }
+    
     // ========================================================================
-    // Coupling Methods (for optional two-way coupling)
+    // Coupling Methods
     // ========================================================================
     
     /**
-     * @brief Set leakage coefficient γ for inter-porosity coupling
-     * @param gamma Leakage coefficient [1/(Pa·s)]
-     * 
-     * This is for potential two-way coupling (not used in one-way mode)
+     * @brief Set leakage coefficient gamma for inter-porosity coupling
+     * @param gamma Leakage coefficient [1/(Pa*s)]
      */
     void setLeakageCoefficient(scalar_type gamma);
     
@@ -171,13 +144,23 @@ public:
     inline scalar_type getLeakageCoefficient() const { return M_gamma; }
     
     /**
-     * @brief Set coupling source term (p_v interpolated onto PLC mesh)
-     * @param pv_on_PLC Pressure from PV problem interpolated to PLC DOFs
+     * @brief Set the PV pressure vector (interpolated onto PLC mesh DOFs)
+     * @param pv_on_PLC Pressure from PV problem evaluated at PLC DOF locations
      * 
-     * For two-way coupling: adds +γ * M * p_v to RHS
-     * Not used in one-way coupling mode
+     * This is used for the RHS coupling term: +gamma * M * p_v
      */
     void setCouplingSource(const scalarVectorPtr_Type& pv_on_PLC);
+    
+    /**
+     * @brief Set PV pressure using polynomial coefficients
+     * @param coefficients Polynomial coefficients [c0, c1, ...]
+     * @param z_min Minimum z for normalization
+     * @param z_max Maximum z for normalization
+     * 
+     * Evaluates polynomial at each PLC pressure DOF and stores the result
+     */
+    void setCouplingSourceFromPolynomial(const std::vector<scalar_type>& coefficients,
+                                         scalar_type z_min, scalar_type z_max);
     
     /// Get coupling source
     inline scalarVectorPtr_Type getCouplingSource() const { return M_couplingSource; }
@@ -194,31 +177,44 @@ public:
     /**
      * @brief Assemble global system matrix
      * 
-     * Same as base class, optionally builds pressure mass matrix for coupling
+     * Builds standard poroelasticity matrices plus pressure mass matrix
+     * for coupling term (+gamma * M * p_l - gamma * M * p_v)
      */
     virtual void assembleMatrix() override;
     
     /**
      * @brief Assemble global RHS
      * 
-     * Calls base class assembleRHS(), optionally adds coupling term
+     * Calls base class assembleRHS(), adds coupling term (+gamma * M * p_v)
      */
     virtual void assembleRHS() override;
     
     /**
      * @brief Enforce boundary conditions with polynomial outer wall BC
      * @param firstTime If true, modify matrix and RHS; if false, only RHS
-     * 
-     * Uses the outer wall BC callback to evaluate pressure at each DOF
      */
     virtual void enforceStrongBC(bool firstTime) override;
     
     // ========================================================================
-    // Additional Getters
+    // Additional Methods
     // ========================================================================
     
-    /// Get pressure mass matrix (for coupling term)
+    /**
+     * @brief Compute and add the coupling matrix term to system matrix
+     * 
+     * Adds +gamma * M to the (pressure, pressure) block
+     */
+    void addCouplingMatrix();
+    
+    /**
+     * @brief Get pressure mass matrix (for coupling term)
+     */
     inline sparseMatrixPtr_Type getPressureMassMatrix() const { return M_pressureMass; }
+    
+    /**
+     * @brief Print coupling information for debugging
+     */
+    void printCouplingInfo() const;
 
 protected:
     // ========================================================================
@@ -228,45 +224,59 @@ protected:
     /**
      * @brief Build pressure mass matrix for coupling term
      * 
-     * Computes: M = ∫ N^T N dV where N are pressure shape functions
+     * Computes: M = integral N^T N dV where N are pressure shape functions
      */
     void buildPressureMassMatrix();
     
     /**
      * @brief Assemble the inter-porosity coupling RHS term
      * 
-     * Computes: +γ * M * p_v and adds to RHS (for two-way coupling)
+     * Computes: +gamma * M * p_v and adds to RHS
      */
     void assembleCouplingRHS();
     
     /**
      * @brief Enforce polynomial Dirichlet BC on outer wall
      * @param firstTime Modify matrix if true
-     * 
-     * Uses M_outerWallBCCallback to evaluate p_v(z) at each DOF on outer wall
      */
     void enforceOuterWallBC(bool firstTime);
+    
+    /**
+     * @brief Evaluate polynomial at a point
+     * @param z Z-coordinate
+     * @param coeffs Polynomial coefficients
+     * @param z_min Minimum z for normalization
+     * @param z_max Maximum z for normalization
+     * @return Polynomial value
+     */
+    scalar_type evaluatePolynomial(scalar_type z,
+                                   const std::vector<scalar_type>& coeffs,
+                                   scalar_type z_min,
+                                   scalar_type z_max) const;
     
     // ========================================================================
     // Member Variables
     // ========================================================================
     
-    /// Leakage coefficient γ [1/(Pa·s)] (for two-way coupling)
+    /// Leakage coefficient gamma [1/(Pa*s)]
     scalar_type M_gamma;
     
-    /// Pressure from PV interpolated onto PLC mesh (for two-way coupling)
+    /// Pressure from PV interpolated onto PLC mesh (for RHS coupling term)
     scalarVectorPtr_Type M_couplingSource;
     
-    /// Pressure mass matrix for coupling term: M = ∫ N^T N dV
+    /// Pressure mass matrix for coupling term: M = integral N^T N dV
     sparseMatrixPtr_Type M_pressureMass;
     
     /// Flag: has pressure mass matrix been built?
     bool M_pressureMassBuilt;
     
+    /// Flag: has coupling matrix been added to system?
+    bool M_couplingMatrixAdded;
+    
     /// Callback for evaluating outer wall BC: p_l = p_v(z)
     BCCallback M_outerWallBCCallback;
     
-    /// Polynomial coefficients for outer wall BC (alternative to callback)
+    /// Polynomial coefficients for outer wall BC
     std::vector<scalar_type> M_bcCoefficients;
     
     /// Z-range for polynomial normalization
