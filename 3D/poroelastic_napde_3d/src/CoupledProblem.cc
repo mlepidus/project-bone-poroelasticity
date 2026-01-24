@@ -54,10 +54,13 @@ void CoupledProblem::addSubSystems()
 	M_Sys->addSubSystem(&M_elastSys,0,0);
 
 	M_Sys->addSubSystem(&M_darcySys,M_ElastPB->getNDOF(),M_ElastPB->getNDOF());
-
-	M_Sys->addSubMatrix(M_PressureStress, 0,M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"));
 	
-	M_Sys->addSubMatrix(M_PressureStress, M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"),0, -1.0/(*M_time).dt(), true);
+	scalar_type alpha = M_Bulk->getDarcyData()->getBiotAlpha();
+    scalar_type dt = M_time->dt();
+	//1,3
+	M_Sys->addSubMatrix(M_PressureStress, 0, M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"), -alpha);
+	//3,1
+	M_Sys->addSubMatrix(M_PressureStress, M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"),0, alpha/dt, true);
 	
 	M_Sys->multAddToRHS(M_ElastPB->getOldSol(), M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"),0 ,M_DarcyPB->getNDOF("Pressure"),  M_ElastPB->getNDOF("Disp") );
 	
@@ -72,8 +75,16 @@ void CoupledProblem::addSubSystemsRHS()
 
 	M_Sys->multAddToRHS(M_ElastPB->getOldSol(), M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"),0 ,M_DarcyPB->getNDOF("Pressure"),  M_ElastPB->getNDOF("Disp") );
 	
-	
+	/*scalar_type alpha = M_Bulk->getDarcyData()->getBiotAlpha();
+scalar_type dt = M_dt;
+
+// Compute (α/Δt) D u_old
+scalarVectorPtr_Type temp(new scalarVector_Type(M_PressureFEM.nb_dof()));
+gmm::mult(gmm::transposed(*M_PressureStress), *(M_ElastPB->getOldSol()), *temp);
+gmm::scale(*temp, alpha/dt);
+M_Sys->addToRHS(temp, M_DarcyPB->getNDOF("Velocity"));*/
 }
+
 void CoupledProblem::clearSubSystems()
 {
 	gmm::clear(*(M_darcySys.getRHS()));
