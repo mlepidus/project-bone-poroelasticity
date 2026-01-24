@@ -75,7 +75,6 @@ void CoupledProblem::addSubSystemsRHS()
 
 	M_Sys->multAddToRHS(M_ElastPB->getOldSol(), M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"),0 ,M_DarcyPB->getNDOF("Pressure"),  M_ElastPB->getNDOF("Disp") );
 	
-
 }
 
 void CoupledProblem::clearSubSystems()
