@@ -192,7 +192,6 @@ protected:
     scalarVectorPtr_Type M_solDa;  ///< Darcy solution
     
     sparseMatrixPtr_Type M_PressureStress;  ///< Poroelastic coupling matrix
-    sparseMatrixPtr_Type M_3D2D;            ///< 3D-2D coupling matrix (fracture)
     
     getfem::mesh_im M_intMethod;  ///< Integration method
     

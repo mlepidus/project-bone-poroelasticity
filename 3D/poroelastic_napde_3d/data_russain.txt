@@ -37,6 +37,7 @@
                 Kxz = 0.0
                 Kyz = 0.0
 		biotM = 1
+                BiotAlpha=1
                 leakage = 1
                 
                 FEMTypeVelocity = FEM_RT0(3)
@@ -76,6 +77,7 @@
                 Kxz = 0.0
                 Kyz = 0.0
 		biotM = 1
+                BiotAlpha=1
                 leakage = 1
                 
                 FEMTypeVelocity = FEM_RT0(3)

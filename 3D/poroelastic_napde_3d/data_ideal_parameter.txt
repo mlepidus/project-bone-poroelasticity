@@ -4,7 +4,7 @@
 
 [time]
 
-    Tend = 7
+    Tend = 5
     dt = 0.1
 
 [../]
@@ -48,6 +48,7 @@
                 Kxz = 0.0
                 Kyz = 0.0
 		biotM = 1
+                BiotAlpha=1
                 leakage = 1
                 
                 FEMTypeVelocity = FEM_RT0(3)

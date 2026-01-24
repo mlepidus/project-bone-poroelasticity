@@ -52,7 +52,7 @@ public:
     inline scalar_type getKzz(size_type i) { return (*M_KzzVector)[i]; }
     inline scalar_type getKxz(size_type i) { return (*M_KxzVector)[i]; }
     inline scalar_type getKyz(size_type i) { return (*M_KyzVector)[i]; }
-    
+    inline scalar_type getBiotAlpha() { return M_biotAlpha; }
     /// Get fluid density
     inline scalar_type rhoF() { return M_rhoF; }
     
@@ -115,7 +115,7 @@ private:
     scalar_type M_muF;        ///< Fluid dynamic viscosity
     scalar_type M_biotM;      ///< Biot modulus (poroelasticity)
     scalar_type M_leakage;    ///< Leakage coefficient
-    
+    scalar_type M_biotAlpha;  ///< Biot coefficient
     mutable LifeV::Parser M_parser;  ///< Expression parser
 };
 
