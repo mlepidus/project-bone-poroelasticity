@@ -25,7 +25,10 @@ PLCProblem::PLCProblem(const GetPot& dataFile,
       M_pressureMass(nullptr),
       M_pressureMassBuilt(false),
       M_couplingMatrixAdded(false),
-      M_outerWallBCCallback(nullptr),
+      M_outerWallBCCallbackP(nullptr),
+      M_outerWallBCCallbackX(nullptr),
+      M_outerWallBCCallbackY(nullptr),
+      M_outerWallBCCallbackZ(nullptr),
       M_z_min(0.0),
       M_z_max(1.0),
       M_outerWallRegion(0),
@@ -52,7 +55,7 @@ PLCProblem::PLCProblem(const GetPot& dataFile,
 // Boundary Condition Methods
 // ============================================================================
 void PLCProblem::setOuterWallBCCallback(BCCallback callback) {
-    M_outerWallBCCallback = callback;
+    M_outerWallBCCallbackP = callback;
     M_usePolynomialBC = (callback != nullptr);
     
     std::cout << "[PLCProblem] Outer wall BC callback " 
@@ -66,7 +69,7 @@ void PLCProblem::setOuterWallBCCoefficients(const std::vector<scalar_type>& coef
     M_z_max = z_max;
     
     // Create internal callback that uses these coefficients
-    M_outerWallBCCallback = [this](scalar_type z) -> scalar_type {
+    M_outerWallBCCallbackP = [this](scalar_type z) -> scalar_type {
         return this->evaluateOuterWallBC(z);
     };
     
@@ -84,6 +87,202 @@ void PLCProblem::setOuterWallBCCoefficients(const std::vector<scalar_type>& coef
     
     // Also update the coupling source using these coefficients
     setCouplingSourceFromPolynomial(coefficients, z_min, z_max);
+}
+
+// ============================================================================
+// Set Displacement Boundary Conditions
+// ============================================================================
+void PLCProblem::setOuterWallDisplacementBCCoefficients(
+    const std::vector<scalar_type>& coeffs_x,
+    const std::vector<scalar_type>& coeffs_y,
+    const std::vector<scalar_type>& coeffs_z,
+    scalar_type z_min, scalar_type z_max) {
+    
+    M_dispXCoefficients = coeffs_x;
+    M_dispYCoefficients = coeffs_y;
+    M_dispZCoefficients = coeffs_z;
+    M_z_min = z_min;  // Assuming same z-range for displacement
+    M_z_max = z_max;
+    
+    // Create internal callbacks that use these coefficients
+    M_outerWallBCCallbackX = [this](scalar_type z) -> scalar_type {
+        return this->evaluatePolynomial(z, M_dispXCoefficients, M_z_min, M_z_max);
+    };
+    M_outerWallBCCallbackY = [this](scalar_type z) -> scalar_type {
+        return this->evaluatePolynomial(z, M_dispYCoefficients, M_z_min, M_z_max);
+    };
+    M_outerWallBCCallbackZ = [this](scalar_type z) -> scalar_type {
+        return this->evaluatePolynomial(z, M_dispZCoefficients, M_z_min, M_z_max);
+    };
+    
+    M_useDisplacementBC = true;
+    
+    std::cout << "[PLCProblem] Outer wall displacement BC coefficients set:" << std::endl;
+    std::cout << "  Z range: [" << M_z_min << ", " << M_z_max << "]" << std::endl;
+    std::cout << "  Polynomial order: " << (M_dispXCoefficients.size() - 1) << std::endl;
+    
+    // Also compute displacement at PLC DOFs if needed
+    computeDisplacementOnPLCDOFs();
+}
+
+// ============================================================================
+// Compute Displacement at PLC DOF Locations
+// ============================================================================
+void PLCProblem::computeDisplacementOnPLCDOFs() {
+    // This is optional - only needed if you want to use displacement for something else
+    if (!M_ElastPB) {
+        std::cerr << "[PLCProblem] Error: Elasticity problem not set!" << std::endl;
+        return;
+    }
+    
+    // Get displacement mesh_fem
+    const getfem::mesh_fem& mf_displacement = *(M_ElastPB->getFEM()->getFEM());
+    size_type nbDisplacementDOF = mf_displacement.nb_dof();
+    
+    // Note: This would store displacement values if needed for coupling
+    // Currently not used but available if needed
+}
+
+// ============================================================================
+// Enforce Polynomial Displacement BC on Outer Wall
+// ============================================================================
+void PLCProblem::enforceOuterWallDisplacementBC(bool firstTime) {
+    std::cout << "[PLCProblem] Enforcing polynomial displacement BC on outer wall (region " 
+              << M_outerWallRegion << ")..." << std::endl;
+    
+    if (!M_outerWallBCCallbackX && !M_outerWallBCCallbackY && !M_outerWallBCCallbackZ) {
+        std::cerr << "[PLCProblem] Warning: No displacement BC callbacks set!" << std::endl;
+        return;
+    }
+    
+    if (!M_ElastPB) {
+        std::cerr << "[PLCProblem] Error: Elasticity problem not set!" << std::endl;
+        return;
+    }
+    
+    // Get displacement FEM
+    const getfem::mesh_fem& mf_displacement = *(M_ElastPB->getFEM()->getFEM());
+    
+    // Get system matrix and RHS
+    sparseMatrixPtr_Type matrix = M_Sys->getMatrix();
+    scalarVectorPtr_Type rhs = M_Sys->getRHS();
+    
+    // Calculate offset for displacement DOFs in global system
+    // DOFs are ordered as: [Elasticity | Velocity | Pressure]
+    size_type dispOffset = 0;  // Displacement DOFs come first
+    
+    // Get mesh and boundary region
+    const getfem::mesh& mesh = mf_displacement.linked_mesh();
+    
+    // Check if region exists
+    if (!mesh.has_region(M_outerWallRegion)) {
+        std::cerr << "[PLCProblem] Warning: Region " << M_outerWallRegion 
+                  << " does not exist!" << std::endl;
+        return;
+    }
+    
+    getfem::mesh_region region = mesh.region(M_outerWallRegion);
+    
+    // Find all displacement DOFs on the outer wall boundary
+    dal::bit_vector boundary_dofs;
+    
+    // Iterate over faces in the outer wall region
+    for (getfem::mr_visitor it(region); !it.finished(); ++it) {
+        if (!it.is_face()) continue;
+        
+        size_type cv = it.cv();
+        
+        // Check if element has FEM
+        getfem::pfem pf = mf_displacement.fem_of_element(cv);
+        if (pf == nullptr) continue;
+        
+        // Get DOF indices for this element
+        auto dof_indices = mf_displacement.ind_basic_dof_of_element(cv);
+        
+        // Mark all DOFs of this element on the boundary
+        for (size_type i = 0; i < dof_indices.size(); ++i) {
+            boundary_dofs.add(dof_indices[i]);
+        }
+    }
+    
+    // Apply Dirichlet BC to each boundary DOF
+    size_type bc_count = 0;
+    size_type ncols = gmm::mat_ncols(*matrix);
+    
+    for (dal::bv_visitor dof(boundary_dofs); !dof.finished(); ++dof) {
+        // Get DOF coordinates
+        bgeot::base_node pt = mf_displacement.point_of_basic_dof(dof);
+        scalar_type z = pt[2];  // Assuming z is the axial direction
+        
+        // Get the component of this DOF (0=x, 1=y, 2=z)
+        // This depends on how your FEM is set up
+        size_type component = dof % 3;  // Assuming interleaved: ux1, uy1, uz1, ux2, uy2, uz2, ...
+        size_type global_dof = dispOffset + dof;
+        
+        // Evaluate polynomial BC for the appropriate component
+        scalar_type bc_value = 0.0;
+        switch (component) {
+            case 0:  // x-component
+                if (M_outerWallBCCallbackX) {
+                    bc_value = M_outerWallBCCallbackX(z);
+                }
+                break;
+            case 1:  // y-component
+                if (M_outerWallBCCallbackY) {
+                    bc_value = M_outerWallBCCallbackY(z);
+                }
+                break;
+            case 2:  // z-component
+                if (M_outerWallBCCallbackZ) {
+                    bc_value = M_outerWallBCCallbackZ(z);
+                }
+                break;
+        }
+        
+        // Enforce Dirichlet BC
+        if (firstTime) {
+            // Clear row (except diagonal)
+            for (size_type j = 0; j < ncols; ++j) {
+                (*matrix)(global_dof, j) = 0.0;
+            }
+            // Set diagonal to 1
+            (*matrix)(global_dof, global_dof) = 1.0;
+        }
+        
+        // Set RHS
+        (*rhs)[global_dof] = bc_value;
+        
+        bc_count++;
+    }
+    
+    std::cout << "[PLCProblem] Applied displacement polynomial BC to " << bc_count 
+              << " DOFs on outer wall" << std::endl;
+    
+    // Sample BC values for debugging
+    if (bc_count > 0) {
+        scalar_type ux_min = M_outerWallBCCallbackX ? M_outerWallBCCallbackX(M_z_min) : 0.0;
+        scalar_type uy_min = M_outerWallBCCallbackY ? M_outerWallBCCallbackY(M_z_min) : 0.0;
+        scalar_type uz_min = M_outerWallBCCallbackZ ? M_outerWallBCCallbackZ(M_z_min) : 0.0;
+        
+        scalar_type ux_mid = M_outerWallBCCallbackX ? 
+            M_outerWallBCCallbackX((M_z_min + M_z_max) / 2.0) : 0.0;
+        scalar_type uy_mid = M_outerWallBCCallbackY ? 
+            M_outerWallBCCallbackY((M_z_min + M_z_max) / 2.0) : 0.0;
+        scalar_type uz_mid = M_outerWallBCCallbackZ ? 
+            M_outerWallBCCallbackZ((M_z_min + M_z_max) / 2.0) : 0.0;
+        
+        scalar_type ux_max = M_outerWallBCCallbackX ? M_outerWallBCCallbackX(M_z_max) : 0.0;
+        scalar_type uy_max = M_outerWallBCCallbackY ? M_outerWallBCCallbackY(M_z_max) : 0.0;
+        scalar_type uz_max = M_outerWallBCCallbackZ ? M_outerWallBCCallbackZ(M_z_max) : 0.0;
+        
+        std::cout << "  Displacement BC sample values:" << std::endl;
+        std::cout << "    u(z_min=" << M_z_min << "): [" 
+                  << ux_min << ", " << uy_min << ", " << uz_min << "]" << std::endl;
+        std::cout << "    u(z_mid=" << (M_z_min + M_z_max)/2.0 << "): [" 
+                  << ux_mid << ", " << uy_mid << ", " << uz_mid << "]" << std::endl;
+        std::cout << "    u(z_max=" << M_z_max << "): [" 
+                  << ux_max << ", " << uy_max << ", " << uz_max << "]" << std::endl;
+    }
 }
 
 scalar_type PLCProblem::evaluateOuterWallBC(scalar_type z) const {
@@ -275,7 +474,79 @@ void PLCProblem::assembleRHS() {
     if (std::abs(M_gamma) > 1e-15 && hasCouplingSource()) {
         assembleCouplingRHS();
     }
+
+
+
+//    if (M_usePolynomialBC) {
+//        assembleOuterWallNeumannRHS();
+//   }
 }
+/*
+void PLCProblem::assembleOuterWallNeumannRHS() {
+    if (!M_DarcyPB) {
+        std::cerr << "[PLCProblem] Error: Darcy problem not set!" << std::endl;
+        return;
+    }
+    
+    std::cout << "[PLCProblem] Assembling Neumann BC on outer wall from p_v..." << std::endl;
+    
+    // Get velocity FEM (Neumann BC affects velocity equation)
+    FEM* velocityFEM = M_DarcyPB->getFEM("Velocity");
+    FEM* coeffFEM = M_DarcyPB->getFEM("Pressure");  // Using pressure FEM for coefficients
+    const getfem::mesh_fem& mf_velocity = *(velocityFEM->getFEM());
+    const getfem::mesh_fem& mf_coeff = *(coeffFEM->getFEM());
+    
+    // Get mesh and region
+    const getfem::mesh& mesh = mf_velocity.linked_mesh();
+    
+    if (!mesh.has_region(M_outerWallRegion)) {
+        std::cerr << "[PLCProblem] Warning: Outer wall region " << M_outerWallRegion 
+                  << " not found!" << std::endl;
+        return;
+    }
+    
+    // Build pressure values at coefficient DOF locations
+    scalarVector_Type p_bc(mf_coeff.nb_dof(), 0.0);
+    for (size_type i = 0; i < mf_coeff.nb_dof(); ++i) {
+        bgeot::base_node pt = mf_coeff.point_of_basic_dof(i);
+        scalar_type z = pt[2];
+        p_bc[i] = evaluatePolynomial(z, M_bcCoefficients, M_z_min, M_z_max);
+    }
+    
+    // Assemble: -∫_Γ p_v * v·n dS (natural BC for pressure)
+    // This is the contribution: -p_v on Neumann boundary for the mixed formulation
+    
+    scalarVectorPtr_Type bcVec;
+    bcVec.reset(new scalarVector_Type(mf_velocity.nb_dof(), 0.0));
+    
+    getfem::generic_assembly assem;
+    assem.set("p=data$1(#2);"
+              "t=-comp(vBase(#1).Normal().Base(#2));"
+              "V$1(#1)+=(t(:,i, i, k).p(k));");
+    
+    assem.push_mi(M_intMethod);
+    assem.push_mf(mf_velocity);
+    assem.push_mf(mf_coeff);
+    assem.push_data(p_bc);
+    assem.push_vec(*bcVec);
+    
+    // Assemble on outer wall region
+    assem.assembly(mesh.region(M_outerWallRegion));
+    
+    // Add to global RHS
+    // DOF order: [Elasticity | Velocity | Pressure]
+    size_type nbElastDOF = getNbElastDOF();
+    size_type velocityOffset = nbElastDOF;
+    
+    scalarVectorPtr_Type globalRHS = M_Sys->getRHS();
+    for (size_type i = 0; i < mf_velocity.nb_dof(); ++i) {
+        (*globalRHS)[velocityOffset + i] += (*bcVec)[i];
+    }
+    
+    std::cout << "[PLCProblem] Outer wall Neumann BC assembled (norm = " 
+              << gmm::vect_norm2(*bcVec) << ")" << std::endl;
+}
+*/
 
 // ============================================================================
 // Assemble Coupling RHS Term
@@ -347,19 +618,21 @@ void PLCProblem::enforceStrongBC(bool firstTime) {
         M_ElastPB->enforceStrongBC(firstTime);
     }
     
-    // Enforce standard Darcy BCs (except outer wall if using polynomial)
-    if (M_DarcyPB) {
-        // The Darcy problem will enforce its standard BCs
-        // We'll override the outer wall separately
-       // M_DarcyPB->enforceStrongBC(firstTime);
+// Then enforce displacement BC on outer wall
+    if (M_useDisplacementBC) {
+        enforceOuterWallDisplacementBC(firstTime);
     }
     
-    // Then enforce polynomial BC on outer wall for Darcy pressure
+    // Then enforce pressure BC on outer wall (Dirichlet)
     if (M_usePolynomialBC) {
-        enforceOuterWallBC(firstTime);
+        enforceOuterWallBC(firstTime);  
     }
     
-    // Add coupling matrix term if not done already
+    // Add coupling matrix term
+    if (firstTime && std::abs(M_gamma) > 1e-15) {
+        addCouplingMatrix();
+    }
+    //s Add coupling matrix term if not done already
     //if (firstTime && std::abs(M_gamma) > 1e-15) {
     //    addCouplingMatrix();
     //}
@@ -368,11 +641,12 @@ void PLCProblem::enforceStrongBC(bool firstTime) {
 // ============================================================================
 // Enforce Polynomial Dirichlet BC on Outer Wall
 // ============================================================================
+
 void PLCProblem::enforceOuterWallBC(bool firstTime) {
     std::cout << "[PLCProblem] Enforcing polynomial BC on outer wall (region " 
               << M_outerWallRegion << ")..." << std::endl;
     
-    if (!M_outerWallBCCallback && M_bcCoefficients.empty()) {
+    if (!M_outerWallBCCallbackP && M_bcCoefficients.empty()) {
         std::cerr << "[PLCProblem] Warning: No BC callback or coefficients set!" << std::endl;
         return;
     }
@@ -441,8 +715,8 @@ void PLCProblem::enforceOuterWallBC(bool firstTime) {
         
         // Evaluate polynomial BC
         scalar_type bc_value;
-        if (M_outerWallBCCallback) {
-            bc_value = M_outerWallBCCallback(z);
+        if (M_outerWallBCCallbackP) {
+            bc_value = M_outerWallBCCallbackP(z);
         } else {
             bc_value = evaluatePolynomial(z, M_bcCoefficients, M_z_min, M_z_max);
         }
@@ -468,11 +742,11 @@ void PLCProblem::enforceOuterWallBC(bool firstTime) {
     
     // Sample BC values for debugging
     if (bc_count > 0) {
-        scalar_type p_min = M_outerWallBCCallback ? M_outerWallBCCallback(M_z_min) 
+        scalar_type p_min = M_outerWallBCCallbackP ? M_outerWallBCCallbackP(M_z_min) 
                            : evaluatePolynomial(M_z_min, M_bcCoefficients, M_z_min, M_z_max);
-        scalar_type p_max = M_outerWallBCCallback ? M_outerWallBCCallback(M_z_max) 
+        scalar_type p_max = M_outerWallBCCallbackP ? M_outerWallBCCallbackP(M_z_max) 
                            : evaluatePolynomial(M_z_max, M_bcCoefficients, M_z_min, M_z_max);
-        scalar_type p_mid = M_outerWallBCCallback ? M_outerWallBCCallback((M_z_min + M_z_max) / 2.0) 
+        scalar_type p_mid = M_outerWallBCCallbackP ? M_outerWallBCCallbackP((M_z_min + M_z_max) / 2.0) 
                            : evaluatePolynomial((M_z_min + M_z_max) / 2.0, M_bcCoefficients, M_z_min, M_z_max);
         
         std::cout << "  BC sample values:" << std::endl;
@@ -481,6 +755,7 @@ void PLCProblem::enforceOuterWallBC(bool firstTime) {
         std::cout << "    p(z_max=" << M_z_max << ") = " << p_max << std::endl;
     }
 }
+
 
 // ============================================================================
 // Print Coupling Information
