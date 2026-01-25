@@ -26,21 +26,29 @@ BulkElastData::BulkElastData ( const GetPot& dataFile,
 }
 
 scalar_type BulkElastData::Lambda(const base_node& x )
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_lambda);
-    		M_parser.setVariable ( "x", x [ 0 ] );
+    	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
-		M_parser.setVariable ( "z", x [ 2 ] );
- 	        return M_parser.evaluate ();
+		if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
+ 	    return M_parser.evaluate ();
 	 }
 
 scalar_type BulkElastData::Mu(const base_node& x )
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_mu);
-    		M_parser.setVariable ( "x", x [ 0 ] );
+    	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
-		M_parser.setVariable ( "z", x [ 2 ] );
- 	        return M_parser.evaluate ();
+		if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
+ 	    return M_parser.evaluate ();
 	 }
 
 void BulkElastData::setLambda(std::vector<base_node> nodes)
@@ -72,17 +80,21 @@ void BulkElastData::setfluidP(std::vector<base_node> nodes)
 	}
 	
 bgeot::base_node BulkElastData::bulkLoad(bgeot::base_node x, scalar_type t)
-	{
-		bgeot::base_node sol(3,0);
+	{	
+		size_type dim = x.size();
+		bgeot::base_node sol(dim,0);
        
-	        for ( size_type i = 0; i < 3; ++i )
-    		{
+	    for ( size_type i = 0; i < dim; ++i )
+    	{
  	 		M_parser.setString ( M_load);
-   		        M_parser.setVariable ( "x", x [ 0 ] );
-    	 		M_parser.setVariable ( "y", x [ 1 ] );
-			M_parser.setVariable ( "z", x [ 2 ] );
+   		    M_parser.setVariable ( "x", x [ 0 ] );
+    	 	M_parser.setVariable ( "y", x [ 1 ] );
+			if (dim >= 3)
+            	M_parser.setVariable("z", x[2]);
+        	else
+            	M_parser.setVariable("z", 0.0);
 			M_parser.setVariable ( "t", t );
-     	 		sol[i]=M_parser.evaluate (i);
+     	 	sol[i]=M_parser.evaluate (i);
    		 }
 
 	        return sol;
@@ -90,18 +102,22 @@ bgeot::base_node BulkElastData::bulkLoad(bgeot::base_node x, scalar_type t)
 	}
 
 bgeot::base_node BulkElastData::uEx(bgeot::base_node x, scalar_type t)
-	{
-		bgeot::base_node sol(3,0);
+	{	
+		size_type dim = x.size();
+		bgeot::base_node sol(dim,0);
        
-	        for ( size_type i = 0; i < 3; ++i )
-    		{
+	    for ( size_type i = 0; i < dim; ++i )
+    	{
  	 		M_parser.setString ( M_uEx);
-   		        M_parser.setVariable ( "x", x [ 0 ] );
+   		    M_parser.setVariable ( "x", x [ 0 ] );
     	 		M_parser.setVariable ( "y", x [ 1 ] );
-			M_parser.setVariable ( "z", x [ 2 ] );
+			if (dim >= 3)
+            	M_parser.setVariable("z", x[2]);
+        	else
+            	M_parser.setVariable("z", 0.0);
 			M_parser.setVariable ( "t", t);
-     	 		sol[i]= M_parser.evaluate (i);
-   		 }
+     	 	sol[i]= M_parser.evaluate (i);
+   		}
 
 	        return sol;
 
@@ -109,28 +125,36 @@ bgeot::base_node BulkElastData::uEx(bgeot::base_node x, scalar_type t)
 
 
 bgeot::base_node BulkElastData::uIni(bgeot::base_node x)
-	{
-		bgeot::base_node sol(3,0);
+	{	
+		size_type dim = x.size();
+		bgeot::base_node sol(dim,0);
        
-	        for ( size_type i = 0; i < 3; ++i )
-    		{
+	    for ( size_type i = 0; i < dim; ++i )
+    	{
  	 		M_parser.setString ( M_uIni);
-   		        M_parser.setVariable ( "x", x [ 0 ] );
-    	 		M_parser.setVariable ( "y", x [ 1 ] );
-     	 		M_parser.setVariable ( "z", x [ 2 ] );
-     	 		sol[i]= M_parser.evaluate (i);
+   		    M_parser.setVariable ( "x", x [ 0 ] );
+    	 	M_parser.setVariable ( "y", x [ 1 ] );
+     	 	if (dim >= 3)
+            	M_parser.setVariable("z", x[2]);
+        	else
+            	M_parser.setVariable("z", 0.0);
+     	 	sol[i]= M_parser.evaluate (i);
    		 }
 
 	        return sol;
 
 	}
 scalar_type BulkElastData::fluidP(const base_node& x )
-	 {
+	 {	
+		size_type dim = x.size();
 		M_parser.setString ( M_fluidP);
-    		M_parser.setVariable ( "x", x [ 0 ] );
+    	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
-		M_parser.setVariable ( "z", x [ 2 ] );
- 	        return M_parser.evaluate ();
+		if (dim >= 3)
+            M_parser.setVariable("z", x[2]);
+        else
+            M_parser.setVariable("z", 0.0);
+ 	    return M_parser.evaluate ();
 	 }
 
 

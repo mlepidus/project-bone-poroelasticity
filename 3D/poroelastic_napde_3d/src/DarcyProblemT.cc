@@ -17,9 +17,14 @@ DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk,
   
    // Use the basePath parameter
    std::string intMethodKey = basePath + "darcy/integrationMethod";
-   std::string intMethod(dataFile(intMethodKey.data(), "IM_TETRAHEDRON(2)"));
-   M_intMethod.set_integration_method(bulk->getMesh()->convex_index(),
-                                      getfem::int_method_descriptor(intMethod));
+  
+   // SMART DEFAULT
+   size_type meshDim = bulk->getMesh()->dim();
+   std::string defaultMethod = (meshDim == 2) ? "IM_TRIANGLE(2)" : "IM_TETRAHEDRON(2)";
+
+   std::string intMethod(dataFile ( std::string("bulkData/darcy/integrationMethod" ).data (), defaultMethod.c_str() ) );
+   
+   M_intMethod.set_integration_method(bulk->getMesh()->convex_index(),getfem::int_method_descriptor(intMethod) );
    
    M_Bulk->getDarcyData()->setKxx(M_CoeffFEM.getDOFpoints());
    M_Bulk->getDarcyData()->setKyy(M_CoeffFEM.getDOFpoints());

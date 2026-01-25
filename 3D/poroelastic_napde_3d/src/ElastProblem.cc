@@ -15,7 +15,14 @@ ElastProblem::ElastProblem(const GetPot& dataFile, Bulk* bulk,
     
     // Use the basePath parameter
     std::string intMethodKey = basePath + "mecc/integrationMethod";
-    std::string intMethod(dataFile(intMethodKey.data(), "IM_TETRAHEDRON(2)"));
+    M_nbTotDOF = M_DispFEM.nb_dof();
+    
+    // SMART DEFAULT: Check mesh dimension
+    size_type meshDim = bulk->getMesh()->dim();
+    std::string defaultMethod = (meshDim == 2) ? "IM_TRIANGLE(2)" : "IM_TETRAHEDRON(2)";
+
+    std::string intMethod(dataFile(std::string("bulkData/mecc/integrationMethod").data(), defaultMethod.c_str()));
+    
     M_intMethod.set_integration_method(bulk->getMesh()->convex_index(), 
                                        getfem::int_method_descriptor(intMethod));
     
@@ -53,14 +60,22 @@ void ElastProblem::initialize() {
     gmm::clear(*M_DispSol);
     gmm::clear(*M_DispSolOld);
     
+    size_type meshDim = M_Bulk->getMesh()->dim(); // 2 o 3
     // Initialize with initial condition if provided
     int counter = 0;
-    for (size_type i = 0; i < M_DispFEM.nb_dof("base"); i += 3) {
+    for (size_type i = 0; i < M_DispFEM.nb_dof("base"); i += meshDim) {
         base_node nodo(M_DispFEM.point_of_basic_dof(i));
-        (*M_DispSol)[counter] = M_Bulk->getElastData()->uIni(nodo)[0];
+        
+        // X e Y sempre presenti
+        (*M_DispSol)[counter]     = M_Bulk->getElastData()->uIni(nodo)[0];
         (*M_DispSol)[counter + 1] = M_Bulk->getElastData()->uIni(nodo)[1];
-        (*M_DispSol)[counter + 2] = M_Bulk->getElastData()->uIni(nodo)[2];
-        counter += 3;
+        
+        // Z solo se 3D
+        if (meshDim == 3) {
+            (*M_DispSol)[counter + 2] = M_Bulk->getElastData()->uIni(nodo)[2];
+        }
+        
+        counter += meshDim;
     }
 }
 
@@ -100,6 +115,8 @@ void ElastProblem::assembleRHS() {
 }
 
 void ElastProblem::enforceStrongBC(bool firstTime) {
+    size_type meshDim = M_Bulk->getMesh()->dim(); // 2 o 3
+
     if (firstTime) {
         // Collect DOFs with Dirichlet BC
         for (size_type bndID = 0; bndID < M_BC.getDiriBD().size(); bndID++) {
@@ -111,18 +128,20 @@ void ElastProblem::enforceStrongBC(bool firstTime) {
         }
         
         // Enforce Dirichlet BC in matrix and RHS
-        for (size_type i = 0; i < M_rowsStrongBC.size(); i += 3) {
+        // i salta di meshDim (2 o 3)
+        for (size_type i = 0; i < M_rowsStrongBC.size(); i += meshDim) {
+            
+            // --- X COMPONENT ---
             size_type ii = M_rowsStrongBC[i];
             bgeot::base_node where = M_DispFEM.getFEM()->point_of_basic_dof(ii);
             
-            // Set row to identity
             M_Sys->setNullRow(ii);
             M_Sys->setMatrixValue(ii, ii, 1);
             scalar_type value = (M_BC.BCDiriVec(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[0] +
                                 M_BC.BCDiriVel(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[0] * M_time->time());
             M_Sys->setRHSValue(ii, value);
             
-            // y-component
+            // --- Y COMPONENT ---
             ii = M_rowsStrongBC[i + 1];
             M_Sys->setNullRow(ii);
             M_Sys->setMatrixValue(ii, ii, 1);
@@ -130,33 +149,40 @@ void ElastProblem::enforceStrongBC(bool firstTime) {
                     M_BC.BCDiriVel(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[1] * M_time->time());
             M_Sys->setRHSValue(ii, value);
             
-            // z-component
-            ii = M_rowsStrongBC[i + 2];
-            M_Sys->setNullRow(ii);
-            M_Sys->setMatrixValue(ii, ii, 1);
-            value = (M_BC.BCDiriVec(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[2] +
-                    M_BC.BCDiriVel(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[2] * M_time->time());
-            M_Sys->setRHSValue(ii, value);
+            // --- Z COMPONENT (SOLO 3D) ---
+            if (meshDim == 3) {
+                ii = M_rowsStrongBC[i + 2];
+                M_Sys->setNullRow(ii);
+                M_Sys->setMatrixValue(ii, ii, 1);
+                value = (M_BC.BCDiriVec(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[2] +
+                        M_BC.BCDiriVel(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[2] * M_time->time());
+                M_Sys->setRHSValue(ii, value);
+            }
         }
     } else {
-        // Only update RHS values for time-dependent BC
-        for (size_type i = 0; i < M_rowsStrongBC.size(); i += 3) {
+        // Update RHS values only
+        for (size_type i = 0; i < M_rowsStrongBC.size(); i += meshDim) {
+            
+            // X
             size_type ii = M_rowsStrongBC[i];
             bgeot::base_node where = M_DispFEM.getFEM()->point_of_basic_dof(ii);
-            
             scalar_type value = (M_BC.BCDiriVec(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[0] +
                                 M_BC.BCDiriVel(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[0] * M_time->time());
             M_Sys->setRHSValue(ii, value);
             
+            // Y
             ii = M_rowsStrongBC[i + 1];
             value = (M_BC.BCDiriVec(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[1] +
                     M_BC.BCDiriVel(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[1] * M_time->time());
             M_Sys->setRHSValue(ii, value);
             
-            ii = M_rowsStrongBC[i + 2];
-            value = (M_BC.BCDiriVec(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[2] +
-                    M_BC.BCDiriVel(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[2] * M_time->time());
-            M_Sys->setRHSValue(ii, value);
+            // Z (SOLO 3D)
+            if (meshDim == 3) {
+                ii = M_rowsStrongBC[i + 2];
+                value = (M_BC.BCDiriVec(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[2] +
+                        M_BC.BCDiriVel(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[2] * M_time->time());
+                M_Sys->setRHSValue(ii, value);
+            }
         }
     }
 }
@@ -240,11 +266,14 @@ void ElastProblem::exportVtk(std::string folder, int frame) {
         
         expE.exporting(*(M_DispFEM.getFEM()));
         gmm::clear(dispCut);
-        for (size_type i = 0; i < dispCut.size(); i += 3) {
+        for (size_type i = 0; i < dispCut.size(); i += M_Bulk->getMesh()->dim()) { // Incremento dinamico
             bgeot::base_node where = M_DispFEM.getFEM()->point_of_basic_dof(i);
             dispCut[i] = M_Bulk->getElastData()->uEx(where, M_time->time())[0];
             dispCut[i + 1] = M_Bulk->getElastData()->uEx(where, M_time->time())[1];
-            dispCut[i + 2] = M_Bulk->getElastData()->uEx(where, M_time->time())[2];
+            
+            if (M_Bulk->getMesh()->dim() == 3) {
+                 dispCut[i + 2] = M_Bulk->getElastData()->uEx(where, M_time->time())[2];
+            }
         }
         
         expE.write_mesh();

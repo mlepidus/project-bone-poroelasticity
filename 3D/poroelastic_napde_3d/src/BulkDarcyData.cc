@@ -34,96 +34,136 @@ BulkDarcyData::BulkDarcyData ( const GetPot& dataFile,
 
 
 scalar_type BulkDarcyData::Kxx(const base_node& x )
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_Kxx);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
- 	    M_parser.setVariable ( "z", x [ 2 ] );
- 	        return M_parser.evaluate ()/M_muF;
+ 	    if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
+ 	    return M_parser.evaluate ()/M_muF;
 	 }
 
 scalar_type BulkDarcyData::Kxy(const base_node& x )
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_Kxy);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
-		M_parser.setVariable ( "z", x [ 2 ] );
- 	        return M_parser.evaluate ()/M_muF;
+		if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
+ 	    return M_parser.evaluate ()/M_muF;
 	 }
 
 scalar_type BulkDarcyData::Kyy(const base_node& x )
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_Kyy);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
- 	    M_parser.setVariable ( "z", x [ 2 ] );
- 	        return M_parser.evaluate ()/M_muF;
+ 	    if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
+ 	    return M_parser.evaluate ()/M_muF;
 	 }
 scalar_type BulkDarcyData::Kzz(const base_node& x )
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_Kzz);
    		M_parser.setVariable ( "x", x [ 0 ] );
     	M_parser.setVariable ( "y", x [ 1 ] );
-	    M_parser.setVariable ( "z", x [ 2 ] );
- 	        return M_parser.evaluate ()/M_muF;
+	    if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
+ 	    return M_parser.evaluate ()/M_muF;
 	 }
 scalar_type BulkDarcyData::Kxz(const base_node& x )
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_Kxz);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
-		M_parser.setVariable ( "z", x [ 2 ] );
- 	        return M_parser.evaluate ()/M_muF;
+		if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
+ 	    return M_parser.evaluate ()/M_muF;
 	 }
 scalar_type BulkDarcyData::Kyz(const base_node& x )
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_Kyz);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
-		M_parser.setVariable ( "z", x [ 2 ] );
- 	        return M_parser.evaluate ()/M_muF;
+		if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
+ 	    return M_parser.evaluate ()/M_muF;
 	 }
 	 
 scalar_type BulkDarcyData::source(const base_node& x, const scalar_type t=0)
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_source);
   		M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
- 	    M_parser.setVariable ( "z", x [ 2 ] );
+ 	    if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
 		M_parser.setVariable ( "t", t );
- 	        return M_parser.evaluate ();
+ 	    return M_parser.evaluate ();
 	 }
 	 
 scalar_type BulkDarcyData::pIni(const base_node& x )
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_pIni);
    		M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
- 	    M_parser.setVariable ( "z", x [ 2 ] );
- 	        return M_parser.evaluate ();
+ 	    if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
+ 	    return M_parser.evaluate ();
 	 }
 
 scalar_type BulkDarcyData::pEx(const base_node& x , const scalar_type t=0)
-	 {
+	 {	
+		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_pEx);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
-		M_parser.setVariable ( "z", x [ 2 ] );
+		if (dim >= 3)
+        	M_parser.setVariable("z", x[2]);
+    	else
+        	M_parser.setVariable("z", 0.0);
 		M_parser.setVariable ( "t", t );
- 	        return M_parser.evaluate ();
+ 	    return M_parser.evaluate ();
 	 }
 
 bgeot::base_node BulkDarcyData::uEx(const base_node& x, const scalar_type t=0)
-	 {
-		bgeot::base_node u(0,0);
-		for (size_type i=0;i<u.size();++i)
+	 {	
+		size_type dim = x.size();
+		bgeot::base_node u(dim,0);
+		for (size_type i=0;i<dim;++i)
 		{
-		M_parser.setString ( M_uEx);
-    	M_parser.setVariable ( "x", x [ 0 ] );
- 		M_parser.setVariable ( "y", x [ 1 ] );
- 		M_parser.setVariable ( "z", x [ 2 ] );
- 		M_parser.setVariable ( "t", t );
-		u[i]=M_parser.evaluate (i);
+			M_parser.setString ( M_uEx);
+			M_parser.setVariable ( "x", x [ 0 ] );
+			M_parser.setVariable ( "y", x [ 1 ] );
+			if (dim >= 3)
+            	M_parser.setVariable ( "z", x[2] );
+        	else
+            	M_parser.setVariable ( "z", 0.0 );
+			M_parser.setVariable ( "t", t );
+			u[i]=M_parser.evaluate (i);
 		}
  	        return u;
 	 }

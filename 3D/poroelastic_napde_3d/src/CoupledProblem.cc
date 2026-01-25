@@ -11,7 +11,15 @@ CoupledProblem::CoupledProblem (const GetPot& dataFile, Bulk* bulk,  TimeLoop* t
 			step(0)
 
 {  
-   std::string intMethod(dataFile ( std::string(M_section+"/darcy/integrationMethod" ).data (), "IM_TETRAHEDRON(2)" ) );
+   // Rileva la dimensione della mesh caricata
+   size_type meshDim = bulk->getMesh()->dim();
+   
+   // Se la mesh è 2D usa triangoli, se 3D usa tetraedri
+   std::string defaultMethod = (meshDim == 2) ? "IM_TRIANGLE(2)" : "IM_TETRAHEDRON(2)";
+
+   // Cerca nel file, se non trova usa il default "intelligente"
+   std::string intMethod(dataFile ( std::string("bulkData/darcy/integrationMethod" ).data (), defaultMethod.c_str() ) );
+   
    M_intMethod.set_integration_method(bulk->getMesh()->convex_index(),getfem::int_method_descriptor(intMethod) );
 }
 

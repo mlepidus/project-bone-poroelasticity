@@ -98,7 +98,7 @@ void essentialWNitscheRHSVec( scalarVectorPtr_Type V,
     {
         scalar_type h_el= medium->getMesh()->convex_radius_estimate(femC.first_convex_of_basic_dof(i));
         scalar_type inv_h_mesh = 1.0 / h_el;
-	lambda[i]=medium->getElastData()->getLambda(i);
+	    lambda[i]=medium->getElastData()->getLambda(i);
     	mu[i]=medium->getElastData()->getMu(i);
         etaGammaUinvh [ i ] = 5*mu[i] *inv_h_mesh;
     }

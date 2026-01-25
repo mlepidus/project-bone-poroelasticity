@@ -70,30 +70,40 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
         std::string name_lower = pair.first;
         std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
         
+        // 1. Mappatura per OUTER o LEFT -> ID 0
         if (name_lower.find("outer") != std::string::npos || 
             name_lower.find("external") != std::string::npos ||
-            name_lower.find("ext") != std::string::npos) {
+            name_lower.find("ext") != std::string::npos ||
+            name_lower.find("left") != std::string::npos) {     // <--- Aggiunto Left
+            
             name_to_internal_id[pair.first] = 0;
-            std::cout << "  Mapping '" << pair.first << "' -> internal region 0 (outer)" << std::endl;
+            std::cout << "  Mapping '" << pair.first << "' -> internal region 0 (Outer/Left)" << std::endl;
         }
+        // 2. Mappatura per INNER o RIGHT -> ID 1
         else if (name_lower.find("inner") != std::string::npos || 
                  name_lower.find("internal") != std::string::npos ||
-                 name_lower.find("int") != std::string::npos) {
+                 name_lower.find("int") != std::string::npos ||
+                 name_lower.find("right") != std::string::npos) { // <--- Aggiunto Right
+            
             name_to_internal_id[pair.first] = 1;
-            std::cout << "  Mapping '" << pair.first << "' -> internal region 1 (inner)" << std::endl;
+            std::cout << "  Mapping '" << pair.first << "' -> internal region 1 (Inner/Right)" << std::endl;
         }
+        // 3. Mappatura per BOTTOM -> ID 2
         else if (name_lower.find("bottom") != std::string::npos || 
                  name_lower.find("lower") != std::string::npos ||
                  name_lower.find("low") != std::string::npos ||
                  name_lower.find("bot") != std::string::npos) {
+            
             name_to_internal_id[pair.first] = 2;
-            std::cout << "  Mapping '" << pair.first << "' -> internal region 2 (bottom)" << std::endl;
+            std::cout << "  Mapping '" << pair.first << "' -> internal region 2 (Bottom)" << std::endl;
         }
+        // 4. Mappatura per TOP -> ID 3
         else if (name_lower.find("top") != std::string::npos || 
                  name_lower.find("upper") != std::string::npos ||
                  name_lower.find("up") != std::string::npos) {
+            
             name_to_internal_id[pair.first] = 3;
-            std::cout << "  Mapping '" << pair.first << "' -> internal region 3 (top)" << std::endl;
+            std::cout << "  Mapping '" << pair.first << "' -> internal region 3 (Top)" << std::endl;
         }
         else {
             std::cout << "  Warning: No mapping found for '" << pair.first << "'" << std::endl;
@@ -331,36 +341,54 @@ void BC::setBoundaries(getfem::mesh* meshPtr)
 // ============================================================================
 
 scalar_type BC::BCNeum(const base_node& x, const size_type& flag, const scalar_type t)
-{
+{   
+    // Rileva la dimensione del nodo (2 per 2D, 3 per 3D)
+    size_type dim = x.size();
+
     M_parser.setString(M_BCNeum);
     M_parser.setVariable("x", x[0]);
     M_parser.setVariable("y", x[1]);
-    M_parser.setVariable("z", x[2]);
+    if (dim >= 3) 
+        M_parser.setVariable("z", x[2]);
+    else 
+        M_parser.setVariable("z", 0.0);
     M_parser.setVariable("n", flag);
     M_parser.setVariable("t", t);
     return M_parser.evaluate();
 }
 
 scalar_type BC::BCDiri(const base_node& x, const size_type& flag)
-{
+{   
+    // Rileva la dimensione del nodo (2 per 2D, 3 per 3D)
+    size_type dim = x.size();
+
     M_parser.setString(M_BCDiri);
     M_parser.setVariable("x", x[0]);
     M_parser.setVariable("y", x[1]);
-    M_parser.setVariable("z", x[2]);
+    if (dim >= 3) 
+        M_parser.setVariable("z", x[2]);
+    else 
+        M_parser.setVariable("z", 0.0);
     M_parser.setVariable("n", flag);
     return M_parser.evaluate();
 }
 
 bgeot::base_node BC::BCDiriVec(const base_node& x, const size_type& flag, const scalar_type t)
-{
-    bgeot::base_node sol(3, 0);
+{   
+    size_type dim = x.size();
+    
+    // Inizializza il vettore soluzione con la dimensione corretta (2 o 3)
+    bgeot::base_node sol(dim, 0.0);
        
-    for (size_type i = 0; i < 3; ++i)
+    for (size_type i = 0; i < dim; ++i)
     {
         M_parser.setString(M_BCDiriVec);
         M_parser.setVariable("x", x[0]);
         M_parser.setVariable("y", x[1]);
-        M_parser.setVariable("z", x[2]);
+        if (dim >= 3) 
+            M_parser.setVariable("z", x[2]);
+        else          
+            M_parser.setVariable("z", 0.0);
         M_parser.setVariable("n", flag);
         M_parser.setVariable("t", t);
         sol[i] = M_parser.evaluate(i);
@@ -370,14 +398,20 @@ bgeot::base_node BC::BCDiriVec(const base_node& x, const size_type& flag, const 
 
 bgeot::base_node BC::BCNeumVec(const base_node& x, const size_type& flag, const scalar_type t)
 {
-    bgeot::base_node sol(3, 0);
+    size_type dim = x.size();
+    
+    // Inizializza il vettore soluzione con la dimensione corretta (2 o 3)
+    bgeot::base_node sol(dim, 0.0);
        
     for (size_type i = 0; i < 3; ++i)
     {
         M_parser.setString(M_BCNeumVec);
         M_parser.setVariable("x", x[0]);
         M_parser.setVariable("y", x[1]);
-        M_parser.setVariable("z", x[2]);
+        if (dim >= 3) 
+            M_parser.setVariable("z", x[2]);
+        else          
+            M_parser.setVariable("z", 0.0);
         M_parser.setVariable("n", flag);
         M_parser.setVariable("t", t);
         sol[i] = M_parser.evaluate(i);
@@ -387,14 +421,20 @@ bgeot::base_node BC::BCNeumVec(const base_node& x, const size_type& flag, const 
 
 bgeot::base_node BC::BCDiriVel(const base_node& x, const size_type& flag, const scalar_type t)
 {
-    bgeot::base_node sol(3, 0);
+    size_type dim = x.size();
+    
+    // Inizializza il vettore soluzione con la dimensione corretta (2 o 3)
+    bgeot::base_node sol(dim, 0.0);
     
     for (size_type i = 0; i < 3; ++i)
     {
         M_parser.setString(M_BCDiriVel);
         M_parser.setVariable("x", x[0]);
         M_parser.setVariable("y", x[1]);
-        M_parser.setVariable("z", x[2]);
+        if (dim >= 3) 
+            M_parser.setVariable("z", x[2]);
+        else          
+            M_parser.setVariable("z", 0.0);
         M_parser.setVariable("n", flag);
         M_parser.setVariable("t", t);
         sol[i] = M_parser.evaluate(i);

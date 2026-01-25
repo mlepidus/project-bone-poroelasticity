@@ -16,7 +16,7 @@
 
 [bulkData]
     [./domain]
-        meshExternal = anulus2d.msh
+        meshExternal = square_2d.msh
         meshFolder = ./meshes/
         dimension=2
         spatialDiscretizationX = 10  % Start with coarser mesh
@@ -45,12 +45,12 @@
         FEMTypePressure = FEM_PK(2,0)
         FEMTypeCoeff = FEM_PK(2,0)
         integrationMethod = IM_TRIANGLE(2)
-        source = 1e-6 * exp(-10*((x-0.5)^2 + (y-0.5)^2))
-        p_BC = 1e6
+        source = 0
+        p_BC = 10
         v_BC = 0
         pIni = 0  
-        u_exact = 
-        p_exact = 
+        u_exact = [0,0]
+        p_exact = 10
     [../]
 
     [./mecc]
