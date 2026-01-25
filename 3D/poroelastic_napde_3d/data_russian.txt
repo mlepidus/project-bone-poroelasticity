@@ -28,7 +28,7 @@
 
         [./darcy]
 
-		bcflag = [1,1,0,0] %no flow dappertutto
+		bcflag = [0,1,0,0] %no flow dappertutto
                 nBoundaries = 4 %%ripetuto
                 Kxx = 1.0
                 Kyy = 1.0

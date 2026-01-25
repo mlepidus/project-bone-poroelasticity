@@ -87,7 +87,7 @@ public:
     /**
      * @brief Check if outer wall BC callback is set
      */
-    inline bool hasOuterWallBCCallback() const { return M_outerWallBCCallback != nullptr; }
+    inline bool hasOuterWallBCCallback() const { return M_outerWallBCCallbackP != nullptr; }
     
     /**
      * @brief Set polynomial coefficients directly for outer wall BC
@@ -98,6 +98,11 @@ public:
     void setOuterWallBCCoefficients(const std::vector<scalar_type>& coefficients,
                                     scalar_type z_min, scalar_type z_max);
     
+    void setOuterWallDisplacementBCCoefficients(const std::vector<scalar_type>& coeffs_x,
+        const std::vector<scalar_type>& coeffs_y,
+        const std::vector<scalar_type>& coeffs_z,
+        scalar_type z_min, scalar_type z_max);
+
     /**
      * @brief Get stored polynomial coefficients
      */
@@ -111,7 +116,7 @@ public:
      * @return Pressure value from callback or coefficients
      */
     scalar_type evaluateOuterWallBC(scalar_type z) const;
-    
+    void computeDisplacementOnPLCDOFs();
     /**
      * @brief Get outer wall region ID
      */
@@ -207,6 +212,14 @@ public:
     void addCouplingMatrix();
     
     /**
+     * @brief Assemble Neumann BC contribution on outer wall
+     * 
+     * Adds -∫_Γ p_v * v·n dS to the velocity equation RHS
+     */
+    void assembleOuterWallNeumannRHS();
+    
+
+    /**
      * @brief Get pressure mass matrix (for coupling term)
      */
     inline sparseMatrixPtr_Type getPressureMassMatrix() const { return M_pressureMass; }
@@ -241,6 +254,12 @@ protected:
      */
     void enforceOuterWallBC(bool firstTime);
     
+        /**
+     * @brief Enforce polynomial Dirichlet BC on outer wall
+     * @param firstTime Modify matrix if true
+     */
+    void enforceOuterWallDisplacementBC(bool firstTime);
+
     /**
      * @brief Evaluate polynomial at a point
      * @param z Z-coordinate
@@ -274,11 +293,20 @@ protected:
     bool M_couplingMatrixAdded;
     
     /// Callback for evaluating outer wall BC: p_l = p_v(z)
-    BCCallback M_outerWallBCCallback;
+    BCCallback M_outerWallBCCallbackP;
+
+    /// Callback for evaluating outer wall displacement BC: 
+    BCCallback M_outerWallBCCallbackX;
+    BCCallback M_outerWallBCCallbackY;
+    BCCallback M_outerWallBCCallbackZ;
+
     
     /// Polynomial coefficients for outer wall BC
-    std::vector<scalar_type> M_bcCoefficients;
+    std::vector<scalar_type> M_bcCoefficients; //pressure coefficients
     
+    std::vector<scalar_type> M_dispXCoefficients;  // Displacement X coefficients
+    std::vector<scalar_type> M_dispYCoefficients;  // Displacement Y coefficients
+    std::vector<scalar_type> M_dispZCoefficients;  // Displacement Z coefficients
     /// Z-range for polynomial normalization
     scalar_type M_z_min;
     scalar_type M_z_max;
@@ -288,6 +316,8 @@ protected:
     
     /// Flag: use polynomial BC on outer wall
     bool M_usePolynomialBC;
+    bool M_useDisplacementBC;
+
 };
 
 #endif // PLCPROBLEM_H
