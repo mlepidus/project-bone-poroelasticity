@@ -321,11 +321,21 @@ void PLCProblem::assembleCouplingRHS() {
     for (size_type i = 0; i < nbPressureDOF; ++i) {
         (*globalRHS)[pressureOffset + i] += (*couplingRHS)[i];
     }
-    
+        // DIAGNOSTIC
+    scalar_type rhs_norm = gmm::vect_norm2(*couplingRHS);
+    scalar_type source_norm = gmm::vect_norm2(*M_couplingSource);
     std::cout << "[PLCProblem] Coupling RHS assembled:" << std::endl;
     std::cout << "  gamma = " << M_gamma << std::endl;
     std::cout << "  ||M * p_v|| = " << gmm::vect_norm2(*couplingRHS) / M_gamma << std::endl;
     std::cout << "  ||gamma * M * p_v|| = " << gmm::vect_norm2(*couplingRHS) << std::endl;
+
+     // Sanity checks
+    if (rhs_norm > 1e10) {
+        std::cerr << "  WARNING: Coupling RHS norm is very large!" << std::endl;
+    }
+    if (source_norm < 1e-12) {
+        std::cerr << "  WARNING: Coupling source is nearly zero!" << std::endl;
+    }
 }
 
 // ============================================================================
@@ -350,9 +360,9 @@ void PLCProblem::enforceStrongBC(bool firstTime) {
     }
     
     // Add coupling matrix term if not done already
-    if (firstTime && std::abs(M_gamma) > 1e-15) {
-        addCouplingMatrix();
-    }
+    //if (firstTime && std::abs(M_gamma) > 1e-15) {
+    //    addCouplingMatrix();
+    //}
 }
 
 // ============================================================================

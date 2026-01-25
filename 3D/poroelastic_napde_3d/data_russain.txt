@@ -4,7 +4,7 @@
 
 [time]
 
-    Tend = 7
+    Tend = 4
     dt = 0.1
 
 [../]./
@@ -28,7 +28,7 @@
 
         [./darcy]
 
-		bcflag = [1,1,0,0] %no flow dappertutto
+		bcflag = [0,1,0,0] %no flow dappertutto
                 nBoundaries = 4 %%ripetuto
                 Kxx = 1.0
                 Kyy = 1.0
@@ -53,6 +53,29 @@
 		p_exact = 0
 		
         [../]
+        [./mecc]
+
+		bcflag = [0,1,1,1]  %0 means displacement   %%ext,int, low,up
+		nBoundaries = 4
+                mu = 1
+                lambda = 1
+                fluidP = 0  %to impose a given fluid pressure if we decouple the problems
+
+                bulkLoad = [0,0,0]
+                bdLoad = [0,0,0.1*(x-1)*sin(t)*(z>0.58)]
+                bdDisp = [0,0,0]
+                bdVel = [0,0,0]
+                
+                FEMTypeDisplacement = FEM_PK(3,1)
+                FEMTypeCoeff = FEM_PK(3,0)
+                FEMTypeStress = FEM_PK(3,1)
+                FEMTypeStressS = FEM_PK(3,1)
+                integrationMethod = IM_TETRAHEDRON(2)
+		u_exact = [0,0,0]
+		u_ini = [0,0,0]
+
+        [../]
+
 
 [bulkDataPLC]
 
@@ -127,10 +150,10 @@
     [./line0]
         name = osteon_axis
         start_x = 0.5
-        start_y = 0.5
+        start_y = 0.3
         start_z = 0.0
         end_x = 0.5
-        end_y = 0.5
+        end_y = 0.3
         end_z = 1.0
         num_samples = 100
         polynomial_order = 3
