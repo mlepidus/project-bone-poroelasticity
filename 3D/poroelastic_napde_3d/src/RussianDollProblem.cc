@@ -271,6 +271,10 @@ void RussianDollProblem::updatePLCBoundaryCoefficients() {
     // Pass polynomial coefficients to PLC problem
     M_plcProblem->setOuterWallBCCoefficients(M_pressureCoefficients, M_z_min, M_z_max);
     
+    M_plcProblem->setOuterWallDisplacementBCCoefficients(M_displacementXCoefficients,
+                                                        M_displacementYCoefficients,
+                                                        M_displacementZCoefficients,
+                                                        M_z_min, M_z_max);
     // Compute PV pressure at PLC DOF locations for coupling RHS
     computePVPressureOnPLCDOFs();
     
