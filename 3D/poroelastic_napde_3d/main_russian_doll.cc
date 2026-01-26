@@ -5,27 +5,35 @@
  * @file main_russian_doll.cc
  * @brief Main driver for Russian Doll (nested porosity) poroelasticity simulation
  * 
- * This program solves the coupled dual-porosity Biot equations:
- * - PV (Vascular Porosity): Outer domain, solved first (one-way coupling)
- * - PLC (Lacuno-canalicular Porosity): Inner domain, receives BC from PV
+ * This program solves the coupled dual-porosity Biot equations with one-way coupling:
  * 
- * Physical Model:
- * - PV and PLC are each governed by Biot's poroelasticity equations
- * - One-way coupling: PV pressure is interpolated to PLC outer wall as Dirichlet BC
- * - p_l = p_v(z) on the outer wall of PLC, where p_v(z) is a polynomial fit
+ * PV (Vascular Porosity) - Outer domain, solved first:
+ *   K u_v - alpha_v C p_v = R_v
+ *   alpha_v C^T u_dot_v + H_v p_v + (1/M_v) M p_dot_v = Q_v
  * 
- * Coupling Strategy:
- * 1. Solve PV problem (standalone)
- * 2. Extract PV pressure along vertical line
- * 3. Fit polynomial p_v(z) to the extracted data
- * 4. Apply p_v(z) as Dirichlet BC on PLC outer wall
- * 5. Solve PLC problem
+ * PLC (Lacuno-canalicular Porosity) - Inner domain:
+ *   K u_l - alpha_l C p_l = R_l
+ *   alpha_l C^T u_dot_l + (H_l + gamma*M) p_l + (1/M_l) M p_dot_l = Q_l + gamma*M*p_v
+ *   
+ *   with BCs on outer wall:
+ *   - Displacement: u_l = u_v(z)  (Dirichlet, from polynomial fit)
+ *   - Pressure: p_l = p_v(z)      (Neumann in mixed form, from polynomial fit)
+ * 
+ * Time stepping workflow:
+ * 1. Assemble PV matrix (once at start)
+ * 2. For each time step:
+ *    a. Clear PV RHS, assemble PV RHS, apply PV BCs
+ *    b. Solve PV
+ *    c. Interpolate PV solution -> polynomial coefficients
+ *    d. Update PLC BCs from polynomials
+ *    e. Clear PLC RHS, assemble PLC RHS (includes +gamma*M*p_v), apply PLC BCs
+ *    f. Solve PLC
+ *    g. Update solutions, export
  * 
  * Usage:
- *   ./main_russian_doll -f data_russian_doll.txt
+ *   ./main_russian_doll -f data_russian.txt
  */
 
-// Enable floating point exception handling if available
 #ifdef GETFEM_HAVE_FEENABLEEXCEPT
 #include <fenv.h>
 #endif
@@ -38,23 +46,26 @@
 #include "include/LinearSystem.h"
 #include "include/TimeLoop.h"
 
-// Problem-specific classes
+// Problem classes
 #include "include/DarcyProblemT.h"
 #include "include/ElastProblem.h"
 #include "include/CoupledProblem.h"
 #include "include/PLCProblem.h"
 #include "include/RussianDollProblem.h"
 
-// Utility functions
+// Utilities
 #include "include/UsefulFunctions.h"
 
-// Type definitions
-typedef gmm::rsvector<scalar_type> sparse_vector_type;
-typedef gmm::row_matrix<sparse_vector_type> sparse_matrix_type;
+#include <sys/stat.h>
+
+// Helper function to create directory
+void createDirectory(const std::string& path) {
+    mkdir(path.c_str(), 0755);
+}
 
 int main(int argc, char *argv[]) {
     
-    // Enable floating point exception detection
+    // Enable floating point exceptions
     #ifdef GETFEM_HAVE_FEENABLEEXCEPT
     feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
     #endif
@@ -64,80 +75,79 @@ int main(int argc, char *argv[]) {
     // ========================================================================
     
     GetPot command_line(argc, argv);
-    const std::string data_file_name = command_line.follow("data_russian_doll.txt", 2, "-f", "--file");
+    const std::string data_file_name = command_line.follow("data_russian.txt", 2, "-f", "--file");
     
     std::cout << "========================================================" << std::endl;
     std::cout << "  Russian Doll Dual-Porosity Poroelasticity Simulation  " << std::endl;
     std::cout << "========================================================" << std::endl;
-    std::cout << "Reading data file: " << data_file_name << std::endl;
+    std::cout << "Data file: " << data_file_name << std::endl;
     
     GetPot dataFile(data_file_name.data());
     
-    // Output directory for VTK files
-    const std::string vtkFolder = dataFile("output/folder", "output_vtk/");
+    // Output directories
+    const std::string vtkFolder = dataFile("output/folder", "./output_vtk");
+    createDirectory(vtkFolder);
+    createDirectory(vtkFolder + "/pv");
+    createDirectory(vtkFolder + "/plc");
     
     // ========================================================================
-    // Phase 1: Setup Domain and Time Loop
+    // Phase 1: Create Domains and Time Loop
     // ========================================================================
     
-    std::cout << "\n=== Phase 1: Initialization ===" << std::endl;
+    std::cout << "\n=== Phase 1: Domain Setup ===" << std::endl;
     
-    // Create bulk domains for PV (outer) and PLC (inner)
-    std::cout << "Creating PV bulk domain..." << std::endl;
-    Bulk myDomainPV(dataFile, "bulkDataPV/");
+    // Create bulk domains
+    std::cout << "Creating PV (outer) bulk domain..." << std::endl;
+    Bulk domainPV(dataFile, "bulkDataPV/");
     
-    std::cout << "Creating PLC bulk domain..." << std::endl;
-    Bulk myDomainPLC(dataFile, "bulkDataPLC/");
+    std::cout << "Creating PLC (inner) bulk domain..." << std::endl;
+    Bulk domainPLC(dataFile, "bulkDataPLC/");
     
-    // Export meshes for visualization
-    myDomainPV.exportMesh(vtkFolder + "meshPV.vtk");
-    myDomainPLC.exportMesh(vtkFolder + "meshPLC.vtk");
+    // Export meshes
+    domainPV.exportMesh(vtkFolder + "/meshPV.vtk");
+    domainPLC.exportMesh(vtkFolder + "/meshPLC.vtk");
     std::cout << "Meshes exported to " << vtkFolder << std::endl;
     
-    // Create time loop manager (shared between PV and PLC)
+    // Create time loop
     std::cout << "Setting up time discretization..." << std::endl;
-    TimeLoop myTime(dataFile);
-    std::cout << "  Time steps: " << myTime.Nstep() << std::endl;
-    std::cout << "  Time step size (dt): " << myTime.dt() << std::endl;
-    std::cout << "  Final time: " << myTime.Tend() << std::endl;
+    TimeLoop timeLoop(dataFile);
+    std::cout << "  dt = " << timeLoop.dt() << std::endl;
+    std::cout << "  Tend = " << timeLoop.Tend() << std::endl;
+    std::cout << "  N steps = " << timeLoop.Nstep() << std::endl;
     
     // ========================================================================
-    // Phase 2: Create Physics Problems
+    // Phase 2: Create Sub-Problems
     // ========================================================================
     
-    std::cout << "\n=== Phase 2: Creating Physics Problems ===" << std::endl;
+    std::cout << "\n=== Phase 2: Creating Sub-Problems ===" << std::endl;
     
-    // PV Problems (Vascular Porosity)
+    // --- PV Sub-Problems ---
     std::cout << "Creating PV Darcy problem..." << std::endl;
-    DarcyProblemT myDarcyPV(dataFile, &myDomainPV, "bulkDataPV/");
+    DarcyProblemT darcyPV(dataFile, &domainPV, "bulkDataPV/");
     
     std::cout << "Creating PV elasticity problem..." << std::endl;
-    ElastProblem myElastPV(dataFile, &myDomainPV, "bulkDataPV/");
+    ElastProblem elastPV(dataFile, &domainPV, "bulkDataPV/");
     
-    // PLC Problems (Lacuno-canalicular Porosity)
+    // --- PLC Sub-Problems ---
     std::cout << "Creating PLC Darcy problem..." << std::endl;
-    DarcyProblemT myDarcyPLC(dataFile, &myDomainPLC, "bulkDataPLC/");
+    DarcyProblemT darcyPLC(dataFile, &domainPLC, "bulkDataPLC/");
     
     std::cout << "Creating PLC elasticity problem..." << std::endl;
-    ElastProblem myElastPLC(dataFile, &myDomainPLC, "bulkDataPLC/");
+    ElastProblem elastPLC(dataFile, &domainPLC, "bulkDataPLC/");
     
     // ========================================================================
-    // Phase 3: Create Coupled Problem Managers
+    // Phase 3: Create Coupled Problems
     // ========================================================================
     
     std::cout << "\n=== Phase 3: Creating Coupled Problems ===" << std::endl;
     
     // PV Coupled Problem (standard CoupledProblem)
     std::cout << "Creating PV coupled problem..." << std::endl;
-    CoupledProblem myPV(dataFile, &myDomainPV, &myTime, "bulkDataPV/");
+    CoupledProblem coupledPV(dataFile, &domainPV, &timeLoop, "bulkDataPV/");
     
-    // PLC Coupled Problem (PLCProblem with BC callback support)
+    // PLC Coupled Problem (PLCProblem with polynomial BC support)
     std::cout << "Creating PLC coupled problem..." << std::endl;
-    PLCProblem myPLC(dataFile, &myDomainPLC, &myTime, "bulkDataPLC/");
-    
-    // Russian Doll Manager (orchestrates PV → PLC coupling)
-    std::cout << "Creating Russian Doll coupling manager..." << std::endl;
-    RussianDollProblem myRussianDoll(dataFile, &myDomainPV, &myDomainPLC, &myTime);
+    PLCProblem coupledPLC(dataFile, &domainPLC, &timeLoop, "bulkDataPLC/");
     
     // ========================================================================
     // Phase 4: Initialize Sub-Problems
@@ -145,186 +155,183 @@ int main(int argc, char *argv[]) {
     
     std::cout << "\n=== Phase 4: Initializing Sub-Problems ===" << std::endl;
     
-    // Initialize PV sub-problems
-    std::cout << "Initializing PV Darcy problem..." << std::endl;
-    myDarcyPV.initialize();
+    // Initialize PV
+    std::cout << "Initializing PV problems..." << std::endl;
+    darcyPV.initialize();
+    elastPV.initialize();
     
-    std::cout << "Initializing PV elasticity problem..." << std::endl;
-    myElastPV.initialize();
-    
-    // Initialize PLC sub-problems
-    std::cout << "Initializing PLC Darcy problem..." << std::endl;
-    myDarcyPLC.initialize();
-    
-    std::cout << "Initializing PLC elasticity problem..." << std::endl;
-    myElastPLC.initialize();
+    // Initialize PLC
+    std::cout << "Initializing PLC problems..." << std::endl;
+    darcyPLC.initialize();
+    elastPLC.initialize();
     
     // Register sub-problems with coupled systems
-    std::cout << "Registering sub-problems with coupled systems..." << std::endl;
-    myPV.addDarcyPB(&myDarcyPV);
-    myPV.addElastPB(&myElastPV);
+    std::cout << "Registering sub-problems..." << std::endl;
+    coupledPV.addDarcyPB(&darcyPV);
+    coupledPV.addElastPB(&elastPV);
     
-    myPLC.addDarcyPB(&myDarcyPLC);
-    myPLC.addElastPB(&myElastPLC);
-    
-    // Register coupled problems with Russian Doll
-    myRussianDoll.setPVProblem(&myPV);
-    myRussianDoll.setPLCProblem(&myPLC);
+    coupledPLC.addDarcyPB(&darcyPLC);
+    coupledPLC.addElastPB(&elastPLC);
     
     // ========================================================================
-    // Phase 5: Create Linear Systems and Initial Assembly
+    // Phase 5: Create Linear Systems
     // ========================================================================
     
     std::cout << "\n=== Phase 5: Creating Linear Systems ===" << std::endl;
     
-    // Create separate linear systems for PV and PLC
-    LinearSystem mySysPV(dataFile, "solver/");
-    LinearSystem mySysPLC(dataFile, "solver/");
+    LinearSystem sysPV(dataFile, "extra/solver/");
+    LinearSystem sysPLC(dataFile, "extra/solver/");
     
-    // Register DOFs
+    // Register DOFs with systems
     std::cout << "Registering DOFs for PV system..." << std::endl;
-    myPV.addToSys(&mySysPV);
+    coupledPV.addToSys(&sysPV);
     
     std::cout << "Registering DOFs for PLC system..." << std::endl;
-    myPLC.addToSys(&mySysPLC);
+    coupledPLC.addToSys(&sysPLC);
     
-    // Assemble matrices (remain constant for linear problems)
+    // ========================================================================
+    // Phase 6: Create Russian Doll Manager
+    // ========================================================================
+    
+    std::cout << "\n=== Phase 6: Creating Russian Doll Manager ===" << std::endl;
+    
+    RussianDollProblem russianDoll(dataFile, &domainPV, &domainPLC, &timeLoop);
+    russianDoll.setPVProblem(&coupledPV);
+    russianDoll.setPLCProblem(&coupledPLC);
+    russianDoll.initialize();
+    
+    // ========================================================================
+    // Phase 7: Assemble Matrices (once, they don't change)
+    // ========================================================================
+    
+    std::cout << "\n=== Phase 7: Assembling Matrices ===" << std::endl;
+    
+    // Assemble PV matrix
     std::cout << "Assembling PV system matrix..." << std::endl;
-    myPV.assembleMatrix();
+    coupledPV.assembleMatrix();
+    coupledPV.enforceStrongBC(true);  // Modify matrix for Dirichlet BCs
+    coupledPV.addSubSystems();
+    sysPV.saveMatrix("matrixPV.mm");
     
+    // Assemble PLC matrix
+    // Note: The coupling matrix (+gamma*M) is added in enforceStrongBC(true)
     std::cout << "Assembling PLC system matrix..." << std::endl;
-    myPLC.assembleMatrix();
-    
-    // Apply initial boundary conditions to matrices
-    std::cout << "Applying initial BCs to PV system..." << std::endl;
-    myPV.enforceStrongBC(true);
-    
-    // Note: PLC outer wall BC will be applied dynamically from RussianDoll
-    // Standard BCs (e.g., elasticity) are applied here
-    std::cout << "Applying initial BCs to PLC system (excluding outer wall)..." << std::endl;
-    // The polynomial BC for outer wall will be applied in the time loop
-    
-    // Combine sub-system matrices
-    std::cout << "Combining sub-system matrices for PV..." << std::endl;
-    myPV.addSubSystems();
-    
-    std::cout << "Combining sub-system matrices for PLC..." << std::endl;
-    myPLC.addSubSystems();
-    
-    // Save matrices for debugging
-    mySysPV.saveMatrix("matrixPV.mm");
-    mySysPLC.saveMatrix("matrixPLC.mm");
-    
-    // Initialize Russian Doll (sets up interpolation and BC callbacks)
-    std::cout << "Initializing Russian Doll coupling..." << std::endl;
-    myRussianDoll.initialize();
+    coupledPLC.assembleMatrix();
+    coupledPLC.enforceStrongBC(true);  // Modify matrix + add coupling matrix
+    coupledPLC.addSubSystems();
+    sysPLC.saveMatrix("matrixPLC.mm");
     
     // ========================================================================
-    // Phase 6: Initial Condition
+    // Phase 8: Export Initial Condition
     // ========================================================================
     
-    std::cout << "\n=== Phase 6: Initial Condition (t = 0) ===" << std::endl;
+    std::cout << "\n=== Phase 8: Initial Condition (t = 0) ===" << std::endl;
     
-    // Export initial state
-    myRussianDoll.exportVtk(vtkFolder, 0);
+    russianDoll.exportVtk(vtkFolder, 0);
     
-    // Update solutions for first time step
-    myPV.updateSol();
-    myPLC.updateSol();
+    // Update for first time step
+    coupledPV.updateSol();
+    coupledPLC.updateSol();
     
     // ========================================================================
-    // Phase 7: Time Integration Loop
+    // Phase 9: Time Integration Loop
     // ========================================================================
     
-    std::cout << "\n=== Phase 7: Time Integration ===" << std::endl;
-    std::cout << "Starting time loop for " << myTime.Nstep() << " time steps..." << std::endl;
+    std::cout << "\n=== Phase 9: Time Integration ===" << std::endl;
+    std::cout << "Starting time loop for " << timeLoop.Nstep() << " time steps..." << std::endl;
     
-    for (size_type tt = 0; tt < myTime.Nstep(); ++tt) {
+    for (size_type tt = 0; tt < timeLoop.Nstep(); ++tt) {
         
         std::cout << "\n======================================================" << std::endl;
-        std::cout << " Time Step " << tt + 1 << " / " << myTime.Nstep() 
-                  << " (t = " << myTime.time() + myTime.dt() << ")" << std::endl;
+        std::cout << " Time Step " << (tt + 1) << " / " << timeLoop.Nstep() 
+                  << " (t = " << timeLoop.time() + timeLoop.dt() << ")" << std::endl;
         std::cout << "======================================================" << std::endl;
         
         // Advance time
-        myTime.advance();
+        timeLoop.advance();
         
-        // --------------------------------------------------------------------
-        // Step 1: Solve PV Problem
-        // --------------------------------------------------------------------
-        std::cout << "\n--- Solving PV Problem ---" << std::endl;
+        // ====================================================================
+        // Step A: Solve PV Problem
+        // ====================================================================
+        std::cout << "\n--- Step A: Solving PV Problem ---" << std::endl;
         
-        // Clear previous RHS
-        mySysPV.cleanRHS();
-        myPV.clearSubSystemsRHS();
+        // Clear RHS
+        sysPV.cleanRHS();
+        coupledPV.clearSubSystemsRHS();
         
         // Assemble RHS for current time
-        myPV.assembleRHS();
+        coupledPV.assembleRHS();
         
         // Apply BCs (RHS only, matrix already modified)
-        myPV.enforceStrongBC(false);
+        coupledPV.enforceStrongBC(false);
         
         // Add sub-system contributions
-        myPV.addSubSystemsRHS();
+        coupledPV.addSubSystemsRHS();
         
         // Solve
-        myPV.solve();
+        coupledPV.solve();
         
         std::cout << "PV solution complete." << std::endl;
         
-        // --------------------------------------------------------------------
-        // Step 2: Interpolate PV → PLC
-        // --------------------------------------------------------------------
-        std::cout << "\n--- Interpolating PV Pressure to PLC Boundary ---" << std::endl;
+        // ====================================================================
+        // Step B: Interpolate PV -> PLC
+        // ====================================================================
+        std::cout << "\n--- Step B: Interpolating PV -> PLC ---" << std::endl;
         
-        // Extract PV pressure and fit polynomial
-        myRussianDoll.interpolatePVtoPLC();
+        // This extracts PV solution, fits polynomials, and updates PLC BCs
+        russianDoll.interpolatePVtoPLC();
         
         // Export interpolation data for debugging
-        myRussianDoll.exportInterpolationData(vtkFolder, tt + 1);
+        russianDoll.exportInterpolationData(vtkFolder, tt + 1);
         
-        // --------------------------------------------------------------------
-        // Step 3: Solve PLC Problem with Polynomial BC
-        // --------------------------------------------------------------------
-        std::cout << "\n--- Solving PLC Problem ---" << std::endl;
+        // ====================================================================
+        // Step C: Solve PLC Problem
+        // ====================================================================
+        std::cout << "\n--- Step C: Solving PLC Problem ---" << std::endl;
         
-        // Clear previous RHS
-        mySysPLC.cleanRHS();
-        myPLC.clearSubSystemsRHS();
+        // Clear RHS
+        sysPLC.cleanRHS();
+        coupledPLC.clearSubSystemsRHS();
         
         // Assemble RHS for current time
-        myPLC.assembleRHS();
+        // This includes the coupling term +gamma*M*p_v
+        coupledPLC.assembleRHS();
         
-        // Apply BCs including polynomial BC on outer wall
-        // The polynomial coefficients were set by myRussianDoll.interpolatePVtoPLC()
-        myPLC.enforceStrongBC(false);
+        // Apply BCs (RHS only)
+        // The polynomial BCs are already set via callbacks in BC class
+        coupledPLC.enforceStrongBC(false);
         
         // Add sub-system contributions
-        myPLC.addSubSystemsRHS();
+        coupledPLC.addSubSystemsRHS();
         
         // Solve
-        myPLC.solve();
+        coupledPLC.solve();
         
         std::cout << "PLC solution complete." << std::endl;
         
-        // --------------------------------------------------------------------
-        // Step 4: Update and Export
-        // --------------------------------------------------------------------
-        std::cout << "\n--- Post-processing ---" << std::endl;
+        // ====================================================================
+        // Step D: Post-processing
+        // ====================================================================
+        std::cout << "\n--- Step D: Post-processing ---" << std::endl;
         
         // Update solutions for next time step
-        myPV.updateSol();
-        myPLC.updateSol();
+        coupledPV.updateSol();
+        coupledPLC.updateSol();
         
-        // Compute errors (if exact solution available)
-        std::cout << "Computing errors..." << std::endl;
-        std::vector<scalar_type> errors = myRussianDoll.computeErrors(myTime.time());
+        // Compute errors (if exact solutions available)
+        std::vector<scalar_type> errors = russianDoll.computeErrors(timeLoop.time());
+        if (errors[0] >= 0) {
+            std::cout << "  PV pressure error: " << errors[0] << std::endl;
+        }
+        if (errors[2] >= 0) {
+            std::cout << "  PLC pressure error: " << errors[2] << std::endl;
+        }
         
         // Export VTK
         std::cout << "Exporting solutions..." << std::endl;
-        myRussianDoll.exportVtk(vtkFolder, tt + 1);
+        russianDoll.exportVtk(vtkFolder, tt + 1);
         
-        std::cout << "Time step " << tt + 1 << " completed." << std::endl;
+        std::cout << "Time step " << (tt + 1) << " completed." << std::endl;
     }
     
     // ========================================================================
@@ -335,8 +342,11 @@ int main(int argc, char *argv[]) {
     std::cout << "  Simulation completed successfully!" << std::endl;
     std::cout << "========================================================" << std::endl;
     std::cout << "Results exported to: " << vtkFolder << std::endl;
-    std::cout << "Total time steps: " << myTime.Nstep() << std::endl;
-    std::cout << "Final time: " << myTime.time() << std::endl;
+    std::cout << "Total time steps: " << timeLoop.Nstep() << std::endl;
+    std::cout << "Final time: " << timeLoop.time() << std::endl;
+    
+    // Print final coupling info
+    russianDoll.printCouplingInfo();
     
     return 0;
 }

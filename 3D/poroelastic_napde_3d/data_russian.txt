@@ -27,7 +27,8 @@
         [../]
 
         [./darcy]
-
+                % BC flags: 0=Dirichlet on velocity (essential), 1=Neumann (natural=pressure)
+                % Regions: 0=outer, 1=inner, 2=bottom, 3=top
 		bcflag = [1,1,0,0] %no flow dappertutto
                 nBoundaries = 4 %%ripetuto
                 Kxx = 1.0
@@ -54,7 +55,8 @@
 		
         [../]
         [./mecc]
-
+                % BC flags: 0=Dirichlet on displacement, 1=Neumann (traction)
+                % Regions: 0=outer, 1=inner, 2=bottom, 3=top
 		bcflag = [0,1,1,1]  %0 means displacement   %%ext,int, low,up
 		nBoundaries = 4
                 mu = 1
@@ -78,7 +80,7 @@
 
 
 [bulkDataPLC]
-
+        outer_wall_region = 0
         [./domain]
 
                 meshExternal = mesh_tag2.msh
@@ -91,9 +93,9 @@
 
         [./darcy]
 
-		bcflag = [0,1,0,0] %no flow dappertutto
+		bcflag = [1,1,0,0] %no flow dappertutto
                 nBoundaries = 4
-                Kxx = 1.0
+                Kxx = 1.0 %0.1
                 Kyy = 1.0
                 Kzz = 1.0
                 Kxy = 0.0

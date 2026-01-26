@@ -68,8 +68,8 @@
 
           [./mecc]
 
-		        bcflag = [0,1,1,1]  %important to keep the first bc to 0 if you want to use the interpolated displacement
-		        nBoundaries = 4
+		bcflag = [0,1,1,1]  %important to keep the first bc to 0 if you want to use the interpolated displacement
+		nBoundaries = 4
                 mu = 1
                 lambda = 1
                 fluidP = 0  %to impose a given fluid pressure if we decouple the problems
