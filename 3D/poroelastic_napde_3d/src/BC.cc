@@ -1,5 +1,14 @@
-#include "../include/BC.h"
+// ============================================================================
+// BC.cc - Boundary condition implementation with polynomial callback support
+// ============================================================================
 
+#include "../include/BC.h"
+#include <algorithm>
+#include <cmath>
+
+// ============================================================================
+// Constructor
+// ============================================================================
 BC::BC(const GetPot& dataFile,
        const std::string& problem,
        const std::string& section) :
@@ -15,6 +24,8 @@ BC::BC(const GetPot& dataFile,
     M_BC.resize(M_nBoundaries, 0); 
     M_parser.setString(M_BCstring);
 
+    std::cout << "[BC] Parsing boundary conditions for " << M_section << std::endl;
+    std::cout << "  BC flags: ";
     
     for (size_type i = 0; i < M_nBoundaries; ++i)
     {
@@ -34,9 +45,290 @@ BC::BC(const GetPot& dataFile,
             M_MixedRG.push_back(i);
         }
     }
+    std::cout << std::endl;
     
+    std::cout << "  Dirichlet regions: ";
+    for (auto r : M_DiriRG) std::cout << r << " ";
+    std::cout << std::endl;
+    
+    std::cout << "  Neumann regions: ";
+    for (auto r : M_NeumRG) std::cout << r << " ";
+    std::cout << std::endl;
 }
 
+// ============================================================================
+// Polynomial Callback Methods
+// ============================================================================
+
+void BC::setPressureCallback(size_type region, ScalarCallback callback) {
+    M_pressureCallbacks[region] = callback;
+    std::cout << "[BC] Pressure callback set for region " << region << std::endl;
+}
+
+void BC::setDisplacementCallback(size_type region, VectorCallback callback) {
+    M_displacementCallbacks[region] = callback;
+    std::cout << "[BC] Displacement (vector) callback set for region " << region << std::endl;
+}
+
+void BC::setDisplacementCallbacks(size_type region,
+                                  ScalarCallback callback_x,
+                                  ScalarCallback callback_y,
+                                  ScalarCallback callback_z) {
+    M_dispXCallbacks[region] = callback_x;
+    M_dispYCallbacks[region] = callback_y;
+    M_dispZCallbacks[region] = callback_z;
+    
+    // Also create a combined vector callback
+    M_displacementCallbacks[region] = [callback_x, callback_y, callback_z](scalar_type z) -> bgeot::base_node {
+        bgeot::base_node result(3);
+        result[0] = callback_x ? callback_x(z) : 0.0;
+        result[1] = callback_y ? callback_y(z) : 0.0;
+        result[2] = callback_z ? callback_z(z) : 0.0;
+        return result;
+    };
+    
+    std::cout << "[BC] Displacement (component) callbacks set for region " << region << std::endl;
+}
+
+void BC::setPressurePolynomial(size_type region,
+                               const std::vector<scalar_type>& coefficients,
+                               scalar_type z_min,
+                               scalar_type z_max) {
+    // Store polynomial data
+    M_pressurePolynomials[region] = {coefficients, z_min, z_max};
+    
+    // Create callback that evaluates the polynomial
+    M_pressureCallbacks[region] = [this, region](scalar_type z) -> scalar_type {
+        const auto& poly = this->M_pressurePolynomials.at(region);
+        return this->evaluatePolynomial(z, poly.coefficients, poly.z_min, poly.z_max);
+    };
+    
+    std::cout << "[BC] Pressure polynomial set for region " << region << std::endl;
+    std::cout << "  Z range: [" << z_min << ", " << z_max << "]" << std::endl;
+    std::cout << "  Polynomial order: " << (coefficients.size() - 1) << std::endl;
+    std::cout << "  Coefficients: [";
+    for (size_t i = 0; i < coefficients.size(); ++i) {
+        if (i > 0) std::cout << ", ";
+        std::cout << coefficients[i];
+    }
+    std::cout << "]" << std::endl;
+}
+
+void BC::setDisplacementPolynomial(size_type region,
+                                   const std::vector<scalar_type>& coeffs_x,
+                                   const std::vector<scalar_type>& coeffs_y,
+                                   const std::vector<scalar_type>& coeffs_z,
+                                   scalar_type z_min,
+                                   scalar_type z_max) {
+    // Store polynomial data
+    M_dispXPolynomials[region] = {coeffs_x, z_min, z_max};
+    M_dispYPolynomials[region] = {coeffs_y, z_min, z_max};
+    M_dispZPolynomials[region] = {coeffs_z, z_min, z_max};
+    
+    // Create component callbacks
+    M_dispXCallbacks[region] = [this, region](scalar_type z) -> scalar_type {
+        const auto& poly = this->M_dispXPolynomials.at(region);
+        return this->evaluatePolynomial(z, poly.coefficients, poly.z_min, poly.z_max);
+    };
+    
+    M_dispYCallbacks[region] = [this, region](scalar_type z) -> scalar_type {
+        const auto& poly = this->M_dispYPolynomials.at(region);
+        return this->evaluatePolynomial(z, poly.coefficients, poly.z_min, poly.z_max);
+    };
+    
+    M_dispZCallbacks[region] = [this, region](scalar_type z) -> scalar_type {
+        const auto& poly = this->M_dispZPolynomials.at(region);
+        return this->evaluatePolynomial(z, poly.coefficients, poly.z_min, poly.z_max);
+    };
+    
+    // Create combined vector callback
+    M_displacementCallbacks[region] = [this, region](scalar_type z) -> bgeot::base_node {
+        bgeot::base_node result(3);
+        result[0] = this->M_dispXCallbacks.at(region)(z);
+        result[1] = this->M_dispYCallbacks.at(region)(z);
+        result[2] = this->M_dispZCallbacks.at(region)(z);
+        return result;
+    };
+    
+    std::cout << "[BC] Displacement polynomial set for region " << region << std::endl;
+    std::cout << "  Z range: [" << z_min << ", " << z_max << "]" << std::endl;
+}
+
+void BC::clearPressureCallback(size_type region) {
+    M_pressureCallbacks.erase(region);
+    M_pressurePolynomials.erase(region);
+    std::cout << "[BC] Pressure callback cleared for region " << region << std::endl;
+}
+
+void BC::clearDisplacementCallback(size_type region) {
+    M_displacementCallbacks.erase(region);
+    M_dispXCallbacks.erase(region);
+    M_dispYCallbacks.erase(region);
+    M_dispZCallbacks.erase(region);
+    M_dispXPolynomials.erase(region);
+    M_dispYPolynomials.erase(region);
+    M_dispZPolynomials.erase(region);
+    std::cout << "[BC] Displacement callback cleared for region " << region << std::endl;
+}
+
+bool BC::hasPressureCallback(size_type region) const {
+    return M_pressureCallbacks.find(region) != M_pressureCallbacks.end();
+}
+
+bool BC::hasDisplacementCallback(size_type region) const {
+    return M_displacementCallbacks.find(region) != M_displacementCallbacks.end();
+}
+
+scalar_type BC::evaluatePolynomial(scalar_type z,
+                                   const std::vector<scalar_type>& coeffs,
+                                   scalar_type z_min,
+                                   scalar_type z_max) const {
+    if (coeffs.empty()) {
+        return 0.0;
+    }
+    
+    // Normalize z to [0, 1]
+    scalar_type t = 0.0;
+    if (std::abs(z_max - z_min) > 1e-15) {
+        t = (z - z_min) / (z_max - z_min);
+    }
+    
+    // Clamp to [0, 1]
+    t = std::max(0.0, std::min(1.0, t));
+    
+    // Evaluate polynomial: p(t) = c0 + c1*t + c2*t^2 + ...
+    scalar_type result = 0.0;
+    scalar_type t_power = 1.0;
+    
+    for (size_type i = 0; i < coeffs.size(); ++i) {
+        result += coeffs[i] * t_power;
+        t_power *= t;
+    }
+    
+    return result;
+}
+
+// ============================================================================
+// BC Evaluation Functions
+// ============================================================================
+
+scalar_type BC::BCNeum(const base_node& x, const size_type& flag, const scalar_type t)
+{   
+    // Check if we have a pressure callback for this region
+    auto it = M_pressureCallbacks.find(flag);
+    if (it != M_pressureCallbacks.end() && it->second) {
+        // Use polynomial callback based on z-coordinate
+        return it->second(x[2]);
+    }
+    
+    // Otherwise use standard parser-based evaluation
+    size_type dim = x.size();
+
+    M_parser.setString(M_BCNeum);
+    M_parser.setVariable("x", x[0]);
+    M_parser.setVariable("y", x[1]);
+    if (dim >= 3) 
+        M_parser.setVariable("z", x[2]);
+    else 
+        M_parser.setVariable("z", 0.0);
+    M_parser.setVariable("n", flag);
+    M_parser.setVariable("t", t);
+    return M_parser.evaluate();
+}
+
+scalar_type BC::BCDiri(const base_node& x, const size_type& flag)
+{   
+    size_type dim = x.size();
+
+    M_parser.setString(M_BCDiri);
+    M_parser.setVariable("x", x[0]);
+    M_parser.setVariable("y", x[1]);
+    if (dim >= 3) 
+        M_parser.setVariable("z", x[2]);
+    else 
+        M_parser.setVariable("z", 0.0);
+    M_parser.setVariable("n", flag);
+    return M_parser.evaluate();
+}
+
+bgeot::base_node BC::BCDiriVec(const base_node& x, const size_type& flag, const scalar_type t)
+{   
+    size_type dim = x.size();
+    bgeot::base_node sol(dim, 0.0);
+    
+    // Check if we have a displacement callback for this region
+    auto it = M_displacementCallbacks.find(flag);
+    if (it != M_displacementCallbacks.end() && it->second) {
+        // Use polynomial callback based on z-coordinate
+        bgeot::base_node callback_result = it->second(x[2]);
+        for (size_type i = 0; i < std::min(dim, (size_type)3); ++i) {
+            sol[i] = callback_result[i];
+        }
+        return sol;
+    }
+    
+    // Otherwise use standard parser-based evaluation
+    for (size_type i = 0; i < dim; ++i)
+    {
+        M_parser.setString(M_BCDiriVec);
+        M_parser.setVariable("x", x[0]);
+        M_parser.setVariable("y", x[1]);
+        if (dim >= 3) 
+            M_parser.setVariable("z", x[2]);
+        else          
+            M_parser.setVariable("z", 0.0);
+        M_parser.setVariable("n", flag);
+        M_parser.setVariable("t", t);
+        sol[i] = M_parser.evaluate(i);
+    }
+    return sol;
+}
+
+bgeot::base_node BC::BCNeumVec(const base_node& x, const size_type& flag, const scalar_type t)
+{
+    size_type dim = x.size();
+    bgeot::base_node sol(dim, 0.0);
+       
+    for (size_type i = 0; i < dim; ++i)
+    {
+        M_parser.setString(M_BCNeumVec);
+        M_parser.setVariable("x", x[0]);
+        M_parser.setVariable("y", x[1]);
+        if (dim >= 3) 
+            M_parser.setVariable("z", x[2]);
+        else          
+            M_parser.setVariable("z", 0.0);
+        M_parser.setVariable("n", flag);
+        M_parser.setVariable("t", t);
+        sol[i] = M_parser.evaluate(i);
+    }
+    return sol;
+}
+
+bgeot::base_node BC::BCDiriVel(const base_node& x, const size_type& flag, const scalar_type t)
+{
+    size_type dim = x.size();
+    bgeot::base_node sol(dim, 0.0);
+    
+    for (size_type i = 0; i < dim; ++i)
+    {
+        M_parser.setString(M_BCDiriVel);
+        M_parser.setVariable("x", x[0]);
+        M_parser.setVariable("y", x[1]);
+        if (dim >= 3) 
+            M_parser.setVariable("z", x[2]);
+        else          
+            M_parser.setVariable("z", 0.0);
+        M_parser.setVariable("n", flag);
+        M_parser.setVariable("t", t);
+        sol[i] = M_parser.evaluate(i);
+    }
+    return sol;
+}
+
+// ============================================================================
+// Boundary Region Setup from Gmsh Tags
+// ============================================================================
 
 void BC::setBoundariesFromTags(getfem::mesh* meshPtr, 
                                const std::map<std::string, size_type>& regmap)
@@ -70,25 +362,25 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
         std::string name_lower = pair.first;
         std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
         
-        // 1. Mappatura per OUTER o LEFT -> ID 0
+        // Mapping for OUTER or LEFT -> ID 0
         if (name_lower.find("outer") != std::string::npos || 
             name_lower.find("external") != std::string::npos ||
             name_lower.find("ext") != std::string::npos ||
-            name_lower.find("left") != std::string::npos) {     // <--- Aggiunto Left
+            name_lower.find("left") != std::string::npos) {
             
             name_to_internal_id[pair.first] = 0;
             std::cout << "  Mapping '" << pair.first << "' -> internal region 0 (Outer/Left)" << std::endl;
         }
-        // 2. Mappatura per INNER o RIGHT -> ID 1
+        // Mapping for INNER or RIGHT -> ID 1
         else if (name_lower.find("inner") != std::string::npos || 
                  name_lower.find("internal") != std::string::npos ||
                  name_lower.find("int") != std::string::npos ||
-                 name_lower.find("right") != std::string::npos) { // <--- Aggiunto Right
+                 name_lower.find("right") != std::string::npos) {
             
             name_to_internal_id[pair.first] = 1;
             std::cout << "  Mapping '" << pair.first << "' -> internal region 1 (Inner/Right)" << std::endl;
         }
-        // 3. Mappatura per BOTTOM -> ID 2
+        // Mapping for BOTTOM -> ID 2
         else if (name_lower.find("bottom") != std::string::npos || 
                  name_lower.find("lower") != std::string::npos ||
                  name_lower.find("low") != std::string::npos ||
@@ -97,7 +389,7 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
             name_to_internal_id[pair.first] = 2;
             std::cout << "  Mapping '" << pair.first << "' -> internal region 2 (Bottom)" << std::endl;
         }
-        // 4. Mappatura per TOP -> ID 3
+        // Mapping for TOP -> ID 3
         else if (name_lower.find("top") != std::string::npos || 
                  name_lower.find("upper") != std::string::npos ||
                  name_lower.find("up") != std::string::npos) {
@@ -166,115 +458,6 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
     std::cout << "=== Boundary assignment complete ===\n" << std::endl;
 }
 
-/*
-void BC::setBoundariesFromTags(getfem::mesh* meshPtr, 
-                               const std::map<std::string, size_type>& regmap)
-{
-    std::cout << "\n=== BC::setBoundariesFromTags ===" << std::endl;
-    std::cout << "Setting boundaries from Gmsh physical tags (by numerical order)..." << std::endl;
-    
-    // Get all regions that exist in the mesh
-    dal::bit_vector mesh_regions = meshPtr->regions_index();
-    
-    std::cout << "Available regions in mesh:" << std::endl;
-    for (dal::bv_visitor i(mesh_regions); !i.finished(); ++i) {
-        getfem::mesh_region region = meshPtr->region(i);
-        size_t count = 0;
-        for (getfem::mr_visitor it(region); !it.finished(); ++it) {
-            count++;
-        }
-        std::cout << "  Region " << i << ": " << count << " faces" << std::endl;
-    }
-    
-    std::cout << "\nPhysical names from Gmsh:" << std::endl;
-    for (const auto& pair : regmap) {
-        std::cout << "  '" << pair.first << "' -> Gmsh tag " << pair.second << std::endl;
-    }
-    
-    // Create a vector of (tag_id, name) pairs and sort by tag_id
-    std::vector<std::pair<size_type, std::string>> sorted_regions;
-    for (const auto& pair : regmap) {
-        sorted_regions.push_back({pair.second, pair.first});
-    }
-    
-    // Sort by tag ID (first element of pair)
-    std::sort(sorted_regions.begin(), sorted_regions.end());
-    
-    std::cout << "\nSorted regions by tag number:" << std::endl;
-    for (size_t i = 0; i < sorted_regions.size(); ++i) {
-        std::cout << "  Tag " << sorted_regions[i].first 
-                  << " ('" << sorted_regions[i].second 
-                  << "') -> internal region " << i << std::endl;
-    }
-    
-    // Verify we have enough boundaries defined
-    if (sorted_regions.size() > M_nBoundaries) {
-        std::cerr << "WARNING: Found " << sorted_regions.size() 
-                  << " Gmsh regions but only " << M_nBoundaries 
-                  << " boundaries defined in input file!" << std::endl;
-        std::cerr << "Only the first " << M_nBoundaries 
-                  << " regions will be assigned." << std::endl;
-    }
-    
-    // Assign Gmsh regions to internal regions based on tag order
-    std::cout << "\nAssigning Gmsh regions to internal regions..." << std::endl;
-    
-    for (size_t internal_id = 0; internal_id < std::min(sorted_regions.size(), (size_t)M_nBoundaries); ++internal_id) {
-        size_type gmsh_tag = sorted_regions[internal_id].first;
-        const std::string& physical_name = sorted_regions[internal_id].second;
-        
-        if (mesh_regions.is_in(gmsh_tag)) {
-            getfem::mesh_region gmsh_region = meshPtr->region(gmsh_tag);
-            
-            size_t face_count = 0;
-            for (getfem::mr_visitor face_it(gmsh_region); !face_it.finished(); ++face_it) {
-                meshPtr->region(internal_id).add(face_it.cv(), face_it.f());
-                face_count++;
-            }
-            
-            std::cout << "  ✓ Assigned " << face_count << " faces from '" 
-                      << physical_name << "' (Gmsh tag " << gmsh_tag 
-                      << ") to internal region " << internal_id << std::endl;
-        }
-        else {
-            std::cout << "  ✗ Warning: Gmsh tag " << gmsh_tag 
-                      << " for '" << physical_name << "' not found!" << std::endl;
-        }
-    }
-    
-    // Verify assignment
-    std::cout << "\nVerification - Internal regions after assignment:" << std::endl;
-    for (size_type i = 0; i < M_nBoundaries; ++i) {
-        size_t count = 0;
-        getfem::mesh_region region = meshPtr->region(i);
-        for (getfem::mr_visitor it(region); !it.finished(); ++it) {
-            count++;
-        }
-        
-        std::string bc_type = "Unknown";
-        if (M_BC[i] == 0) bc_type = "Dirichlet";
-        else if (M_BC[i] == 1) bc_type = "Neumann";
-        else if (M_BC[i] == 2) bc_type = "Mixed";
-        
-        std::cout << "  Region " << i << ": " << count 
-                  << " faces (BC type: " << bc_type << ")";
-        
-        // Show which Gmsh region this corresponds to
-        if (i < sorted_regions.size()) {
-            std::cout << " [from Gmsh tag " << sorted_regions[i].first 
-                      << " '" << sorted_regions[i].second << "']";
-        }
-        std::cout << std::endl;
-        
-        if (count == 0) {
-            std::cout << "    WARNING: No faces assigned!" << std::endl;
-        }
-    }
-    
-    std::cout << "=== Boundary assignment complete ===\n" << std::endl;
-}
-*/
-
 // ============================================================================
 // Geometric Boundary Detection (Fallback)
 // ============================================================================
@@ -334,112 +517,6 @@ void BC::setBoundaries(getfem::mesh* meshPtr)
         std::cout << "  Region " << i << ": " << face_count[i] << " faces" << std::endl;
     }
     std::cout << "===========================================\n" << std::endl;
-}
-
-// ============================================================================
-// BC Evaluation Functions
-// ============================================================================
-
-scalar_type BC::BCNeum(const base_node& x, const size_type& flag, const scalar_type t)
-{   
-    // Rileva la dimensione del nodo (2 per 2D, 3 per 3D)
-    size_type dim = x.size();
-
-    M_parser.setString(M_BCNeum);
-    M_parser.setVariable("x", x[0]);
-    M_parser.setVariable("y", x[1]);
-    if (dim >= 3) 
-        M_parser.setVariable("z", x[2]);
-    else 
-        M_parser.setVariable("z", 0.0);
-    M_parser.setVariable("n", flag);
-    M_parser.setVariable("t", t);
-    return M_parser.evaluate();
-}
-
-scalar_type BC::BCDiri(const base_node& x, const size_type& flag)
-{   
-    // Rileva la dimensione del nodo (2 per 2D, 3 per 3D)
-    size_type dim = x.size();
-
-    M_parser.setString(M_BCDiri);
-    M_parser.setVariable("x", x[0]);
-    M_parser.setVariable("y", x[1]);
-    if (dim >= 3) 
-        M_parser.setVariable("z", x[2]);
-    else 
-        M_parser.setVariable("z", 0.0);
-    M_parser.setVariable("n", flag);
-    return M_parser.evaluate();
-}
-
-bgeot::base_node BC::BCDiriVec(const base_node& x, const size_type& flag, const scalar_type t)
-{   
-    size_type dim = x.size();
-    
-    // Inizializza il vettore soluzione con la dimensione corretta (2 o 3)
-    bgeot::base_node sol(dim, 0.0);
-       
-    for (size_type i = 0; i < dim; ++i)
-    {
-        M_parser.setString(M_BCDiriVec);
-        M_parser.setVariable("x", x[0]);
-        M_parser.setVariable("y", x[1]);
-        if (dim >= 3) 
-            M_parser.setVariable("z", x[2]);
-        else          
-            M_parser.setVariable("z", 0.0);
-        M_parser.setVariable("n", flag);
-        M_parser.setVariable("t", t);
-        sol[i] = M_parser.evaluate(i);
-    }
-    return sol;
-}
-
-bgeot::base_node BC::BCNeumVec(const base_node& x, const size_type& flag, const scalar_type t)
-{
-    size_type dim = x.size();
-    
-    // Inizializza il vettore soluzione con la dimensione corretta (2 o 3)
-    bgeot::base_node sol(dim, 0.0);
-       
-    for (size_type i = 0; i < 3; ++i)
-    {
-        M_parser.setString(M_BCNeumVec);
-        M_parser.setVariable("x", x[0]);
-        M_parser.setVariable("y", x[1]);
-        if (dim >= 3) 
-            M_parser.setVariable("z", x[2]);
-        else          
-            M_parser.setVariable("z", 0.0);
-        M_parser.setVariable("n", flag);
-        M_parser.setVariable("t", t);
-        sol[i] = M_parser.evaluate(i);
-    }
-    return sol;
-}
-
-bgeot::base_node BC::BCDiriVel(const base_node& x, const size_type& flag, const scalar_type t)
-{
-    size_type dim = x.size();
-    
-    // Inizializza il vettore soluzione con la dimensione corretta (2 o 3)
-    bgeot::base_node sol(dim, 0.0);
-    
-    for (size_type i = 0; i < 3; ++i)
-    {
-        M_parser.setString(M_BCDiriVel);
-        M_parser.setVariable("x", x[0]);
-        M_parser.setVariable("y", x[1]);
-        if (dim >= 3) 
-            M_parser.setVariable("z", x[2]);
-        else          
-            M_parser.setVariable("z", 0.0);
-        M_parser.setVariable("n", flag);
-        M_parser.setVariable("t", t);
-        sol[i] = M_parser.evaluate(i);
-    }
-    return sol;
 }
 
 // ============================================================================

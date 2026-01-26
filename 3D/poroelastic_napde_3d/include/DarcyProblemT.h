@@ -105,6 +105,8 @@ public:
     /// Extract solution from global system vector
     void extractSol(scalarVectorPtr_Type sol);
 
+    // get bc object
+    inline BC* getBC() { return &M_BC; }
 private:
     scalar_type M_dt;                       ///< Time step size
     TimeLoop* M_timeLoop;                   ///< Pointer to time manager
