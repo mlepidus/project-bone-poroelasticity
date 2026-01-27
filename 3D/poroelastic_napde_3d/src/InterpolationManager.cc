@@ -231,11 +231,12 @@ void InterpolationManager::extractAlongLine(const scalarVectorPtr_Type& solution
         
         values[i] = interp_values[best_dof];
     }
-    
+    #ifdef VERBOSE
     std::cout << "[InterpolationManager] Extracted " << values.size() 
               << " samples along line '" << profile.name 
               << "' (length = " << total_length 
               << ", z-range = [" << M_z_min << ", " << M_z_max << "])" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -450,16 +451,18 @@ PolynomialFit InterpolationManager::fitPolynomial(const std::vector<scalar_type>
     }
     
     result.r_squared = (ss_tot > 1.0e-15) ? (1.0 - ss_res / ss_tot) : 1.0;
-    
+    #ifdef VERBOSE
     std::cout << "[InterpolationManager] Polynomial fit for '" << field_name 
               << "' (order " << order << "): R² = " << result.r_squared << std::endl;
     std::cout << "  Coefficients: [";
+
     for (size_type i = 0; i < result.coefficients.size(); ++i) {
         if (i > 0) std::cout << ", ";
         std::cout << result.coefficients[i];
     }
     std::cout << "]" << std::endl;
-    
+    #endif
+    std::cout << "[Interpolation Manager] Polynomial fit completed for " << field_name << std::endl;    
     return result;
 }
 

@@ -19,7 +19,10 @@ LinearSystem::LinearSystem() :
     M_verbose(false),
     M_configured(false)  
 {
-    std::cout << "LinearSystem created (unconfigured - call configureSolver() or use other constructor)" << std::endl;
+    #ifdef VERBOSE
+        std::cout << "LinearSystem created (unconfigured - call configureSolver() or use other constructor)" << std::endl;
+        M_verbose = true;
+    #endif
 }
 
 LinearSystem::LinearSystem(const GetPot& dataFile, const std::string& section) :
@@ -39,6 +42,11 @@ LinearSystem::LinearSystem(const GetPot& dataFile, const std::string& section) :
 {
     // Automatically configure solver from data file
     configureSolver(dataFile, section);
+    #ifdef VERBOSE
+        std::cout << "LinearSystem created (unconfigured - call configureSolver() or use other constructor)" << std::endl;
+        M_verbose = true;
+    #endif
+
 }
 
 void LinearSystem::addToMatrix(int ndof)
@@ -177,10 +185,12 @@ void LinearSystem::multAddToRHS(sparseMatrixPtr_Type M, scalarVector_Type& V,  i
 
 void LinearSystem::configureSolver(const GetPot& dataFile, const std::string& section)
 {
-    std::cout << "\n=== Configuring Linear Solver ===" << std::endl;
+    if (M_verbose)
+        std::cout << "\n=== Configuring Linear Solver ===" << std::endl;
     
     // Read solver type
     std::string solverStr = dataFile((section + "type").data(), "SUPERLU");
+    if (M_verbose)
     std::cout << "Solver type: " << solverStr << std::endl;
     
     if (solverStr == "SUPERLU" || solverStr == "superlu")
@@ -197,6 +207,7 @@ void LinearSystem::configureSolver(const GetPot& dataFile, const std::string& se
     
     // Read preconditioner type
     std::string precondStr = dataFile((section + "preconditioner").data(), "NONE");
+    if (M_verbose)
     std::cout << "Preconditioner: " << precondStr << std::endl;
     
     if (precondStr == "NONE" || precondStr == "none")
@@ -217,11 +228,13 @@ void LinearSystem::configureSolver(const GetPot& dataFile, const std::string& se
     M_maxIter = dataFile((section + "maxIterations").data(), 1000);
     M_tolerance = dataFile((section + "tolerance").data(), 1e-8);
     M_verbose = dataFile((section + "verbose").data(), 1) != 0;
-    
+    if (M_verbose){
     std::cout << "Max iterations: " << M_maxIter << std::endl;
     std::cout << "Tolerance: " << M_tolerance << std::endl;
     std::cout << "Verbose: " << (M_verbose ? "true" : "false") << std::endl;
-    
+      
+    }
+
     M_configured = true;  // Mark as configured
     std::cout << "=== Solver Configuration Complete ===\n" << std::endl;
 }

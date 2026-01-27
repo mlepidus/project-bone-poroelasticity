@@ -33,13 +33,15 @@ RussianDollProblem::RussianDollProblem(const GetPot& dataFile,
     
     // Create interpolation manager
     M_interpManager = std::make_unique<InterpolationManager>(dataFile, bulkPV, bulkPLC);
-    
+    #ifdef VERBOSE
     std::cout << "=====================================================" << std::endl;
     std::cout << " RussianDollProblem Created" << std::endl;
     std::cout << "=====================================================" << std::endl;
     std::cout << "  Polynomial order: " << M_polynomialOrder << std::endl;
     std::cout << "  Outer wall region for PLC: " << M_outerWallRegion << std::endl;
     std::cout << "=====================================================" << std::endl;
+    #endif
+
 }
 
 // ============================================================================
@@ -47,7 +49,7 @@ RussianDollProblem::RussianDollProblem(const GetPot& dataFile,
 // ============================================================================
 void RussianDollProblem::setPVProblem(CoupledProblem* pvProblem) {
     M_pvProblem = pvProblem;
-    std::cout << "[RussianDoll] PV problem registered" << std::endl;
+    std::cout << "[RussianDoll] PV problem added" << std::endl;
 }
 
 void RussianDollProblem::setPLCProblem(PLCProblem* plcProblem) {
@@ -56,7 +58,7 @@ void RussianDollProblem::setPLCProblem(PLCProblem* plcProblem) {
     // Set the outer wall region
     plcProblem->setOuterWallRegion(M_outerWallRegion);
     
-    std::cout << "[RussianDoll] PLC problem registered" << std::endl;
+    std::cout << "[RussianDoll] PLC problem added" << std::endl;
 }
 
 // ============================================================================
@@ -125,15 +127,16 @@ void RussianDollProblem::interpolatePVtoPLC() {
         std::cerr << "[RussianDoll] Error: PV pressure solution not available!" << std::endl;
         return;
     }
-    
+    #ifdef VERBOSE
     std::cout << "  PV pressure DOFs: " << pvPressure->size() << std::endl;
     std::cout << "  PV pressure norm: " << gmm::vect_norm2(*pvPressure) << std::endl;
-    
+ 
+
     if (pvDisplacement && !pvDisplacement->empty()) {
         std::cout << "  PV displacement DOFs: " << pvDisplacement->size() << std::endl;
         std::cout << "  PV displacement norm: " << gmm::vect_norm2(*pvDisplacement) << std::endl;
     }
-    
+   #endif    
     // ========================================================================
     // Step 2: Use InterpolationManager to extract and fit
     // ========================================================================

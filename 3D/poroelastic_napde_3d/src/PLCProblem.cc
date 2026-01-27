@@ -39,7 +39,7 @@ PLCProblem::PLCProblem(const GetPot& dataFile,
     
     // Read outer wall region ID
     M_outerWallRegion = dataFile((section + "outer_wall_region").c_str(), 0);
-    
+    #ifdef VERBOSE
     std::cout << "=====================================================" << std::endl;
     std::cout << " PLCProblem Created (Simplified BC Version)" << std::endl;
     std::cout << "=====================================================" << std::endl;
@@ -47,6 +47,7 @@ PLCProblem::PLCProblem(const GetPot& dataFile,
     std::cout << "  Leakage coefficient (gamma): " << M_gamma << std::endl;
     std::cout << "  Outer wall region: " << M_outerWallRegion << std::endl;
     std::cout << "=====================================================" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -73,10 +74,11 @@ void PLCProblem::setOuterWallPressureBC(const std::vector<scalar_type>& coeffici
     }
     
     std::cout << "[PLCProblem] Outer wall pressure BC set via BC class" << std::endl;
+    #ifdef VERBOSE
     std::cout << "  Region: " << M_outerWallRegion << std::endl;
     std::cout << "  Z range: [" << z_min << ", " << z_max << "]" << std::endl;
     std::cout << "  Polynomial order: " << (coefficients.size() - 1) << std::endl;
-    
+    #endif
     // Also set up the coupling pressure from the same polynomial
     setCouplingPressureFromPolynomial(coefficients, z_min, z_max);
 }
@@ -107,8 +109,10 @@ void PLCProblem::setOuterWallDisplacementBC(const std::vector<scalar_type>& coef
     }
     
     std::cout << "[PLCProblem] Outer wall displacement BC set via BC class" << std::endl;
+    #ifdef VERBOSE
     std::cout << "  Region: " << M_outerWallRegion << std::endl;
     std::cout << "  Z range: [" << z_min << ", " << z_max << "]" << std::endl;
+    #endif
 }
 
 void PLCProblem::clearOuterWallPolynomialBCs() {
@@ -241,9 +245,11 @@ void PLCProblem::buildPressureMassMatrix() {
                    M_intMethod);
     
     M_pressureMassBuilt = true;
-    
+    #ifdef VERBOSE
     std::cout << "[PLCProblem] Pressure mass matrix built (" 
               << nbPressureDOF << " x " << nbPressureDOF << ")" << std::endl;
+    #endif
+
 }
 
 // ============================================================================
@@ -283,8 +289,9 @@ void PLCProblem::addCouplingMatrix() {
     }
     
     M_couplingMatrixAdded = true;
-    
+    #ifdef VERBOSE
     std::cout << "[PLCProblem] Coupling matrix (+gamma*M) added to system" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -365,10 +372,13 @@ void PLCProblem::assembleCouplingRHS() {
     }
     
     // Diagnostics
+    #ifdef VERBOSE
     scalar_type rhs_norm = gmm::vect_norm2(*couplingRHS);
     std::cout << "[PLCProblem] Coupling RHS assembled:" << std::endl;
     std::cout << "  gamma = " << M_gamma << std::endl;
     std::cout << "  ||gamma * M * p_v|| = " << rhs_norm << std::endl;
+    #endif
+
 }
 
 // ============================================================================

@@ -37,7 +37,6 @@ Bulk::Bulk ( const GetPot& dataFile,
     
         M_hasExternalMesh(false)
 {  
-    std::cout << "!!!!!!"<< section << sectionDomain;    
     bgeot::pgeometric_trans pgt; 
 
     pgt =  bgeot::geometric_trans_descriptor(M_meshType);
@@ -108,18 +107,17 @@ Bulk::Bulk ( const GetPot& dataFile,
                      << "========================================\n";
            throw std::runtime_error(error_msg.str());
        }
+        #ifdef VERBOSE
         std::cout << "Domain dimension: " << meshDim << "D" << std::endl;
-        std::cout << "Mesh import successful!" << std::endl;
         std::cout << "Number of physical groups: " << M_regmap.size() << std::endl;
-        
-        // ====================================================================
-        // Display imported physical names
-        // ====================================================================
         std::cout << "\n--- Physical Names from Gmsh ---" << std::endl;
         for (const auto& pair : M_regmap) {
             std::cout << "  '" << pair.first << "' -> region ID " << pair.second << std::endl;
         }
-        
+        // ====================================================================
+        // Display imported physical names
+        // ====================================================================
+
         // ====================================================================
         // Verify regions exist in mesh
         // ====================================================================
@@ -155,6 +153,9 @@ Bulk::Bulk ( const GetPot& dataFile,
         }
         
         std::cout << "================================================\n" << std::endl;
+        #endif        
+        std::cout << "Mesh import successful!" << std::endl;
+
     }
 
     M_DarcyDataPtr = &M_DarcyData;

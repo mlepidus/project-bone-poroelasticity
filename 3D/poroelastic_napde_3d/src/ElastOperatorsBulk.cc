@@ -42,7 +42,7 @@ void stiffElast( sparseMatrixPtr_Type M,
     assem.assembly(-1);
   
 
-    std::cout << "elast :: operator a(volume)      [OK]" << std::endl;
+    std::cout << "[ELAST] operator a(volume) assembled" << std::endl;
 
 }
 
@@ -107,7 +107,7 @@ void bulkLoad( scalarVectorPtr_Type V,
     assem.push_vec(*V);
     assem.assembly(-1);
 
-    std::cout << "elast :: bulk load (" << dim << "D)     [OK]" << std::endl;
+    std::cout << "[ELAST] bulk load (" << dim << "D) assembled" << std::endl;
 }
 
 

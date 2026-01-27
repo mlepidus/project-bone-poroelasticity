@@ -244,8 +244,7 @@ int main(int argc, char *argv[]) {
     for (size_type tt = 0; tt < timeLoop.Nstep(); ++tt) {
         
         std::cout << "\n======================================================" << std::endl;
-        std::cout << " Time Step " << (tt + 1) << " / " << timeLoop.Nstep() 
-                  << " (t = " << timeLoop.time() + timeLoop.dt() << ")" << std::endl;
+        std::cout << " Time Step " << (tt + 1) << std::endl;
         std::cout << "======================================================" << std::endl;
         
         // Advance time
@@ -320,6 +319,7 @@ int main(int argc, char *argv[]) {
         coupledPLC.updateSol();
         
         // Compute errors (if exact solutions available)
+/*
         std::vector<scalar_type> errors = russianDoll.computeErrors(timeLoop.time());
         if (errors[0] >= 0) {
             std::cout << "  PV pressure error: " << errors[0] << std::endl;
@@ -327,7 +327,7 @@ int main(int argc, char *argv[]) {
         if (errors[2] >= 0) {
             std::cout << "  PLC pressure error: " << errors[2] << std::endl;
         }
-        
+*/        
         // Export VTK
         std::cout << "Exporting solutions..." << std::endl;
         russianDoll.exportVtk(vtkFolder, tt + 1);

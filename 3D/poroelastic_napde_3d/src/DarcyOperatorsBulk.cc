@@ -202,7 +202,6 @@ void massHdiv(sparseMatrixPtr_Type M,
     getfem::mesh_fem femP((*FemP.getFEM()));
 
     size_type dim = femV.linked_mesh().dim();
-    std::cout << "DARCY :: assembling massHdiv for dimension " << dim << std::endl;
     
     // Prepare coefficient vectors
     std::vector<scalar_type> iKxx(femP.nb_dof(), 0.0);
@@ -351,7 +350,7 @@ void massHdiv(sparseMatrixPtr_Type M,
         throw std::runtime_error("massHdiv: unsupported dimension");
     }
 
-    std::cout << "DARCY :: operator a(volume) [OK] - " 
+    std::cout << "[DARCY] operator a(volume) assembled - " 
               << gmm::nnz(*M) << " non-zeros" << std::endl;
 }
 
@@ -387,7 +386,7 @@ void divHdiv( sparseMatrixPtr_Type M, FEM& FemV, FEM& FemP, getfem::mesh_im& im)
     assem.assembly(-1);
 
 
-    std::cout << "DARCY :: operator b(volume)      [OK]" << std::endl;
+    std::cout << "[DARCY] operator b(volume) assembled" << std::endl;
 
 }
 

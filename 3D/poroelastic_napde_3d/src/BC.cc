@@ -104,6 +104,7 @@ void BC::setPressurePolynomial(size_type region,
     };
     
     std::cout << "[BC] Pressure polynomial set for region " << region << std::endl;
+    #ifdef VERBOSE
     std::cout << "  Z range: [" << z_min << ", " << z_max << "]" << std::endl;
     std::cout << "  Polynomial order: " << (coefficients.size() - 1) << std::endl;
     std::cout << "  Coefficients: [";
@@ -112,6 +113,7 @@ void BC::setPressurePolynomial(size_type region,
         std::cout << coefficients[i];
     }
     std::cout << "]" << std::endl;
+    #endif
 }
 
 void BC::setDisplacementPolynomial(size_type region,
@@ -151,7 +153,9 @@ void BC::setDisplacementPolynomial(size_type region,
     };
     
     std::cout << "[BC] Displacement polynomial set for region " << region << std::endl;
+    #ifdef VERBOSE
     std::cout << "  Z range: [" << z_min << ", " << z_max << "]" << std::endl;
+    #endif
 }
 
 void BC::clearPressureCallback(size_type region) {
@@ -348,12 +352,14 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
         }
         std::cout << "  Region " << i << ": " << count << " faces" << std::endl;
     }
-    
+
+    #ifdef VERBOSE
     std::cout << "\nPhysical names from Gmsh:" << std::endl;
     for (const auto& pair : regmap) {
         std::cout << "  '" << pair.first << "' -> region ID " << pair.second << std::endl;
     }
-    
+    #endif
+
     // Map physical names to internal region numbering
     // Standard naming: outer/ext -> 0, inner/int -> 1, bottom/lower -> 2, top/upper -> 3
     std::map<std::string, size_type> name_to_internal_id;
@@ -369,7 +375,10 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
             name_lower.find("left") != std::string::npos) {
             
             name_to_internal_id[pair.first] = 0;
-            std::cout << "  Mapping '" << pair.first << "' -> internal region 0 (Outer/Left)" << std::endl;
+            #ifdef VERBOSE
+                 std::cout << "  Mapping '" << pair.first << "' -> internal region 0 (Outer/Left)" << std::endl;
+            #endif
+
         }
         // Mapping for INNER or RIGHT -> ID 1
         else if (name_lower.find("inner") != std::string::npos || 
@@ -378,7 +387,9 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
                  name_lower.find("right") != std::string::npos) {
             
             name_to_internal_id[pair.first] = 1;
-            std::cout << "  Mapping '" << pair.first << "' -> internal region 1 (Inner/Right)" << std::endl;
+            #ifdef VERBOSE
+                std::cout << "  Mapping '" << pair.first << "' -> internal region 1 (Inner/Right)" << std::endl;
+            #endif
         }
         // Mapping for BOTTOM -> ID 2
         else if (name_lower.find("bottom") != std::string::npos || 
@@ -387,7 +398,9 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
                  name_lower.find("bot") != std::string::npos) {
             
             name_to_internal_id[pair.first] = 2;
-            std::cout << "  Mapping '" << pair.first << "' -> internal region 2 (Bottom)" << std::endl;
+            #ifdef VERBOSE
+                std::cout << "  Mapping '" << pair.first << "' -> internal region 2 (Bottom)" << std::endl;
+            #endif
         }
         // Mapping for TOP -> ID 3
         else if (name_lower.find("top") != std::string::npos || 
@@ -395,7 +408,9 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
                  name_lower.find("up") != std::string::npos) {
             
             name_to_internal_id[pair.first] = 3;
-            std::cout << "  Mapping '" << pair.first << "' -> internal region 3 (Top)" << std::endl;
+                #ifdef VERBOSE
+                    std::cout << "  Mapping '" << pair.first << "' -> internal region 3 (Top)" << std::endl;
+                #endif
         }
         else {
             std::cout << "  Warning: No mapping found for '" << pair.first << "'" << std::endl;
@@ -421,18 +436,24 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
                     meshPtr->region(internal_id).add(face_it.cv(), face_it.f());
                     face_count++;
                 }
-                
+                #ifdef VERBOSE
                 std::cout << "  ✓ Assigned " << face_count << " faces from '" 
                           << physical_name << "' (Gmsh region " << gmsh_region_id 
                           << ") to internal region " << internal_id << std::endl;
+                #endif
             }
+        #ifdef VERBOSE
             else {
                 std::cout << "  ✗ Warning: Gmsh region " << gmsh_region_id 
                           << " for '" << physical_name << "' not found!" << std::endl;
             }
+            #endif
+        
         }
     }
     
+
+    #ifdef VERBOSE
     // Verify assignment
     std::cout << "\nVerification - Internal regions after assignment:" << std::endl;
     for (size_type i = 0; i < M_nBoundaries; ++i) {
@@ -454,7 +475,8 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
             std::cout << "    WARNING: No faces assigned!" << std::endl;
         }
     }
-    
+    #endif
+
     std::cout << "=== Boundary assignment complete ===\n" << std::endl;
 }
 
