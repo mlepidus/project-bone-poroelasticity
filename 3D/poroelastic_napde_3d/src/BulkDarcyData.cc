@@ -19,9 +19,8 @@ BulkDarcyData::BulkDarcyData ( const GetPot& dataFile,
 	    M_rhoF( dataFile( (std::string("materials/") + "rho_f").data(), 1000 ) ),
 	    M_muF( dataFile( (std::string("materials/") + "mu_f").data(), 1.0e-3 ) ),
  	    M_biotM( dataFile( (M_sectionDarcy + "biotM" ).data(), 1.0 ) ),
-		M_biotAlpha( dataFile( (M_sectionDarcy + "biotAlpha" ).data(), 1.0 ) ),
-		M_leakage( dataFile( (M_sectionDarcy + "leakage" ).data(), 1.0 ) )
-
+		M_leakage( dataFile( (M_sectionDarcy + "leakage" ).data(), 1.0 ) ),
+		M_biotAlpha( dataFile( (M_sectionDarcy + "biotAlpha" ).data(), 1.0 ) )
 {
 	M_G.resize(3);
     M_parser.setString ( M_Gstring );

@@ -57,11 +57,49 @@
 #include "include/UsefulFunctions.h"
 
 #include <sys/stat.h>
-
+#include <cerrno>
 // Helper function to create directory
-void createDirectory(const std::string& path) {
-    mkdir(path.c_str(), 0755);
+// ============================================================================
+// DirectoryUtils.h - Simple utility for creating directories
+// ============================================================================
+#ifndef DIRECTORY_UTILS_H
+#define DIRECTORY_UTILS_H
+
+#include <string>
+#include <sys/stat.h>
+#include <cerrno>
+
+/**
+ * @brief Create directory recursively
+ * @param path Directory path to create
+ * @return true if successful or already exists
+ */
+bool createDirectory(const std::string& path) {
+    // Check if already exists
+    struct stat st;
+    if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+        return true;
+    }
+    
+    // Try to create
+    if (mkdir(path.c_str(), 0755) == 0) {
+        return true;
+    }
+    
+    // Create parent first if needed
+    if (errno == ENOENT) {
+        size_t pos = path.find_last_of('/');
+        if (pos != std::string::npos && pos > 0) {
+            if (createDirectory(path.substr(0, pos))) {
+                return mkdir(path.c_str(), 0755) == 0;
+            }
+        }
+    }
+    
+    return false;
 }
+
+#endif // DIRECTORY_UTILS_H
 
 int main(int argc, char *argv[]) {
     
@@ -79,18 +117,17 @@ int main(int argc, char *argv[]) {
     
     std::cout << "========================================================" << std::endl;
     std::cout << "  Russian Doll Dual-Porosity Poroelasticity Simulation  " << std::endl;
-    std::cout << "========================================================" << std::endl;
+    std::cout << "========================================================" << std::endl;   
     std::cout << "Data file: " << data_file_name << std::endl;
     
     GetPot dataFile(data_file_name.data());
     
     // Output directories
     const std::string vtkFolder = "output_vtk/";
-    //const std::string vtkFolder = dataFile("output/folder", "./output_vtk");
-    //createDirectory(vtkFolder);
-    //createDirectory(vtkFolder + "/pv");
-    //createDirectory(vtkFolder + "/plc");
-    
+    createDirectory(vtkFolder);
+    createDirectory(vtkFolder + "/pv");
+    createDirectory(vtkFolder + "/plc");
+    createDirectory(vtkFolder + "/interpolation");
     // ========================================================================
     // Phase 1: Create Domains and Time Loop
     // ========================================================================
@@ -180,8 +217,8 @@ int main(int argc, char *argv[]) {
     
     std::cout << "\n=== Phase 5: Creating Linear Systems ===" << std::endl;
     
-    LinearSystem sysPV(dataFile, "extra/solver/");
-    LinearSystem sysPLC(dataFile, "extra/solver/");
+    LinearSystem sysPV(dataFile, "solver/");
+    LinearSystem sysPLC(dataFile, "solver/");
     
     // Register DOFs with systems
     std::cout << "Registering DOFs for PV system..." << std::endl;
@@ -212,7 +249,7 @@ int main(int argc, char *argv[]) {
     coupledPV.assembleMatrix();
     coupledPV.enforceStrongBC(true);  // Modify matrix for Dirichlet BCs
     coupledPV.addSubSystems();
-    sysPV.saveMatrix("matrixPV.mm");
+    sysPV.saveMatrix((vtkFolder + "/matrixPV.mm").c_str());
     
     // Assemble PLC matrix
     // Note: The coupling matrix (+gamma*M) is added in enforceStrongBC(true)
@@ -220,7 +257,7 @@ int main(int argc, char *argv[]) {
     coupledPLC.assembleMatrix();
     coupledPLC.enforceStrongBC(true);  // Modify matrix + add coupling matrix
     coupledPLC.addSubSystems();
-    sysPLC.saveMatrix("matrixPLC.mm");
+    sysPLC.saveMatrix((vtkFolder + "/matrixPLC.mm").c_str());
     
     // ========================================================================
     // Phase 8: Export Initial Condition
@@ -282,7 +319,7 @@ int main(int argc, char *argv[]) {
         russianDoll.interpolatePVtoPLC();
         
         // Export interpolation data for debugging
-        russianDoll.exportInterpolationData(vtkFolder, tt + 1);
+        russianDoll.exportInterpolationData(vtkFolder + "/interpolation", tt + 1);
         
         // ====================================================================
         // Step C: Solve PLC Problem

@@ -162,14 +162,10 @@
     [../]
 [../]
 
-[extra]
-
-        [solver]
-                type = SUPERLU
+[solver]
+                type = BICGSTAB
                 preconditioner = ILU
                 maxIterations = 1000
                 tolerance = 1.0e-8
                 verobose = false
-        [../]
-
 [../]

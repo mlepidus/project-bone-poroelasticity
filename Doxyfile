@@ -9,16 +9,17 @@ CREATE_SUBDIRS = NO
 # Input settings
 INPUT = ./3D/poroelastic_napde_3d/include \
         ./3D/poroelastic_napde_3d/src \
-        ./3D/poroelastic_napde_3d/main_coupled.cc \
+        ./3D/poroelastic_napde_3d/main_russian_doll.cc \
         ./3D/poroelastic_napde_3d/README.md \
-		./3D/poroelastic_napde_3d/main_coupled.cc
+
 
 FILE_PATTERNS = *.h *.hh *.hpp *.hxx *.cc *.cpp *.cxx *.c++ *.c
 RECURSIVE = YES
 EXCLUDE_PATTERNS = */GetPot
 
 # Documentation extraction
-EXTRACT_ALL = YES
+EXTRACT_ALL = NO
+SUBGROUPING = YES
 EXTRACT_PRIVATE = YES
 EXTRACT_STATIC = YES
 EXTRACT_LOCAL_CLASSES = YES

@@ -150,8 +150,9 @@ void RussianDollProblem::interpolatePVtoPLC() {
     M_pressureCoefficients = pressureFit.coefficients;
     M_z_min = pressureFit.z_min;
     M_z_max = pressureFit.z_max;
-    
+    #ifdef VERBOSE
     std::cout << "  Pressure polynomial fit:" << std::endl;
+
     std::cout << "    Z-range: [" << M_z_min << ", " << M_z_max << "]" << std::endl;
     std::cout << "    R² = " << pressureFit.r_squared << std::endl;
     std::cout << "    Coefficients: [";
@@ -160,7 +161,8 @@ void RussianDollProblem::interpolatePVtoPLC() {
         std::cout << std::scientific << std::setprecision(4) << M_pressureCoefficients[i];
     }
     std::cout << "]" << std::endl;
-    
+    #endif
+
     // Interpolate displacement if available
     if (pvDisplacement && !pvDisplacement->empty()) {
         const getfem::mesh_fem& mf_pv_disp = M_pvProblem->getMfDisplacement();
@@ -213,14 +215,14 @@ void RussianDollProblem::updateSolutions() {
 // Export VTK
 // ============================================================================
 void RussianDollProblem::exportVtk(const std::string& folder, int frame) {
-    std::cout << "[RussianDoll] Exporting solutions (frame " << frame << ")..." << std::endl;
+    std::cout << "[RussianDoll] Exporting solutions (frame " << frame << ")..."<< std::endl;
     
     if (M_pvProblem) {
-        M_pvProblem->exportVtk(folder + "/pv", "all", frame);
+        M_pvProblem->exportVtk(folder + "pv/", "all", frame);
     }
     
     if (M_plcProblem) {
-        M_plcProblem->exportVtk(folder + "/plc", "all", frame);
+        M_plcProblem->exportVtk(folder + "plc/", "all", frame);
     }
 }
 

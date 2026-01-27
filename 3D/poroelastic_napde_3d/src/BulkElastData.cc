@@ -150,10 +150,12 @@ scalar_type BulkElastData::fluidP(const base_node& x )
 		M_parser.setString ( M_fluidP);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
-		if (dim >= 3)
+		if (dim >= 3){
             M_parser.setVariable("z", x[2]);
-        else
-            M_parser.setVariable("z", 0.0);
+		}
+        else{
+			M_parser.setVariable("z", 0.0);
+		}
  	    return M_parser.evaluate ();
 	 }
 
