@@ -85,10 +85,11 @@ int main(int argc, char *argv[]) {
     GetPot dataFile(data_file_name.data());
     
     // Output directories
-    const std::string vtkFolder = dataFile("output/folder", "./output_vtk");
-    createDirectory(vtkFolder);
-    createDirectory(vtkFolder + "/pv");
-    createDirectory(vtkFolder + "/plc");
+    const std::string vtkFolder = "output_vtk/";
+    //const std::string vtkFolder = dataFile("output/folder", "./output_vtk");
+    //createDirectory(vtkFolder);
+    //createDirectory(vtkFolder + "/pv");
+    //createDirectory(vtkFolder + "/plc");
     
     // ========================================================================
     // Phase 1: Create Domains and Time Loop

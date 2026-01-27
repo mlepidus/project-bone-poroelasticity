@@ -37,7 +37,7 @@ Bulk::Bulk ( const GetPot& dataFile,
     
         M_hasExternalMesh(false)
 {  
-
+    std::cout << "!!!!!!"<< section << sectionDomain;    
     bgeot::pgeometric_trans pgt; 
 
     pgt =  bgeot::geometric_trans_descriptor(M_meshType);

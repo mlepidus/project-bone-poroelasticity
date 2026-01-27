@@ -7,7 +7,7 @@
     Tend = 4
     dt = 0.1
 
-[../]./
+[../]
 
 [materials]
 
@@ -77,10 +77,10 @@
 		u_ini = [0,0,0]
 
         [../]
-
+[../]
 
 [bulkDataPLC]
-        outer_wall_region = 0
+       % outer_wall_region = 0
         [./domain]
 
                 meshExternal = mesh_tag2.msh
@@ -142,7 +142,7 @@
 		u_ini = [0,0,0]
 
         [../]
-
+[../]
 
 
 [russian_doll/interpolation]
