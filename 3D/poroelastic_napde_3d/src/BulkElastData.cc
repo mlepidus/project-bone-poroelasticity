@@ -83,7 +83,7 @@ bgeot::base_node BulkElastData::bulkLoad(bgeot::base_node x, scalar_type t)
 	{	
 		size_type dim = x.size();
 		bgeot::base_node sol(dim,0);
-       
+		
 	    for ( size_type i = 0; i < dim; ++i )
     	{
  	 		M_parser.setString ( M_load);

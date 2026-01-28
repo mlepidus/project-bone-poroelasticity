@@ -32,7 +32,7 @@ DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk,
    M_Bulk->getDarcyData()->setKzz(M_CoeffFEM.getDOFpoints());
    M_Bulk->getDarcyData()->setKxz(M_CoeffFEM.getDOFpoints());
    M_Bulk->getDarcyData()->setKyz(M_CoeffFEM.getDOFpoints());
-
+	
    if (M_Bulk->hasExternalMesh()) {
        std::cout << "Using Gmsh physical tags for boundary conditions..." << std::endl;
        M_BC.setBoundariesFromTags(M_Bulk->getMesh(), M_Bulk->getRegionMap());
@@ -294,7 +294,7 @@ void DarcyProblemT::extractSol(scalarVectorPtr_Type sol)
 }
 
 scalar_type DarcyProblemT::computeError(std::string what, scalar_type time)
-{
+{	
 	if (M_Bulk->getDarcyData()->hasExactSolution()){
 		std::cout << "compute error"<<std::endl;
 		scalar_type error;

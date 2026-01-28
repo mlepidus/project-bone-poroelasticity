@@ -13,6 +13,7 @@ BulkDarcyData::BulkDarcyData ( const GetPot& dataFile,
 	    M_Kyz( dataFile ( ( M_sectionDarcy + "Kyz" ).data (), "1." ) ),
 	    M_source( dataFile ( ( M_sectionDarcy + "source" ).data (), "1." ) ),
 	    M_pIni( dataFile ( ( M_sectionDarcy + "pIni" ).data (), "0." ) ),
+		M_pBC( dataFile ( ( M_sectionDarcy + "p_BC" ).data (), "0." ) ),
 	    M_pEx( dataFile ( ( M_sectionDarcy + "p_exact" ).data (), "0." ) ),
 	    M_uEx( dataFile ( ( M_sectionDarcy + "u_exact" ).data (), "[0,0,0]" ) ),
 	    M_Gstring( dataFile( (std::string("materials/") + "gravity").data(), "[0,0,0]" ) ),
@@ -134,8 +135,32 @@ scalar_type BulkDarcyData::pIni(const base_node& x )
  	    return M_parser.evaluate ();
 	 }
 
+scalar_type BulkDarcyData::p_BC(const base_node& x, const scalar_type t)
+{  
+   size_type dim = x.size();
+   M_parser.setString ( M_pBC ); // Usa la stringa letta dal file!
+   M_parser.setVariable ( "x", x [ 0 ] );
+   M_parser.setVariable ( "y", x [ 1 ] );
+   if (dim >= 3) 
+   		M_parser.setVariable("z", x[2]);
+   else         
+   		M_parser.setVariable("z", 0.0);
+   M_parser.setVariable ( "t", t );
+   return M_parser.evaluate ();
+}
+
 scalar_type BulkDarcyData::pEx(const base_node& x , const scalar_type t=0)
 	 {	
+		// --- BYPASS PARSER: HARDCODING SOLUZIONE ESATTA ---
+		// Questo assicura che il calcolo dell'errore usi la formula corretta
+		// double pi = 3.14159265359;
+		// return std::sin(pi * x[0]) * std::sin(pi * x[1]);
+		// DEBUG: Stampa la stringa la prima volta che viene chiamata
+		static bool first = true;
+		if (first) {
+			std::cout << "--- [BulkData] Parsing pEx string: " << M_pEx << " ---" << std::endl;
+			first = false;
+		}
 		size_type dim = x.size(); // Rileva dimensione (2 o 3)
 		M_parser.setString ( M_pEx);
     	M_parser.setVariable ( "x", x [ 0 ] );
