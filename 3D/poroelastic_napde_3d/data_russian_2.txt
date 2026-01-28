@@ -48,9 +48,10 @@
                 Kxy = 0.0
                 Kxz = 0.0
                 Kyz = 0.0
-		        biotM = 1
+		biotM = 1
                 BiotAlpha=1
                 leakage = 1
+
                 FEMTypeVelocity = FEM_RT0(3)
                 FEMTypeVelocityVis = FEM_PK(3,1)
                 FEMTypePressure = FEM_PK(3,0)
@@ -58,7 +59,7 @@
                 integrationMethod = IM_TETRAHEDRON(2)
 
                 source = 0
-		        p_BC = 0
+		p_BC = 0
                 v_BC = 0
                 pIni = 0
                 u_exact = [0,0,0] 
@@ -75,7 +76,7 @@
                 fluidP = 0  %to impose a given fluid pressure if we decouple the problems
 
                 bulkLoad = [0,0,0]
-                bdLoad = [0,0,0.1*(-0.45)*sin(t)*(z>0.58)]
+                bdLoad = [0,0,0.1*(x-1)*sin(t)*(z>0.58)]
                 bdDisp = [0,0,0]
                 bdVel = [0,0,0]
                 
@@ -115,7 +116,7 @@
                 Kxy = 0.0
                 Kxz = 0.0
                 Kyz = 0.0
-		        biotM = 1
+		biotM = 1
                 BiotAlpha=1
                 leakage = 1
                 
@@ -143,7 +144,7 @@
                 fluidP = 0  %to impose a given fluid pressure if we decouple the problems
 
                 bulkLoad = [0,0,0]
-                bdLoad = [0,0,0.1*(-0.45)*sin(t)*(z>0.58)]
+                bdLoad = [0,0,0.1*(-0.5)*sin(t)*(z>0.58)]
                 bdDisp = [0,0,0]
                 bdVel = [0,0,0]
                 
@@ -178,14 +179,10 @@
     [../]
 [../]
 
-[extra]
-
-        [solver]
-                type = SUPERLU
+[solver]
+                type = BICGSTAB 
                 preconditioner = ILU
                 maxIterations = 1000
                 tolerance = 1.0e-8
                 verobose = false
-        [../]
-
 [../]

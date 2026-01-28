@@ -442,12 +442,12 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
                           << ") to internal region " << internal_id << std::endl;
                 #endif
             }
-        #ifdef VERBOSE
+    #ifdef VERBOSE
             else {
                 std::cout << "  ✗ Warning: Gmsh region " << gmsh_region_id 
                           << " for '" << physical_name << "' not found!" << std::endl;
             }
-            #endif
+    #endif
         
         }
     }

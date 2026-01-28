@@ -462,7 +462,7 @@ PolynomialFit InterpolationManager::fitPolynomial(const std::vector<scalar_type>
     }
     std::cout << "]" << std::endl;
     #endif
-    std::cout << "[Interpolation Manager] Polynomial fit completed for " << field_name << std::endl;    
+    //std::cout << "[Interpolation Manager] Polynomial fit completed for " << field_name << " R² = " << result.r_squared << std::endl;    
     return result;
 }
 

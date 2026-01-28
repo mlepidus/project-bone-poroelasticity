@@ -14,9 +14,9 @@ Bulk::Bulk ( const GetPot& dataFile,
 	        M_meshFolder( dataFile ( ( M_sectionDomain + "meshFolder" ).data (), "" )   ),
 
             M_datafile(dataFile),    
-    	    M_DarcyData( dataFile), 
+    	    M_DarcyData(dataFile,section,sectionDarcy), 
             M_DarcyDataPtr(nullptr),
-	        M_ElastData( dataFile),
+	        M_ElastData(dataFile,section,sectionElast),
             M_ElastDataPtr(nullptr),
 
         M_dim(dataFile( ( M_sectionDomain+ "spaceDimension").data(),3 ) ),
