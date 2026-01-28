@@ -1,5 +1,0 @@
-# Inserisci qui gli estremi usati in ParaView:
-P1 = x1 y1 z1
-P2 = x2 y2 z2
-Ns = 1001
-L  = 0.60000002 (se parte da 0)

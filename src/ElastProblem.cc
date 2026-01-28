@@ -1,10 +1,36 @@
 #include "../include/ElastProblem.h"
 
+// ============================================================================
+// Static helper to parse boundary type from string
+// ============================================================================
+BoundaryAssignmentType ElastProblem::parseBoundaryType(const std::string& typeStr) {
+    std::string lower = typeStr;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    
+    if (lower == "geometric" || lower == "geo" || lower == "auto") {
+        return BoundaryAssignmentType::GEOMETRIC;
+    } else if (lower == "tagname" || lower == "tag_name" || lower == "name" || lower == "byname") {
+        return BoundaryAssignmentType::TAG_NAME;
+    } else if (lower == "tagnumber" || lower == "tag_number" || lower == "number" || lower == "bynumber") {
+        return BoundaryAssignmentType::TAG_NUMBER;
+    }
+    
+    // Default fallback
+    std::cout << "[ElastProblem] WARNING: Unknown boundary type '" << typeStr 
+              << "', defaulting to GEOMETRIC" << std::endl;
+    return BoundaryAssignmentType::GEOMETRIC;
+}
+
+// ============================================================================
+// Constructor
+// ============================================================================
 ElastProblem::ElastProblem(const GetPot& dataFile, Bulk* bulk, 
                           const std::string& basePath):
     M_time(nullptr),
     M_Bulk(bulk),
-    M_BC(dataFile, "mecc/", basePath), 
+    M_BC(dataFile, "mecc/", basePath),
+    M_boundaryType(BoundaryAssignmentType::GEOMETRIC),
+    M_tagNumberLargest(true),
     M_DispFEM(bulk->getMesh(), dataFile, "mecc/", "Displacement", basePath),
     M_CoeffFEM(bulk->getMesh(), dataFile, "mecc/", "Coeff", basePath),
     M_Sys(nullptr),
@@ -13,15 +39,30 @@ ElastProblem::ElastProblem(const GetPot& dataFile, Bulk* bulk,
 {
     M_nbTotDOF = M_DispFEM.nb_dof();
     
-    // Use the basePath parameter
-    std::string intMethodKey = basePath + "mecc/integrationMethod";
-    M_nbTotDOF = M_DispFEM.nb_dof();
+    // Read boundary assignment configuration
+    std::string boundaryTypeStr = dataFile((basePath + "domain/boundaryType").c_str(), "geometric");
+    M_boundaryType = parseBoundaryType(boundaryTypeStr);
+    
+    // For TAG_NUMBER mode: read whether to select largest or smallest
+    std::string tagSelectionStr = dataFile((basePath + "domain/tagSelection").c_str(), "largest");
+    std::transform(tagSelectionStr.begin(), tagSelectionStr.end(), tagSelectionStr.begin(), ::tolower);
+    M_tagNumberLargest = (tagSelectionStr != "smallest");
+    
+    std::cout << "[ElastProblem] Boundary assignment type: ";
+    switch (M_boundaryType) {
+        case BoundaryAssignmentType::GEOMETRIC:  std::cout << "GEOMETRIC"; break;
+        case BoundaryAssignmentType::TAG_NAME:   std::cout << "TAG_NAME"; break;
+        case BoundaryAssignmentType::TAG_NUMBER: 
+            std::cout << "TAG_NUMBER (" << (M_tagNumberLargest ? "largest" : "smallest") << ")"; 
+            break;
+    }
+    std::cout << std::endl;
     
     // SMART DEFAULT: Check mesh dimension
     size_type meshDim = bulk->getMesh()->dim();
     std::string defaultMethod = (meshDim == 2) ? "IM_TRIANGLE(2)" : "IM_TETRAHEDRON(2)";
 
-    std::string intMethod(dataFile(std::string("bulkData/mecc/integrationMethod").data(), defaultMethod.c_str()));
+    std::string intMethod(dataFile((basePath + "mecc/integrationMethod").c_str(), defaultMethod.c_str()));
     
     M_intMethod.set_integration_method(bulk->getMesh()->convex_index(), 
                                        getfem::int_method_descriptor(intMethod));
@@ -31,13 +72,41 @@ ElastProblem::ElastProblem(const GetPot& dataFile, Bulk* bulk,
     M_Bulk->getElastData()->setMu(M_CoeffFEM.getDOFpoints());
     M_Bulk->getElastData()->setfluidP(M_CoeffFEM.getDOFpoints());
     
-    // Set up boundary conditions
-    if (M_Bulk->hasExternalMesh()) {
-        std::cout << "Using Gmsh physical tags for boundary conditions..." << std::endl;
-        M_BC.setBoundariesFromTags(M_Bulk->getMesh(), M_Bulk->getRegionMap());
-    } else {
-        std::cout << "Using geometric detection for boundary conditions..." << std::endl;
-        M_BC.setBoundaries(M_Bulk->getMesh());
+    // Setup boundary conditions based on type
+    setupBoundaryConditions();
+}
+
+// ============================================================================
+// Setup Boundary Conditions
+// ============================================================================
+void ElastProblem::setupBoundaryConditions() {
+    switch (M_boundaryType) {
+        case BoundaryAssignmentType::GEOMETRIC:
+            std::cout << "[ElastProblem] Using geometric detection for boundary conditions..." << std::endl;
+            M_BC.setBoundaries(M_Bulk->getMesh());
+            break;
+            
+        case BoundaryAssignmentType::TAG_NAME:
+            if (M_Bulk->hasExternalMesh()) {
+                std::cout << "[ElastProblem] Using Gmsh physical tag names for boundary conditions..." << std::endl;
+                M_BC.setBoundariesFromTagsName(M_Bulk->getMesh(), M_Bulk->getRegionMap());
+            } else {
+                std::cout << "[ElastProblem] WARNING: TAG_NAME requested but no external mesh. "
+                          << "Falling back to geometric detection." << std::endl;
+                M_BC.setBoundaries(M_Bulk->getMesh());
+            }
+            break;
+            
+        case BoundaryAssignmentType::TAG_NUMBER:
+            if (M_Bulk->hasExternalMesh()) {
+                std::cout << "[ElastProblem] Using Gmsh tag numbers for boundary conditions..." << std::endl;
+                M_BC.setBoundariesFromTagNumbersDirect(M_Bulk->getMesh(), M_tagNumberLargest);
+            } else {
+                std::cout << "[ElastProblem] WARNING: TAG_NUMBER requested but no external mesh. "
+                          << "Falling back to geometric detection." << std::endl;
+                M_BC.setBoundaries(M_Bulk->getMesh());
+            }
+            break;
     }
 }
 
@@ -60,17 +129,14 @@ void ElastProblem::initialize() {
     gmm::clear(*M_DispSol);
     gmm::clear(*M_DispSolOld);
     
-    size_type meshDim = M_Bulk->getMesh()->dim(); // 2 o 3
-    // Initialize with initial condition if provided
+    size_type meshDim = M_Bulk->getMesh()->dim();
     int counter = 0;
     for (size_type i = 0; i < M_DispFEM.nb_dof("base"); i += meshDim) {
         base_node nodo(M_DispFEM.point_of_basic_dof(i));
         
-        // X e Y sempre presenti
         (*M_DispSol)[counter]     = M_Bulk->getElastData()->uIni(nodo)[0];
         (*M_DispSol)[counter + 1] = M_Bulk->getElastData()->uIni(nodo)[1];
         
-        // Z solo se 3D
         if (meshDim == 3) {
             (*M_DispSol)[counter + 2] = M_Bulk->getElastData()->uIni(nodo)[2];
         }
@@ -84,29 +150,24 @@ void ElastProblem::assembleMatrix() {
     A.reset(new sparseMatrix_Type(M_DispFEM.nb_dof(), M_DispFEM.nb_dof()));
     gmm::clear(*A);
     
-    // Build displacement mass matrix for error computation (only once)
     if (!M_dispMassMatrix) {
         M_dispMassMatrix.reset(new sparseMatrix_Type(M_DispFEM.nb_dof(), M_DispFEM.nb_dof()));
         gmm::clear(*M_dispMassMatrix);
         massMatrix(M_dispMassMatrix, M_DispFEM, M_intMethod);
     }
     
-    // Assemble stiffness matrix
     stiffElast(A, M_Bulk, M_DispFEM, M_CoeffFEM, M_intMethod);
     
-    // Add to global system
     M_Sys->addSubMatrix(A, 0, 0);
 }
 
 void ElastProblem::assembleRHS() {
-    // Body forces
     scalarVectorPtr_Type source;
     source.reset(new scalarVector_Type(M_DispFEM.nb_dof()));
     gmm::clear(*source);
     bulkLoad(source, M_Bulk, M_DispFEM, M_CoeffFEM, M_intMethod, M_time->time());
     M_Sys->addSubVector(source, 0);
     
-    // Neumann boundary conditions (tractions)
     scalarVectorPtr_Type BCvec;
     BCvec.reset(new scalarVector_Type(M_DispFEM.nb_dof()));
     gmm::clear(*BCvec);
@@ -115,10 +176,9 @@ void ElastProblem::assembleRHS() {
 }
 
 void ElastProblem::enforceStrongBC(bool firstTime) {
-    size_type meshDim = M_Bulk->getMesh()->dim(); // 2 o 3
+    size_type meshDim = M_Bulk->getMesh()->dim();
 
     if (firstTime) {
-        // Collect DOFs with Dirichlet BC
         for (size_type bndID = 0; bndID < M_BC.getDiriBD().size(); bndID++) {
             dal::bit_vector quali = M_DispFEM.getFEM()->dof_on_region(M_BC.getDiriBD()[bndID]);
             for (dal::bv_visitor i(quali); !i.finished(); ++i) {
@@ -127,8 +187,6 @@ void ElastProblem::enforceStrongBC(bool firstTime) {
             }
         }
         
-        // Enforce Dirichlet BC in matrix and RHS
-        // i salta di meshDim (2 o 3)
         for (size_type i = 0; i < M_rowsStrongBC.size(); i += meshDim) {
             
             // --- X COMPONENT ---
@@ -160,23 +218,19 @@ void ElastProblem::enforceStrongBC(bool firstTime) {
             }
         }
     } else {
-        // Update RHS values only
         for (size_type i = 0; i < M_rowsStrongBC.size(); i += meshDim) {
             
-            // X
             size_type ii = M_rowsStrongBC[i];
             bgeot::base_node where = M_DispFEM.getFEM()->point_of_basic_dof(ii);
             scalar_type value = (M_BC.BCDiriVec(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[0] +
                                 M_BC.BCDiriVel(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[0] * M_time->time());
             M_Sys->setRHSValue(ii, value);
             
-            // Y
             ii = M_rowsStrongBC[i + 1];
             value = (M_BC.BCDiriVec(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[1] +
                     M_BC.BCDiriVel(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[1] * M_time->time());
             M_Sys->setRHSValue(ii, value);
             
-            // Z (SOLO 3D)
             if (meshDim == 3) {
                 ii = M_rowsStrongBC[i + 2];
                 value = (M_BC.BCDiriVec(where, M_BC.getDiriBD()[M_rowsStrongBCFlags[i]], M_time->time())[2] +
@@ -210,14 +264,12 @@ scalar_type ElastProblem::computeError(std::string what, scalar_type time) {
     scalar_type error = 0.0;
     
     if (what == "Displacement") {
-        // Create local error vector
         scalarVector_Type loc_err(M_DispFEM.nb_dof());
         
-        // Compute pointwise error
-        size_type qdim = M_DispFEM.get_qdim(); // Get dimension of vector field
+        size_type qdim = M_DispFEM.get_qdim();
         for (size_type i = 0; i < M_DispFEM.nb_dof(); ++i) {
-            size_type comp = i % qdim; // Component (0=x, 1=y, 2=z)
-            size_type base_dof = i / qdim; // Base dof index
+            size_type comp = i % qdim;
+            size_type base_dof = i / qdim;
             
             bgeot::base_node where = M_DispFEM.getFEM()->point_of_basic_dof(base_dof);
             base_small_vector exact_val = M_Bulk->getElastData()->uEx(where, time);
@@ -225,7 +277,6 @@ scalar_type ElastProblem::computeError(std::string what, scalar_type time) {
             loc_err[i] = (*M_DispSol)[i] - exact_val[comp];
         }
         
-        // Compute L2 norm of error using mass matrix
         error = L2Norm_Elast(M_dispMassMatrix, loc_err);
         std::cout << "at time " << time << " error displacement " << error << std::endl;
     } else {
@@ -249,7 +300,6 @@ void ElastProblem::exportVtk(std::string folder, int frame) {
         }
     }
     
-    // Export displacement
     std::string filename = folder + "Displacement_bulk" + frameNum + ".vtk";
     getfem::vtk_export exp(filename);
     
@@ -259,14 +309,13 @@ void ElastProblem::exportVtk(std::string folder, int frame) {
     exp.write_mesh();
     exp.write_point_data(*(M_DispFEM.getFEM()), dispCut, "u");
     
-    // Export exact solution for comparison
     if (M_Bulk->getElastData()->hasExactSolution()) {
         std::string exactFilename = folder + "Displacement_exact" + frameNum + ".vtk";
         getfem::vtk_export expE(exactFilename);
         
         expE.exporting(*(M_DispFEM.getFEM()));
         gmm::clear(dispCut);
-        for (size_type i = 0; i < dispCut.size(); i += M_Bulk->getMesh()->dim()) { // Incremento dinamico
+        for (size_type i = 0; i < dispCut.size(); i += M_Bulk->getMesh()->dim()) {
             bgeot::base_node where = M_DispFEM.getFEM()->point_of_basic_dof(i);
             dispCut[i] = M_Bulk->getElastData()->uEx(where, M_time->time())[0];
             dispCut[i + 1] = M_Bulk->getElastData()->uEx(where, M_time->time())[1];

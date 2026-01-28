@@ -10,6 +10,22 @@
 #include "TimeLoop.h"
 
 /**
+ * @enum BoundaryAssignmentType
+ * @brief Specifies how boundary regions are assigned from mesh data
+ * 
+ * Note: This enum may be defined in DarcyProblemT.h as well.
+ * If both headers are included, use include guards or a shared header.
+ */
+#ifndef BOUNDARY_ASSIGNMENT_TYPE_DEFINED
+#define BOUNDARY_ASSIGNMENT_TYPE_DEFINED
+enum class BoundaryAssignmentType {
+    GEOMETRIC,      ///< Automatic detection based on face normals and position
+    TAG_NAME,       ///< Match Gmsh physical names (outer, inner, top, bottom, etc.)
+    TAG_NUMBER      ///< Select N largest/smallest tag numbers
+};
+#endif
+
+/**
  * @class ElastProblem
  * @brief Quasi-static linear elasticity problem solver with poroelastic coupling
  * 
@@ -104,9 +120,25 @@ public:
     void initialize();
 
 private:
+    /**
+     * @brief Setup boundary conditions based on assignment type
+     */
+    void setupBoundaryConditions();
+    
+    /**
+     * @brief Parse boundary assignment type from string
+     * @param typeStr String from input file ("geometric", "tagName", "tagNumber")
+     * @return Corresponding enum value
+     */
+    static BoundaryAssignmentType parseBoundaryType(const std::string& typeStr);
+
     TimeLoop* M_time;      ///< Pointer to time manager
     Bulk* M_Bulk;          ///< Pointer to bulk domain
     BC M_BC;               ///< Boundary condition handler
+    
+    // Boundary assignment configuration
+    BoundaryAssignmentType M_boundaryType;  ///< How to assign boundary regions
+    bool M_tagNumberLargest;                ///< For TAG_NUMBER: select largest (true) or smallest (false)
     
     // Finite element spaces
     FEM M_DispFEM;         ///< Displacement (vector) FEM

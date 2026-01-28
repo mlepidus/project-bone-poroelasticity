@@ -5,6 +5,7 @@
 #include "../include/BC.h"
 #include <algorithm>
 #include <cmath>
+#include <set>
 
 // ============================================================================
 // Constructor
@@ -331,13 +332,13 @@ bgeot::base_node BC::BCDiriVel(const base_node& x, const size_type& flag, const 
 }
 
 // ============================================================================
-// Boundary Region Setup from Gmsh Tags
+// Boundary Region Setup from Gmsh Tags (by Name)
 // ============================================================================
 
-void BC::setBoundariesFromTags(getfem::mesh* meshPtr, 
+void BC::setBoundariesFromTagsName(getfem::mesh* meshPtr, 
                                const std::map<std::string, size_type>& regmap)
 {
-    std::cout << "\n=== BC::setBoundariesFromTags ===" << std::endl;
+    std::cout << "\n=== BC::setBoundariesFromTagsName ===" << std::endl;
     std::cout << "Setting boundaries from Gmsh physical tags..." << std::endl;
     
     // Get all regions that exist in the mesh
@@ -478,6 +479,252 @@ void BC::setBoundariesFromTags(getfem::mesh* meshPtr,
     #endif
 
     std::cout << "=== Boundary assignment complete ===\n" << std::endl;
+}
+
+// ============================================================================
+// Helper Methods for Tag Number Selection
+// ============================================================================
+
+std::vector<size_type> BC::extractSortedTagNumbers(
+    const std::map<std::string, size_type>& regmap) const 
+{
+    // Use a set to get unique sorted values
+    std::set<size_type> unique_tags;
+    for (const auto& pair : regmap) {
+        unique_tags.insert(pair.second);
+    }
+    
+    // Convert to sorted vector
+    return std::vector<size_type>(unique_tags.begin(), unique_tags.end());
+}
+
+std::vector<size_type> BC::selectTagNumbers(
+    const std::vector<size_type>& sortedTags,
+    size_type n,
+    bool largest) const 
+{
+    if (sortedTags.size() <= n) {
+        // Return all tags if we don't have enough
+        return sortedTags;
+    }
+    
+    std::vector<size_type> selected;
+    
+    if (largest) {
+        // Select the N largest (from the end of sorted list)
+        size_type start_idx = sortedTags.size() - n;
+        for (size_type i = start_idx; i < sortedTags.size(); ++i) {
+            selected.push_back(sortedTags[i]);
+        }
+    } else {
+        // Select the N smallest (from the beginning of sorted list)
+        for (size_type i = 0; i < n; ++i) {
+            selected.push_back(sortedTags[i]);
+        }
+    }
+    
+    return selected;  // Already sorted in ascending order
+}
+
+// ============================================================================
+// Boundary Region Setup from Tag Numbers (Regmap Version)
+// ============================================================================
+
+void BC::setBoundariesFromTagNumbers(getfem::mesh* meshPtr, 
+                                     const std::map<std::string, size_type>& regmap,
+                                     bool largest)
+{
+    std::cout << "\n=== BC::setBoundariesFromTagNumbers ===" << std::endl;
+    std::cout << "Selection mode: " << (largest ? "LARGEST" : "SMALLEST") 
+              << " tag numbers" << std::endl;
+    std::cout << "Number of BCs required: " << M_nBoundaries << std::endl;
+    
+    // Clear previous mappings
+    M_internalToGmsh.clear();
+    M_gmshToInternal.clear();
+    
+    // Get all regions that exist in the mesh
+    dal::bit_vector mesh_regions = meshPtr->regions_index();
+    
+    std::cout << "\nAvailable regions in mesh:" << std::endl;
+    for (dal::bv_visitor i(mesh_regions); !i.finished(); ++i) {
+        getfem::mesh_region region = meshPtr->region(i);
+        size_t count = 0;
+        for (getfem::mr_visitor it(region); !it.finished(); ++it) {
+            count++;
+        }
+        std::cout << "  Region " << i << ": " << count << " faces" << std::endl;
+    }
+    
+    // Extract and sort all unique tag numbers from regmap
+    std::vector<size_type> all_tags = extractSortedTagNumbers(regmap);
+    
+    std::cout << "\nAll tags from regmap (sorted): ";
+    for (auto t : all_tags) std::cout << t << " ";
+    std::cout << std::endl;
+    
+    // Filter to only tags that exist in the mesh
+    std::vector<size_type> existing_tags;
+    for (auto tag : all_tags) {
+        if (mesh_regions.is_in(tag)) {
+            existing_tags.push_back(tag);
+        }
+    }
+    
+    std::cout << "Tags existing in mesh: ";
+    for (auto t : existing_tags) std::cout << t << " ";
+    std::cout << std::endl;
+    
+    // Select the N tags based on mode
+    std::vector<size_type> selected_tags = selectTagNumbers(existing_tags, M_nBoundaries, largest);
+    
+    if (selected_tags.size() < M_nBoundaries) {
+        std::cout << "WARNING: Only " << selected_tags.size() 
+                  << " tags available, but " << M_nBoundaries << " BCs required!" << std::endl;
+    }
+    
+    std::cout << "\nSelected tags: ";
+    for (auto t : selected_tags) std::cout << t << " ";
+    std::cout << std::endl;
+    
+    // Assign selected tags to internal regions 0, 1, 2, ...
+    std::cout << "\nAssigning tags to internal regions:" << std::endl;
+    
+    for (size_type internal_id = 0; internal_id < selected_tags.size(); ++internal_id) {
+        size_type gmsh_tag = selected_tags[internal_id];
+        
+        // Store the mapping
+        M_internalToGmsh[internal_id] = gmsh_tag;
+        M_gmshToInternal[gmsh_tag] = internal_id;
+        
+        // Copy faces from Gmsh region to internal region
+        getfem::mesh_region gmsh_region = meshPtr->region(gmsh_tag);
+        
+        size_t face_count = 0;
+        for (getfem::mr_visitor face_it(gmsh_region); !face_it.finished(); ++face_it) {
+            meshPtr->region(internal_id).add(face_it.cv(), face_it.f());
+            face_count++;
+        }
+        
+        std::string bc_type = "Unknown";
+        if (internal_id < M_BC.size()) {
+            if (M_BC[internal_id] == 0) bc_type = "Dirichlet";
+            else if (M_BC[internal_id] == 1) bc_type = "Neumann";
+            else if (M_BC[internal_id] == 2) bc_type = "Mixed";
+        }
+        
+        std::cout << "  Internal region " << internal_id << " <- Gmsh tag " << gmsh_tag
+                  << " (" << face_count << " faces, BC type: " << bc_type << ")" << std::endl;
+    }
+    
+    std::cout << "\n=== Tag number boundary assignment complete ===\n" << std::endl;
+}
+
+// ============================================================================
+// Boundary Region Setup from Tag Numbers (Direct Mesh Version)
+// ============================================================================
+
+void BC::setBoundariesFromTagNumbersDirect(getfem::mesh* meshPtr,
+                                           bool largest)
+{
+    std::cout << "\n=== BC::setBoundariesFromTagNumbersDirect ===" << std::endl;
+    std::cout << "Selection mode: " << (largest ? "LARGEST" : "SMALLEST") 
+              << " tag numbers" << std::endl;
+    std::cout << "Number of BCs required: " << M_nBoundaries << std::endl;
+    
+    // Clear previous mappings
+    M_internalToGmsh.clear();
+    M_gmshToInternal.clear();
+    
+    // Get all non-empty regions from the mesh
+    dal::bit_vector mesh_regions = meshPtr->regions_index();
+    
+    // Collect all region IDs that have faces
+    std::vector<size_type> all_tags;
+    
+    std::cout << "\nScanning mesh regions:" << std::endl;
+    for (dal::bv_visitor i(mesh_regions); !i.finished(); ++i) {
+        getfem::mesh_region region = meshPtr->region(i);
+        size_t count = 0;
+        for (getfem::mr_visitor it(region); !it.finished(); ++it) {
+            count++;
+        }
+        if (count > 0) {
+            all_tags.push_back(i);
+            std::cout << "  Region " << i << ": " << count << " faces" << std::endl;
+        }
+    }
+    
+    // Sort the tags
+    std::sort(all_tags.begin(), all_tags.end());
+    
+    std::cout << "\nAll non-empty region tags (sorted): ";
+    for (auto t : all_tags) std::cout << t << " ";
+    std::cout << std::endl;
+    
+    // Select the N tags based on mode
+    std::vector<size_type> selected_tags = selectTagNumbers(all_tags, M_nBoundaries, largest);
+    
+    if (selected_tags.size() < M_nBoundaries) {
+        std::cout << "WARNING: Only " << selected_tags.size() 
+                  << " tags available, but " << M_nBoundaries << " BCs required!" << std::endl;
+    }
+    
+    std::cout << "\nSelected tags: ";
+    for (auto t : selected_tags) std::cout << t << " ";
+    std::cout << std::endl;
+    
+    // Store face data temporarily to avoid conflicts during reassignment
+    struct FaceData {
+        size_type cv;   // Convex index
+        short int f;   // Face index
+        FaceData(size_type c, short int face) : cv(c), f(face) {}
+    };
+    std::vector<std::vector<FaceData>> face_storage(selected_tags.size());
+    
+    // First pass: collect all faces
+    for (size_type i = 0; i < selected_tags.size(); ++i) {
+        size_type gmsh_tag = selected_tags[i];
+        getfem::mesh_region gmsh_region = meshPtr->region(gmsh_tag);
+        
+        for (getfem::mr_visitor face_it(gmsh_region); !face_it.finished(); ++face_it) {
+            face_storage[i].push_back(FaceData(face_it.cv(), face_it.f()));
+        }
+    }
+    
+    // Clear internal regions that might overlap with selected tags
+    for (size_type internal_id = 0; internal_id < M_nBoundaries; ++internal_id) {
+        meshPtr->region(internal_id).clear();
+    }
+    
+    // Second pass: assign faces to internal regions
+    std::cout << "\nAssigning tags to internal regions:" << std::endl;
+    
+    for (size_type internal_id = 0; internal_id < selected_tags.size(); ++internal_id) {
+        size_type gmsh_tag = selected_tags[internal_id];
+        
+        // Store the mapping
+        M_internalToGmsh[internal_id] = gmsh_tag;
+        M_gmshToInternal[gmsh_tag] = internal_id;
+        
+        // Add faces to internal region
+        for (const auto& face : face_storage[internal_id]) {
+            meshPtr->region(internal_id).add(face.cv, face.f);
+        }
+        
+        std::string bc_type = "Unknown";
+        if (internal_id < M_BC.size()) {
+            if (M_BC[internal_id] == 0) bc_type = "Dirichlet";
+            else if (M_BC[internal_id] == 1) bc_type = "Neumann";
+            else if (M_BC[internal_id] == 2) bc_type = "Mixed";
+        }
+        
+        std::cout << "  Internal region " << internal_id << " <- Gmsh tag " << gmsh_tag
+                  << " (" << face_storage[internal_id].size() << " faces, BC type: " 
+                  << bc_type << ")" << std::endl;
+    }
+    
+    std::cout << "\n=== Direct tag number boundary assignment complete ===\n" << std::endl;
 }
 
 // ============================================================================
