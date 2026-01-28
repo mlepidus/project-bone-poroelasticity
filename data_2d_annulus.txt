@@ -1,0 +1,78 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% parameters for program laplacian                                        %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+[time]
+    Tend = 1.0
+    dt = 0.05  % Reduced for stability
+[../]
+
+[materials]
+    gravity = [0,0] 
+    rho_r = 1
+    rho_f = 1
+    mu_f = 1
+[../]
+
+[bulkData]
+    [./domain]
+        meshExternal = annulus_2d.msh
+        meshFolder = ./meshes/
+        dimension=2
+        spatialDiscretizationX = 10  % Start with coarser mesh
+        spatialDiscretizationY = 10
+        spatialDiscretizationZ = 10
+        spatialInclination = 0.
+        lengthAbscissa = 1
+        lengthOrdinate = 1
+        lengthQuota = 1.
+        meshType = GT_PK(2,1)
+        spaceDimension = 2
+        nBoundaries = 2
+    [../]
+
+    [./darcy]
+        bcflag = [0, 1]
+        Kxx = 1.0
+        Kyy = 1.0
+        Kzz = 1.0
+        Kxy = 0.0
+        Kxz = 0.0
+        Kyz = 0.0
+        biotM = 1.0
+        FEMTypeVelocity = FEM_RT0(2)
+        FEMTypeVelocityVis = FEM_PK(2,1)
+        FEMTypePressure = FEM_PK(2,0)
+        FEMTypeCoeff = FEM_PK(2,0)
+        integrationMethod = IM_TRIANGLE(2)
+        source = 0
+        p_BC = 10
+        v_BC = 0
+        pIni = 0  
+        u_exact =[0,0] 
+        p_exact = 10
+    [../]
+
+    [./mecc]
+        bcflag = [0,1] 
+        mu = 1
+        lambda = 1
+        fluidP = 0
+        bulkLoad = [0,-rho_r*9.81]
+        bdLoad = [0,0]
+        bdDisp = [0,0]
+        FEMTypeDisplacement = FEM_PK(2,1)
+        FEMTypeCoeff = FEM_PK(2,0)
+        FEMTypeStress = FEM_PK(2,1)
+        FEMTypeStressS = FEM_PK(2,1)
+        integrationMethod = IM_TRIANGLE(2)
+        u_exact = 
+        u_ini = [0,0]
+    [../]
+[../]
+[solver]
+       type = BICGSTAB
+       preconditioner = ILU
+       maxIterations = 1000
+       tolerance = 1.0e-8
+[../]
