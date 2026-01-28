@@ -24,6 +24,9 @@
                 meshFolder = ./meshes/
                 spaceDimension = 3
                 nBoundaries = 4
+                boundaryType = tagName
+                % For tagNumber mode only: select "largest" or "smallest" tags
+                tagSelection = largest
         [../]
 
         [./darcy]
@@ -88,6 +91,9 @@
                 spaceDimension = 3
                 nBoundaries = 4
                 interpolationDegree=5
+                boundaryType = tagName
+                % For tagNumber mode only: select "largest" or "smallest" tags
+                tagSelection = largest
 
         [../]
 

@@ -173,9 +173,53 @@ public:
      * @param meshPtr Pointer to mesh
      * @param regmap Map from physical names to region IDs (from Gmsh import)
      */
-    void setBoundariesFromTags(getfem::mesh* meshPtr, 
+    void setBoundariesFromTagsName(getfem::mesh* meshPtr, 
                                const std::map<std::string, size_type>& regmap);
     
+     /**
+     * @brief Associate boundary regions with mesh using tag numbers in sorted order
+     * 
+     * This method selects the N largest (or smallest) tag numbers from the mesh
+     * and assigns them to internal region IDs 0, 1, 2, ... in sorted order.
+     * 
+     * Example with 7 tags (1,2,3,4,5,6,7), 4 BCs, LARGEST mode:
+     *   - Selects tags 4, 5, 6, 7
+     *   - Internal region 0 <- Gmsh tag 4
+     *   - Internal region 1 <- Gmsh tag 5
+     *   - Internal region 2 <- Gmsh tag 6
+     *   - Internal region 3 <- Gmsh tag 7
+     * 
+     * @param meshPtr Pointer to mesh
+     * @param regmap Map from physical names to region IDs (from Gmsh import)
+     * @param mode Whether to select LARGEST or SMALLEST tag numbers
+     */
+    void setBoundariesFromTagNumbers(getfem::mesh* meshPtr, 
+                                     const std::map<std::string, size_type>& regmap,
+                                     bool largest = true);
+    
+    /**
+     * @brief Associate boundary regions with mesh using tag numbers (direct version)
+     * 
+     * This version works directly with the mesh regions without requiring the regmap.
+     * It finds all boundary regions in the mesh and selects the N largest (or smallest).
+     * 
+     * @param meshPtr Pointer to mesh
+     * @param mode Whether to select LARGEST or SMALLEST tag numbers
+     */
+    void setBoundariesFromTagNumbersDirect(getfem::mesh* meshPtr,
+                                           bool largest=true );
+    
+    /**
+     * @brief Get the mapping from internal region IDs to original Gmsh tag numbers
+     * @return Map where key = internal region ID, value = original Gmsh tag
+     * 
+     * Useful for debugging and understanding which Gmsh tags were assigned.
+     */
+    const std::map<size_type, size_type>& getInternalToGmshMapping() const {
+        return M_internalToGmsh;
+    }
+    
+                               
     /// Get list of boundary region IDs with Neumann conditions
     std::vector<size_type> getNeumBD();
     
@@ -208,6 +252,26 @@ private:
                                    const std::vector<scalar_type>& coeffs,
                                    scalar_type z_min,
                                    scalar_type z_max) const;
+
+    /**
+     * @brief Extract and sort tag numbers from regmap
+     * @param regmap Map from physical names to region IDs
+     * @return Sorted vector of unique tag numbers
+     */
+    std::vector<size_type> extractSortedTagNumbers(
+        const std::map<std::string, size_type>& regmap) const;
+    
+    /**
+     * @brief Select N tag numbers based on mode
+     * @param sortedTags Sorted vector of all tag numbers
+     * @param n Number of tags to select
+     * @param mode Selection mode (LARGEST or SMALLEST)
+     * @return Vector of selected tag numbers (sorted in ascending order)
+     */
+    std::vector<size_type> selectTagNumbers(
+        const std::vector<size_type>& sortedTags,
+        size_type n,
+        bool largest) const;
 
     // ========================================================================
     // Member Variables
@@ -258,6 +322,13 @@ private:
     std::map<size_type, PolynomialData> M_dispXPolynomials;
     std::map<size_type, PolynomialData> M_dispYPolynomials;
     std::map<size_type, PolynomialData> M_dispZPolynomials;
+
+    
+    /// Map from internal region ID to original Gmsh tag number
+    std::map<size_type, size_type> M_internalToGmsh;
+    
+    /// Map from original Gmsh tag number to internal region ID
+    std::map<size_type, size_type> M_gmshToInternal;
 };
 
 #endif // BC_H

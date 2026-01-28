@@ -13,6 +13,15 @@
 #include "StringUtility.h"
 #include "TimeLoop.h"
 
+#ifndef BOUNDARY_ASSIGNMENT_TYPE_DEFINED 
+#define BOUNDARY_ASSIGNMENT_TYPE_DEFINED
+enum class BoundaryAssignmentType {
+    GEOMETRIC,      ///< Automatic detection based on face normals and position
+    TAG_NAME,       ///< Match Gmsh physical names (outer, inner, top, bottom, etc.)
+    TAG_NUMBER      ///< Select N largest/smallest tag numbers
+};
+#endif
+
 /**
  * @class DarcyProblemT
  * @brief Time-dependent Darcy flow problem solver
@@ -105,13 +114,30 @@ public:
     /// Extract solution from global system vector
     void extractSol(scalarVectorPtr_Type sol);
 
-    // get bc object
+    /// Get BC object
     inline BC* getBC() { return &M_BC; }
+    
 private:
+    /**
+     * @brief Setup boundary conditions based on assignment type
+     */
+    void setupBoundaryConditions();
+    
+    /**
+     * @brief Parse boundary assignment type from string
+     * @param typeStr String from input file ("geometric", "tagName", "tagNumber")
+     * @return Corresponding enum value
+     */
+    static BoundaryAssignmentType parseBoundaryType(const std::string& typeStr);
+
     scalar_type M_dt;                       ///< Time step size
     TimeLoop* M_timeLoop;                   ///< Pointer to time manager
     Bulk* M_Bulk;                           ///< Pointer to bulk domain
     BC M_BC;                                ///< Boundary condition handler
+    
+    // Boundary assignment configuration
+    BoundaryAssignmentType M_boundaryType;  ///< How to assign boundary regions
+    bool M_tagNumberLargest;                ///< For TAG_NUMBER: select largest (true) or smallest (false)
     
     // Finite element spaces
     FEM M_PressureFEM;        ///< Pressure (scalar) FEM
@@ -128,7 +154,6 @@ private:
     scalarVectorPtr_Type M_velocitySol;     ///< Current velocity
     
     sparseMatrixPtr_Type M_pressureMass;  ///< Pressure-pressure block matrix
-//    sparseMatrixPtr_Type A22; ///<Pressure-pressure scaled by dt and M
 
     size_type M_nbTotDOF;      ///< Total DOFs (pressure + velocity)
     size_type M_nbTotBulkDOF;  ///< Bulk domain DOFs only
