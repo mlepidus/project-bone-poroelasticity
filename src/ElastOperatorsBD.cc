@@ -1,5 +1,9 @@
 #include "../include/ElastOperatorsBD.h"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 void essentialWNitscheVec( sparseMatrixPtr_Type M,
                Bulk* medium, BC* bcPtr,  FEM& FemD, FEM& FemC, getfem::mesh_im& im)
                
@@ -11,6 +15,9 @@ void essentialWNitscheVec( sparseMatrixPtr_Type M,
     std::vector<scalar_type> lambda(femC.nb_dof(),0.0);
     std::vector<scalar_type> mu(femC.nb_dof(),0.0);
 
+    #ifdef _OPENMP
+    #pragma omp parallel for schedule(static)
+    #endif
   for ( size_type i = 0; i < femC.nb_dof(); ++i )
     {
         scalar_type h_el= medium->getMesh()->convex_radius_estimate(femC.first_convex_of_basic_dof(i));
@@ -94,6 +101,9 @@ void essentialWNitscheRHSVec( scalarVectorPtr_Type V,
     std::vector<scalar_type> lambda(femC.nb_dof(),0.0);
     std::vector<scalar_type> mu(femC.nb_dof(),0.0);
 
+    #ifdef _OPENMP
+    #pragma omp parallel for schedule(static)
+    #endif
     for ( size_type i = 0; i < femC.nb_dof(); ++i )
     {
         scalar_type h_el= medium->getMesh()->convex_radius_estimate(femC.first_convex_of_basic_dof(i));
@@ -159,32 +169,43 @@ void essentialWNitscheRHSVec( scalarVectorPtr_Type V,
 
     // Assemble in each sub region
     
-     	    assem_cons.push_data(lambda);
-  	    assem_cons.push_data(mu);
-	    scalarVector_Type datax(femC.nb_dof());
-	    scalarVector_Type datax2(femC.nb_dof());
-	    for (size_type i=0; i<femC.nb_dof();++i)
-	    {
-	    	datax [ i ] = (bcPtr->BCDiriVec(femC.point_of_basic_dof(i), bcPtr->getDiriBD()[bndID], time)[0]+
-				bcPtr->BCDiriVel(femC.point_of_basic_dof(i), bcPtr->getDiriBD()[bndID], time)[0]*time);
-	    }
+    assem_cons.push_data(lambda);
+    assem_cons.push_data(mu);
+    scalarVector_Type datax(femC.nb_dof());
+    scalarVector_Type datax2(femC.nb_dof());
+
+        #ifdef _OPENMP
+        #pragma omp parallel for schedule(static)
+        #endif
+	for (size_type i=0; i<femC.nb_dof();++i)
+	{
+    	datax [ i ] = (bcPtr->BCDiriVec(femC.point_of_basic_dof(i), bcPtr->getDiriBD()[bndID], time)[0]+
+                		bcPtr->BCDiriVel(femC.point_of_basic_dof(i), bcPtr->getDiriBD()[bndID], time)[0]*time);
+	}
     
-	    for (size_type i=0; i<femC.nb_dof();++i)
-	    {
-	    	datax2 [ i ] = etaGammaUinvh [ i ]*datax[i];
-	    }
+    #ifdef _OPENMP
+    #pragma omp parallel for schedule(static)
+    #endif
+    for (size_type i=0; i<femC.nb_dof();++i)
+    {
+    	datax2 [ i ] = etaGammaUinvh [ i ]*datax[i];
+    }
 
 	
    	    
    	scalarVector_Type datay(femC.nb_dof());
     scalarVector_Type datay2(femC.nb_dof());
-    
+    #ifdef _OPENMP
+    #pragma omp parallel for schedule(static)
+    #endif
 	    for (size_type i=0; i<femC.nb_dof();++i)
 	    {
 	    	datay [ i ] = (bcPtr->BCDiriVec(femC.point_of_basic_dof(i), bcPtr->getDiriBD()[bndID],time)[1] + 
 				bcPtr->BCDiriVel(femC.point_of_basic_dof(i), bcPtr->getDiriBD()[bndID],time)[1]*time);
 	    }
-
+    #ifdef _OPENMP
+    #pragma omp parallel for schedule(static)
+    #endif
         for (size_type i=0; i<femC.nb_dof();++i)
 	    {
 	    	datay2 [ i ] = etaGammaUinvh [ i ]*datay[i];
@@ -192,21 +213,26 @@ void essentialWNitscheRHSVec( scalarVectorPtr_Type V,
     	    // Assign the coefficients
     assem_cons.push_data(datax);
     
-   	    assem_surf.push_data(datax2);
+    assem_surf.push_data(datax2);
     assem_surf2.push_data(datax2);
     assem_cons.push_data(datay);
-   	    assem_surf.push_data(datay2);
+    assem_surf.push_data(datay2);
     assem_surf2.push_data(datay2);
 
-   	     if (dim == 3) {
+   	if (dim == 3) {
             scalarVector_Type dataz(femC.nb_dof());
             scalarVector_Type dataz2(femC.nb_dof());
-            
+            #ifdef _OPENMP
+            #pragma omp parallel for schedule(static)
+            #endif
             for (size_type i=0; i<femC.nb_dof();++i)
             {
                 dataz [ i ] = (bcPtr->BCDiriVec(femC.point_of_basic_dof(i), bcPtr->getDiriBD()[bndID],time)[2] + 
                         bcPtr->BCDiriVel(femC.point_of_basic_dof(i), bcPtr->getDiriBD()[bndID],time)[2]*time);
             }
+            #ifdef _OPENMP
+            #pragma omp parallel for schedule(static)
+            #endif
             for (size_type i=0; i<femC.nb_dof();++i)
             {
                 dataz2 [ i ] = etaGammaUinvh [ i ]*dataz[i];
@@ -215,15 +241,15 @@ void essentialWNitscheRHSVec( scalarVectorPtr_Type V,
             assem_cons.push_data(dataz);
             assem_surf.push_data(dataz2);
             assem_surf2.push_data(dataz2);
-        }
+    }
 	    // Set the matrices to save the evaluations
-   	    assem_surf.push_vec(*V);
+    assem_surf.push_vec(*V);
     assem_surf2.push_vec(*V);
-	    assem_cons.push_vec(*V);
+    assem_cons.push_vec(*V);
 
-            assem_surf.assembly(medium->getMesh()->region(bcPtr->getDiriBD()[bndID]));
+    assem_surf.assembly(medium->getMesh()->region(bcPtr->getDiriBD()[bndID]));
     assem_surf2.assembly(medium->getMesh()->region(bcPtr->getDiriBD()[bndID]));
-	    assem_cons.assembly(medium->getMesh()->region(bcPtr->getDiriBD()[bndID]));
+    assem_cons.assembly(medium->getMesh()->region(bcPtr->getDiriBD()[bndID]));
 
     }
 //    std::cout << "elast :: operator nitsche    [OK]" << std::endl;
@@ -272,12 +298,16 @@ void stressRHS( scalarVectorPtr_Type V,
         scalarVector_Type datax(femC.nb_dof());
         scalarVector_Type datay(femC.nb_dof());
         scalarVector_Type dataz;  // Only populated for 3D
-    
+        #ifdef _OPENMP
+        #pragma omp parallel for schedule(static)
+        #endif
         for (size_type i=0; i<femC.nb_dof();++i)
         {
             datax [ i ] = bcPtr->BCNeumVec(femC.point_of_basic_dof(i), bcPtr->getNeumBD()[bndID], time)[0];
         }
-    
+        #ifdef _OPENMP
+        #pragma omp parallel for schedule(static)
+        #endif
         for (size_type i=0; i<femC.nb_dof();++i)
         {
             datay [ i ] = bcPtr->BCNeumVec(femC.point_of_basic_dof(i), bcPtr->getNeumBD()[bndID], time)[1];
@@ -289,7 +319,9 @@ void stressRHS( scalarVectorPtr_Type V,
         
         if (dim == 3) {
             dataz.resize(femC.nb_dof());
-        
+            #ifdef _OPENMP
+            #pragma omp parallel for schedule(static)
+            #endif
             for (size_type i=0; i<femC.nb_dof();++i)
             {
                 dataz [ i ] = bcPtr->BCNeumVec(femC.point_of_basic_dof(i), bcPtr->getNeumBD()[bndID], time)[2];

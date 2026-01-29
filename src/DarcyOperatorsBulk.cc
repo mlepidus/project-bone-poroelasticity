@@ -1,4 +1,9 @@
 #include "../include/DarcyOperatorsBulk.h"
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 /*
 void massL2( sparseMatrixPtr_Type M,   
                Bulk* medium, FEM& FemP, FEM& FemC, getfem::mesh_im& im, scalar_type dt)
@@ -211,6 +216,9 @@ void massHdiv(sparseMatrixPtr_Type M,
     std::vector<scalar_type> iKxz(femP.nb_dof(), 0.0);
     std::vector<scalar_type> iKyz(femP.nb_dof(), 0.0);
 
+    #ifdef _OPENMP
+    #pragma omp parallel for schedule(static)
+    #endif
     // Compute inverse of permeability tensor at each DOF
     for (size_type i = 0; i < femP.nb_dof(); ++i)
     {   
@@ -401,7 +409,9 @@ void scalarSource (scalarVectorPtr_Type V, Bulk* medium,  FEM& FemP, FEM& FemC, 
 		       "a=comp(Base(#1).Base(#2));"
 		       "V(#1)+=a(:, k).w(k)");
 	  std::vector<scalar_type>  sourceVal(femC.nb_dof(),0.0);
-	
+        #ifdef _OPENMP
+        #pragma omp parallel for schedule(static)
+        #endif
 	  for (size_type i=0; i<femC.nb_dof();++i)
 	  {
 	  	sourceVal[i]=medium->getDarcyData()->source(femC.point_of_basic_dof(i),t);
@@ -441,7 +451,9 @@ void vectorSource (scalarVectorPtr_Type V, Bulk* medium,  FEM& FemV, FEM& FemC, 
         assem.set("vx=data$1(#2);" "vy=data$2(#2);"
                   "a=comp(vBase(#1).Base(#2));"
                   "V(#1)+=a(:,1,k).vx(k)+a(:,2,k).vy(k)");
-        
+        #ifdef _OPENMP
+        #pragma omp parallel for schedule(static)
+        #endif
         for (size_type i=0; i<femC.nb_dof();++i) {
             sourceValX[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[0];
             sourceValY[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[1];
@@ -461,7 +473,9 @@ void vectorSource (scalarVectorPtr_Type V, Bulk* medium,  FEM& FemV, FEM& FemC, 
                   "V(#1)+=a(:,1,k).vx(k)+a(:,2,k).vy(k)+a(:,3,k).vz(k)");
         
         sourceValZ.resize(femC.nb_dof(), 0.0);  
-        
+        #ifdef _OPENMP
+        #pragma omp parallel for schedule(static)
+        #endif
         for (size_type i=0; i<femC.nb_dof();++i) {
             sourceValX[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[0];
             sourceValY[i]=medium->getDarcyData()->rhoF()*medium->getDarcyData()->gravity()[1];

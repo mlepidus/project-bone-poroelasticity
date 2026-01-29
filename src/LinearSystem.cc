@@ -1,5 +1,9 @@
 #include "../include/LinearSystem.h"
 
+#ifdef USE_MUMPS
+    #include <gmm/gmm_MUMPS_interface.h>
+#endif
+
 // ============================================================================
 // Constructors
 // ============================================================================
@@ -199,6 +203,10 @@ void LinearSystem::configureSolver(const GetPot& dataFile, const std::string& se
         M_solverType = SolverType::GMRES;
     else if (solverStr == "BICGSTAB" || solverStr == "bicgstab" || solverStr == "BiCGSTAB")
         M_solverType = SolverType::BICGSTAB;
+    #ifdef USE_MUMPS
+    else if (solverStr == "MUMPS" || solverStr == "mumps")
+        M_solverType = SolverType::MUMPS;
+    #endif
     else {
         std::cerr << "WARNING: Unknown solver type '" << solverStr 
                   << "', defaulting to SUPERLU" << std::endl;
@@ -269,7 +277,13 @@ void LinearSystem::solve()
             if (M_verbose) std::cout << "Solver: SuperLU (direct)" << std::endl;
             solveDirect_SuperLU();
             break;
-            
+        
+        #ifdef USE_MUMPS
+        case SolverType::MUMPS:
+            if (M_verbose) std::cout << "Solver: MUMPS (direct)" << std::endl;
+            solveDirect_MUMPS();
+            break;
+        #endif
         case SolverType::GMRES:
             if (M_verbose)
             {
@@ -485,6 +499,33 @@ void LinearSystem::solveIterative_BiCGSTAB(PreconditionerType precondType,
         M_converged = false;
     }
 }
+
+#ifdef USE_MUMPS
+void LinearSystem::solveDirect_MUMPS()
+{
+    if (M_verbose)
+        std::cout << "[MUMPS] Starting parallel solve..." << std::endl;
+    
+    gmm::clear(*M_Sol);
+    
+    try {
+        // MUMPS automatically uses MPI for parallel factorization
+        gmm::MUMPS_solve(*M_Matrix, *M_Sol, *M_RHS);
+        M_converged = true;
+        
+        if (M_verbose)
+            std::cout << "[MUMPS] Solve completed successfully" << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[MUMPS] Error: " << e.what() << std::endl;
+        M_converged = false;
+        
+        // Fallback to SuperLU
+        std::cerr << "[MUMPS] Falling back to SuperLU..." << std::endl;
+        solveDirect_SuperLU();
+    }
+}
+#endif
 
 void LinearSystem::computeInverse()
 {

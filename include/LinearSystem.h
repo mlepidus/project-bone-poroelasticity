@@ -9,7 +9,8 @@
 enum class SolverType {
     SUPERLU,
     GMRES,
-    BICGSTAB
+    BICGSTAB,
+    MUMPS
 };
 
 enum class PreconditionerType {
@@ -146,6 +147,9 @@ private:
     
     // Private solver methods
     void solveDirect_SuperLU();
+
+    void solveDirect_MUMPS();
+    
     void solveIterative_GMRES(PreconditionerType precond, int maxIter, 
                              scalar_type tol, bool verbose);
     void solveIterative_BiCGSTAB(PreconditionerType precond, int maxIter,

@@ -1,0 +1,485 @@
+# ==============================================================================
+# Unified Makefile for Coupled/Russian Simulation
+# Supports both SERIAL and PARALLEL (MPI + OpenMP) builds
+# ==============================================================================
+# Usage:
+#   make                         # Serial build (default)
+#   make USE_MPI=1               # MPI parallel build
+#   make USE_MPI=1 USE_OPENMP=1  # MPI + OpenMP parallel build
+#   make USE_MUMPS=1             # Serial with MUMPS solver
+#   make USE_MPI=1 USE_MUMPS=1   # MPI + MUMPS (full parallel)
+# ==============================================================================
+
+# ==============================================================================
+# Parallel Configuration Flags
+# ==============================================================================
+USE_MPI       ?= 0
+USE_OPENMP    ?= 0
+USE_MUMPS     ?= 0
+
+# ==============================================================================
+# Compiler Selection based on parallel settings
+# ==============================================================================
+ifeq ($(USE_MPI),1)
+    CXX       := mpic++
+else
+    CXX       := g++
+endif
+
+CXXSTANDARD   := -std=c++17
+
+# ==============================================================================
+# Preprocessor Definitions
+# ==============================================================================
+DEFINES       :=
+
+# ==============================================================================
+# GetFEM Parallelization Levels (from https://getfem.org/userdoc/parallel.html)
+# ==============================================================================
+# GETFEM_PARA_LEVEL=0 : Sequential (default, no parallelization)
+# GETFEM_PARA_LEVEL=1 : Uses METIS for mesh partitioning only
+# GETFEM_PARA_LEVEL=2 : Full MPI parallelization with MUMPS distributed solver
+#
+# To enable GetFEM's built-in parallel assembly and distributed solve:
+# 1. GetFEM must be compiled with --enable-parallelism (your parallel install)
+# 2. MUMPS must be available
+# 3. Set GETFEM_PARA_LEVEL=2
+# ==============================================================================
+
+ifeq ($(USE_MPI),1)
+    DEFINES   += -DUSE_MPI
+    # GetFEM parallel level: 0=serial, 1=METIS, 2=MUMPS distributed
+    ifeq ($(USE_MUMPS),1)
+        # Level 2: Full parallelization - distributed matrix assembly + MUMPS solve
+        DEFINES += -DGETFEM_PARA_LEVEL=2
+    else
+        # Level 1: METIS mesh partitioning only (no distributed solve)
+        DEFINES += -DGETFEM_PARA_LEVEL=1
+    endif
+else
+    # Serial build: no parallelization
+    DEFINES += -DGETFEM_PARA_LEVEL=0
+endif
+
+ifeq ($(USE_OPENMP),1)
+    DEFINES   += -D_OPENMP
+    OPENMP_FLAGS := -fopenmp
+else
+    OPENMP_FLAGS :=
+endif
+
+ifeq ($(USE_MUMPS),1)
+    DEFINES   += -DUSE_MUMPS
+endif
+
+# ==============================================================================
+# Build Configuration
+# ==============================================================================
+BUILD_TYPE    ?= release
+VERBOSE_MODE  ?= 0
+
+# ==============================================================================
+# GetFEM Installation Paths
+# ==============================================================================
+# --- CUSTOMIZE THESE PATHS FOR YOUR SYSTEM ---
+# Serial GetFEM (standard installation)
+GETFEM_SERIAL_PREFIX   := $(HOME)/getfem/getfem-5.4.4-standard
+
+# Parallel GetFEM (with MPI/MUMPS support)
+GETFEM_PARALLEL_PREFIX := $(HOME)/getfem/getfem-5.4.4-parallel
+
+# Select the correct GetFEM based on build type
+ifeq ($(USE_MPI),1)
+    GETFEM_PREFIX := $(GETFEM_PARALLEL_PREFIX)
+else
+    GETFEM_PREFIX := $(GETFEM_SERIAL_PREFIX)
+endif
+
+GETFEM_INC    := $(GETFEM_PREFIX)/include
+GETFEM_LIB    := $(GETFEM_PREFIX)/lib
+
+# MPI include path (Ubuntu 24.04 default)
+MPI_INC       := /usr/lib/x86_64-linux-gnu/openmpi/include
+
+# ==============================================================================
+# Project Directories
+# ==============================================================================
+SRC_DIR       := src
+INC_DIR       := include
+
+# Object directory changes based on build type (prevents mixing serial/parallel objects)
+ifeq ($(USE_MPI),1)
+    OBJ_DIR   := obj_parallel
+else
+    OBJ_DIR   := obj
+endif
+
+# ==============================================================================
+# Source Files
+# ==============================================================================
+ALL_SRC_FILES := $(wildcard $(SRC_DIR)/*.cc)
+SOURCES       := $(filter-out $(SRC_DIR)/main_%.cc,$(ALL_SRC_FILES))
+OBJECTS       := $(SOURCES:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
+
+# ==============================================================================
+# Main File Detection
+# ==============================================================================
+# Look for main_coupled
+ifneq ($(wildcard main_coupled.cc),)
+    MAIN_COUPLED_SRC := main_coupled.cc
+    MAIN_COUPLED_DIR := .
+else ifneq ($(wildcard $(SRC_DIR)/main_coupled.cc),)
+    MAIN_COUPLED_SRC := main_coupled.cc
+    MAIN_COUPLED_DIR := $(SRC_DIR)
+else
+    MAIN_COUPLED_SRC :=
+    MAIN_COUPLED_DIR :=
+endif
+
+# Look for main_russian_doll
+ifneq ($(wildcard main_russian_doll.cc),)
+    MAIN_RUSSIAN_SRC := main_russian_doll.cc
+    MAIN_RUSSIAN_DIR := .
+else ifneq ($(wildcard $(SRC_DIR)/main_russian_doll.cc),)
+    MAIN_RUSSIAN_SRC := main_russian_doll.cc
+    MAIN_RUSSIAN_DIR := $(SRC_DIR)
+else ifneq ($(wildcard main_russian.cc),)
+    MAIN_RUSSIAN_SRC := main_russian.cc
+    MAIN_RUSSIAN_DIR := .
+else
+    MAIN_RUSSIAN_SRC :=
+    MAIN_RUSSIAN_DIR :=
+endif
+
+MAIN_COUPLED := $(basename $(MAIN_COUPLED_SRC))
+MAIN_RUSSIAN := $(basename $(MAIN_RUSSIAN_SRC))
+
+TARGET_COUPLED := $(MAIN_COUPLED)
+TARGET_RUSSIAN := $(MAIN_RUSSIAN)
+
+# Default target
+ifneq ($(MAIN_COUPLED),)
+    DEFAULT_TARGET := coupled
+else ifneq ($(MAIN_RUSSIAN),)
+    DEFAULT_TARGET := russian
+else
+    DEFAULT_TARGET := 
+endif
+
+# ==============================================================================
+# Compiler Flags
+# ==============================================================================
+# Include paths
+INCLUDES      := -I$(INC_DIR) -I$(GETFEM_INC)
+ifeq ($(USE_MPI),1)
+    INCLUDES  += -I$(MPI_INC)
+endif
+
+# Base compiler flags
+CXXFLAGS_BASE := $(CXXSTANDARD) $(INCLUDES) -Wall -Wextra $(OPENMP_FLAGS)
+
+# Verbose mode
+ifeq ($(VERBOSE_MODE),1)
+    DEFINES += -DVERBOSE
+endif
+
+# Build-type specific flags
+ifeq ($(BUILD_TYPE),debug)
+    CXXFLAGS_OPT := -g -O0 -DDEBUG
+else ifeq ($(BUILD_TYPE),release)
+    CXXFLAGS_OPT := -O3 -DNDEBUG -march=native
+else ifeq ($(BUILD_TYPE),profile)
+    CXXFLAGS_OPT := -g -O2 -pg
+else
+    $(error Invalid BUILD_TYPE: $(BUILD_TYPE). Use 'debug', 'release', or 'profile')
+endif
+
+# Warning suppression
+WARN_SUPPRESS := -Wno-comment \
+                 -Wno-unused-but-set-variable \
+                 -Wno-unused-parameter \
+                 -Wno-pragmas \
+                 -Wno-deprecated-declarations \
+                 -Wno-misleading-indentation
+
+# Combined compiler flags
+CXXFLAGS      := $(CXXFLAGS_BASE) $(CXXFLAGS_OPT) $(DEFINES) $(WARN_SUPPRESS)
+
+# ==============================================================================
+# Linker Flags and Libraries
+# ==============================================================================
+LDFLAGS       := -L$(GETFEM_LIB) $(OPENMP_FLAGS)
+
+# Base libraries (GetFEM must come first)
+LDLIBS        := -lgetfem
+
+# MUMPS libraries (for parallel direct solver)
+ifeq ($(USE_MUMPS),1)
+    LDLIBS    += -lmumps_common \
+                 -ldmumps \
+                 -lsmumps \
+                 -lzmumps \
+                 -lcmumps \
+                 -lpord
+    # METIS/PT-SCOTCH for mesh partitioning
+    ifeq ($(USE_MPI),1)
+        LDLIBS += -lptscotch -lptscotcherr
+    endif
+    LDLIBS    += -lscotch -lscotcherr -lmetis
+endif
+
+# SuperLU (sparse direct solver - always needed as fallback)
+LDLIBS        += -lsuperlu
+
+# Qhull (computational geometry)
+LDLIBS        += -lqhull_r
+
+# BLAS/LAPACK
+LAPACK_LIBS   := $(shell pkg-config --libs lapack 2>/dev/null)
+BLAS_LIBS     := $(shell pkg-config --libs blas 2>/dev/null)
+
+ifeq ($(LAPACK_LIBS),)
+    ifneq ($(wildcard /usr/lib/x86_64-linux-gnu/libopenblas.so*),)
+        BLAS_LIBS := -lopenblas
+    else
+        BLAS_LIBS := -lblas
+    endif
+    LAPACK_LIBS := -llapack
+endif
+
+LDLIBS        += $(LAPACK_LIBS) $(BLAS_LIBS)
+
+# Fortran runtime (needed for MUMPS/LAPACK)
+LDLIBS        += -lgfortran
+
+# System libraries
+LDLIBS        += -lpthread -lm
+
+# MPI libraries (if enabled)
+ifeq ($(USE_MPI),1)
+    LDLIBS    += -lmpi -lopen-rte -lopen-pal
+endif
+
+# ==============================================================================
+# Phony Targets
+# ==============================================================================
+.PHONY: all coupled russian clean distclean help info directories \
+        check-getfem check-mpi list-mains serial parallel
+
+# Default target
+all: $(DEFAULT_TARGET)
+
+# ==============================================================================
+# Convenience Targets
+# ==============================================================================
+serial:
+	@$(MAKE) USE_MPI=0 USE_OPENMP=0 USE_MUMPS=0 coupled
+
+parallel:
+	@$(MAKE) USE_MPI=1 USE_OPENMP=1 USE_MUMPS=1 coupled
+
+# ==============================================================================
+# Validation Targets
+# ==============================================================================
+check-getfem:
+	@echo "==> Checking GetFEM installation..."
+	@if [ ! -d "$(GETFEM_INC)" ]; then \
+		echo "ERROR: GetFEM include directory not found: $(GETFEM_INC)"; \
+		echo "Please update GETFEM_SERIAL_PREFIX or GETFEM_PARALLEL_PREFIX in Makefile"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(GETFEM_LIB)" ]; then \
+		echo "ERROR: GetFEM library directory not found: $(GETFEM_LIB)"; \
+		exit 1; \
+	fi
+	@echo "✓ GetFEM found at: $(GETFEM_PREFIX)"
+
+check-mpi:
+ifeq ($(USE_MPI),1)
+	@echo "==> Checking MPI installation..."
+	@if [ ! -d "$(MPI_INC)" ]; then \
+		echo "ERROR: MPI include directory not found: $(MPI_INC)"; \
+		echo "Install with: sudo apt-get install libopenmpi-dev"; \
+		exit 1; \
+	fi
+	@if ! command -v mpic++ >/dev/null 2>&1; then \
+		echo "ERROR: mpic++ not found"; \
+		exit 1; \
+	fi
+	@echo "✓ MPI found"
+endif
+
+list-mains:
+	@echo "==> Detected main source files:"
+ifneq ($(MAIN_COUPLED_SRC),)
+	@echo "  Coupled: $(MAIN_COUPLED_DIR)/$(MAIN_COUPLED_SRC)"
+endif
+ifneq ($(MAIN_RUSSIAN_SRC),)
+	@echo "  Russian: $(MAIN_RUSSIAN_DIR)/$(MAIN_RUSSIAN_SRC)"
+endif
+
+# ==============================================================================
+# Main Build Targets
+# ==============================================================================
+coupled: check-getfem check-mpi directories $(TARGET_COUPLED)
+	@echo ""
+	@echo "==> Build complete: $(TARGET_COUPLED)"
+ifeq ($(USE_MPI),1)
+	@echo "==> Run with: mpirun -np <N> ./$(TARGET_COUPLED) -f data_file.txt"
+else
+	@echo "==> Run with: ./$(TARGET_COUPLED) -f data_file.txt"
+endif
+	@echo ""
+
+russian: check-getfem check-mpi directories $(TARGET_RUSSIAN)
+	@echo ""
+	@echo "==> Build complete: $(TARGET_RUSSIAN)"
+ifeq ($(USE_MPI),1)
+	@echo "==> Run with: mpirun -np <N> ./$(TARGET_RUSSIAN) -f data_file.txt"
+else
+	@echo "==> Run with: ./$(TARGET_RUSSIAN) -f data_file.txt"
+endif
+	@echo ""
+
+# ==============================================================================
+# Linking Rules
+# ==============================================================================
+$(TARGET_COUPLED): $(OBJECTS) $(OBJ_DIR)/$(MAIN_COUPLED).o
+	@echo "==> Linking $@"
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) $(LDLIBS)
+
+$(TARGET_RUSSIAN): $(OBJECTS) $(OBJ_DIR)/$(MAIN_RUSSIAN).o
+	@echo "==> Linking $@"
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) $(LDLIBS)
+
+# ==============================================================================
+# Compilation Rules
+# ==============================================================================
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc | $(OBJ_DIR)
+	@echo "==> Compiling $<"
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: %.cc | $(OBJ_DIR)
+	@echo "==> Compiling $<"
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+directories: $(OBJ_DIR)
+
+$(OBJ_DIR):
+	@mkdir -p $(OBJ_DIR)
+
+# ==============================================================================
+# Utility Targets
+# ==============================================================================
+clean:
+	@echo "==> Cleaning object files and binaries"
+	@rm -rf obj obj_parallel
+	@rm -f $(MAIN_COUPLED) $(MAIN_RUSSIAN)
+
+distclean: clean
+	@echo "==> Removing all generated files"
+	@find . -name "*~" -delete
+	@find . -name "*.o" -delete
+	@find . -name "core" -delete
+	@rm -f *.mm *.vtk
+	@rm -rf output_vtk
+
+info:
+	@echo "===================================================================="
+	@echo "Build Configuration"
+	@echo "===================================================================="
+	@echo "Compiler:          $(CXX)"
+	@echo "C++ Standard:      $(CXXSTANDARD)"
+	@echo "Build Type:        $(BUILD_TYPE)"
+	@echo ""
+	@echo "--- Parallelization ---"
+	@echo "USE_MPI:           $(USE_MPI)"
+	@echo "USE_OPENMP:        $(USE_OPENMP)"
+	@echo "USE_MUMPS:         $(USE_MUMPS)"
+	@echo ""
+	@echo "--- Paths ---"
+	@echo "GetFEM Prefix:     $(GETFEM_PREFIX)"
+	@echo "GetFEM Include:    $(GETFEM_INC)"
+	@echo "GetFEM Library:    $(GETFEM_LIB)"
+ifeq ($(USE_MPI),1)
+	@echo "MPI Include:       $(MPI_INC)"
+endif
+	@echo ""
+	@echo "--- Targets ---"
+ifneq ($(MAIN_COUPLED_SRC),)
+	@echo "Main coupled:      $(MAIN_COUPLED_DIR)/$(MAIN_COUPLED_SRC) -> ./$(MAIN_COUPLED)"
+endif
+ifneq ($(MAIN_RUSSIAN_SRC),)
+	@echo "Main russian:      $(MAIN_RUSSIAN_DIR)/$(MAIN_RUSSIAN_SRC) -> ./$(MAIN_RUSSIAN)"
+endif
+	@echo "Object directory:  $(OBJ_DIR)"
+	@echo ""
+	@echo "--- Flags ---"
+	@echo "CXXFLAGS:          $(CXXFLAGS)"
+	@echo "LDFLAGS:           $(LDFLAGS)"
+	@echo "LDLIBS:            $(LDLIBS)"
+	@echo "===================================================================="
+
+help:
+	@echo "===================================================================="
+	@echo "Unified Makefile - Serial and Parallel Builds"
+	@echo "===================================================================="
+	@echo ""
+	@echo "Quick Start:"
+	@echo "  make                    # Serial build (default)"
+	@echo "  make serial             # Same as above"
+	@echo "  make parallel           # Full parallel (MPI + OpenMP + MUMPS)"
+	@echo ""
+	@echo "Build Targets:"
+	@echo "  make coupled            # Build coupled simulation"
+	@echo "  make russian            # Build russian doll simulation"
+	@echo "  make clean              # Remove build artifacts"
+	@echo "  make distclean          # Remove all generated files"
+	@echo "  make info               # Show current configuration"
+	@echo ""
+	@echo "Parallelization Options:"
+	@echo "  USE_MPI=<0|1>           # Enable MPI (default: 0)"
+	@echo "  USE_OPENMP=<0|1>        # Enable OpenMP (default: 0)"
+	@echo "  USE_MUMPS=<0|1>         # Enable MUMPS solver (default: 0)"
+	@echo ""
+	@echo "Build Options:"
+	@echo "  BUILD_TYPE=<type>       # debug, release (default), profile"
+	@echo "  VERBOSE_MODE=<0|1>      # Enable verbose output"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make                                    # Serial release build"
+	@echo "  make BUILD_TYPE=debug                   # Serial debug build"
+	@echo "  make USE_MPI=1                          # MPI parallel build"
+	@echo "  make USE_MPI=1 USE_MUMPS=1              # MPI + MUMPS"
+	@echo "  make USE_MPI=1 USE_OPENMP=1 USE_MUMPS=1 # Full parallel"
+	@echo "  make parallel                           # Same as above"
+	@echo "  make -j4 parallel                       # Parallel compile + build"
+	@echo ""
+	@echo "Running (after build):"
+	@echo "  Serial:    ./main_coupled -f data_file.txt"
+	@echo "  Parallel:  mpirun -np 4 ./main_coupled -f data_file.txt"
+	@echo ""
+	@echo "Path Configuration (edit in Makefile):"
+	@echo "  GETFEM_SERIAL_PREFIX   = $(GETFEM_SERIAL_PREFIX)"
+	@echo "  GETFEM_PARALLEL_PREFIX = $(GETFEM_PARALLEL_PREFIX)"
+	@echo "  MPI_INC                = $(MPI_INC)"
+	@echo "===================================================================="
+
+# ==============================================================================
+# Dependency Generation
+# ==============================================================================
+DEPS := $(OBJECTS:.o=.d)
+ifneq ($(MAIN_COUPLED),)
+    DEPS += $(OBJ_DIR)/$(MAIN_COUPLED).d
+endif
+ifneq ($(MAIN_RUSSIAN),)
+    DEPS += $(OBJ_DIR)/$(MAIN_RUSSIAN).d
+endif
+
+-include $(DEPS)
+
+$(OBJ_DIR)/%.d: $(SRC_DIR)/%.cc | $(OBJ_DIR)
+	@$(CXX) $(INCLUDES) -MM -MT '$(OBJ_DIR)/$*.o' $< > $@
+
+$(OBJ_DIR)/%.d: %.cc | $(OBJ_DIR)
+	@$(CXX) $(INCLUDES) -MM -MT '$(OBJ_DIR)/$*.o' $< > $@
