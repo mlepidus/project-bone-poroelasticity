@@ -4,7 +4,7 @@
 
 [time]
     Tend = 10000 
-    dt = 10000  
+    dt = 10000  %stationary
 [../]
 
 [materials]
