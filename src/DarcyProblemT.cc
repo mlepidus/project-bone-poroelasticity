@@ -7,8 +7,10 @@ BoundaryAssignmentType DarcyProblemT::parseBoundaryType(const std::string& typeS
     std::string lower = typeStr;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
     
-    if (lower == "geometric" || lower == "geo" || lower == "auto") {
-        return BoundaryAssignmentType::GEOMETRIC;
+    if (lower == "geometric_cylinder" || lower == "geo_cylinder" || lower == "auto_cylinder" || lower == "cylinder") {
+        return BoundaryAssignmentType::GEOMETRIC_CYLINDER;
+    } else if (lower == "geometric_square" || lower == "geo_square" || lower == "auto_square" || lower == "square") {
+        return BoundaryAssignmentType::GEOMETRIC_SQUARE;
     } else if (lower == "tagname" || lower == "tag_name" || lower == "name" || lower == "byname") {
         return BoundaryAssignmentType::TAG_NAME;
     } else if (lower == "tagnumber" || lower == "tag_number" || lower == "number" || lower == "bynumber") {
@@ -17,8 +19,8 @@ BoundaryAssignmentType DarcyProblemT::parseBoundaryType(const std::string& typeS
     
     // Default fallback
     std::cout << "[DarcyProblemT] WARNING: Unknown boundary type '" << typeStr 
-              << "', defaulting to GEOMETRIC" << std::endl;
-    return BoundaryAssignmentType::GEOMETRIC;
+              << "', defaulting to GEOMETRIC_SQUARE" << std::endl;
+    return BoundaryAssignmentType::GEOMETRIC_SQUARE;
 }
 
 // ============================================================================
@@ -29,7 +31,7 @@ DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk,
     M_timeLoop(nullptr),
     M_Bulk(bulk),
     M_BC(dataFile, "darcy/", basePath),
-    M_boundaryType(BoundaryAssignmentType::GEOMETRIC),
+    M_boundaryType(BoundaryAssignmentType::GEOMETRIC_SQUARE),
     M_tagNumberLargest(true),
     M_PressureFEM( bulk->getMesh(), dataFile, "darcy/", "Pressure", basePath),
     M_CoeffFEM( bulk->getMesh(), dataFile, "darcy/", "Coeff", basePath),
@@ -52,7 +54,8 @@ DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk,
     
     std::cout << "[DarcyProblemT] Boundary assignment type: ";
     switch (M_boundaryType) {
-        case BoundaryAssignmentType::GEOMETRIC:  std::cout << "GEOMETRIC"; break;
+        case BoundaryAssignmentType::GEOMETRIC_CYLINDER:  std::cout << "GEOMETRIC_CYLINDER"; break;
+        case BoundaryAssignmentType::GEOMETRIC_SQUARE:    std::cout << "GEOMETRIC_SQUARE"; break;
         case BoundaryAssignmentType::TAG_NAME:   std::cout << "TAG_NAME"; break;
         case BoundaryAssignmentType::TAG_NUMBER: 
             std::cout << "TAG_NUMBER (" << (M_tagNumberLargest ? "largest" : "smallest") << ")"; 
@@ -84,9 +87,9 @@ DarcyProblemT::DarcyProblemT (const GetPot& dataFile, Bulk* bulk,
 // ============================================================================
 void DarcyProblemT::setupBoundaryConditions() {
     switch (M_boundaryType) {
-        case BoundaryAssignmentType::GEOMETRIC:
+        case BoundaryAssignmentType::GEOMETRIC_CYLINDER:
             std::cout << "[DarcyProblemT] Using geometric detection for boundary conditions..." << std::endl;
-            M_BC.setBoundaries(M_Bulk->getMesh());
+            M_BC.setBoundariesCylinder(M_Bulk->getMesh());
             break;
             
         case BoundaryAssignmentType::TAG_NAME:
@@ -96,7 +99,7 @@ void DarcyProblemT::setupBoundaryConditions() {
             } else {
                 std::cout << "[DarcyProblemT] WARNING: TAG_NAME requested but no external mesh. "
                           << "Falling back to geometric detection." << std::endl;
-                M_BC.setBoundaries(M_Bulk->getMesh());
+                M_BC.setBoundariesCylinder(M_Bulk->getMesh());
             }
             break;
             
@@ -107,7 +110,7 @@ void DarcyProblemT::setupBoundaryConditions() {
             } else {
                 std::cout << "[DarcyProblemT] WARNING: TAG_NUMBER requested but no external mesh. "
                           << "Falling back to geometric detection." << std::endl;
-                M_BC.setBoundaries(M_Bulk->getMesh());
+                M_BC.setBoundariesCylinder(M_Bulk->getMesh());
             }
             break;
     }
@@ -178,6 +181,9 @@ void DarcyProblemT::updateSol()
     gmm::copy(*M_pressureSol, *M_pressureSolOld);
 }
 
+//A11=∫ u·v K⁻¹
+//A12=∫ div(u) φ
+//A22=∫ φψ * (1/dt)
 void DarcyProblemT::assembleMatrix()
 {
     sparseMatrixPtr_Type A11;
@@ -210,7 +216,8 @@ void DarcyProblemT::assembleMatrix()
                   << M_v << std::endl;
         throw std::runtime_error("Non-positive Biot modulus");
     }
-
+    
+    // Compute: (1/(M_v*Δt) + γ) * M_standard
     gmm::copy(*M_pressureMass, *A22);
     scalar_type scaling = 1.0/(M_v * M_dt) + gamma;
     gmm::scale(*A22, scaling);

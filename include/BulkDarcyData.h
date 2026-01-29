@@ -64,7 +64,10 @@ public:
     
     /// Evaluate initial pressure condition
     scalar_type pIni(const base_node& x);
-    
+
+    /// Evaluate boundary pressure condition
+    scalar_type p_BC(const base_node& x, const scalar_type t=0);
+
     /// Evaluate exact pressure solution (for verification)
     scalar_type pEx(const base_node& x, const scalar_type t);
     
@@ -98,6 +101,7 @@ private:
     
     std::string M_source;  ///< Source term expression
     std::string M_pIni;    ///< Initial pressure expression
+    std::string M_pBC;     ///< Boundary pressure condition expression
     std::string M_pEx;     ///< Exact pressure expression
     std::string M_uEx;     ///< Exact velocity expression
     std::string M_Gstring; ///< Gravity vector expression

@@ -13,10 +13,11 @@
 #include "StringUtility.h"
 #include "TimeLoop.h"
 
-#ifndef BOUNDARY_ASSIGNMENT_TYPE_DEFINED 
+#ifndef BOUNDARY_ASSIGNMENT_TYPE_DEFINED
 #define BOUNDARY_ASSIGNMENT_TYPE_DEFINED
 enum class BoundaryAssignmentType {
-    GEOMETRIC,      ///< Automatic detection based on face normals and position
+    GEOMETRIC_CYLINDER,      ///< Automatic detection based on face normals and position
+    GEOMETRIC_SQUARE,        ///< Automatic detection for square geometry
     TAG_NAME,       ///< Match Gmsh physical names (outer, inner, top, bottom, etc.)
     TAG_NUMBER      ///< Select N largest/smallest tag numbers
 };

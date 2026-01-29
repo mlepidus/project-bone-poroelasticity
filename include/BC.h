@@ -166,8 +166,10 @@ public:
      * @brief Associate boundary regions with mesh (geometric detection)
      * @param meshPtr Pointer to mesh
      */
-    void setBoundaries(getfem::mesh* meshPtr);
+    void setBoundariesCylinder(getfem::mesh* meshPtr);
     
+    void setBoundariesSquare(getfem::mesh* meshPtr);
+
     /**
      * @brief Associate boundary regions with mesh using Gmsh tags
      * @param meshPtr Pointer to mesh

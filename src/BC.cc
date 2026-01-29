@@ -731,7 +731,7 @@ void BC::setBoundariesFromTagNumbersDirect(getfem::mesh* meshPtr,
 // Geometric Boundary Detection (Fallback)
 // ============================================================================
 
-void BC::setBoundaries(getfem::mesh* meshPtr)
+void BC::setBoundariesCylinder(getfem::mesh* meshPtr)
 {
     std::cout << "\n=== BC::setBoundaries (geometric detection) ===" << std::endl;
     
@@ -788,6 +788,123 @@ void BC::setBoundaries(getfem::mesh* meshPtr)
     std::cout << "===========================================\n" << std::endl;
 }
 
+
+void BC::setBoundariesSquare(getfem::mesh* meshPtr) {
+    std::cout << "--- [BC] Avvio rilevamento bordi (Topology Fix) ---" << std::endl;
+
+    if (!meshPtr) {
+        std::cerr << "ERRORE FATALE: meshPtr è NULL!" << std::endl;
+        exit(1); 
+    }
+    getfem::mesh& mesh = *meshPtr;
+
+    using bgeot::short_type;
+    using bgeot::size_type;
+    using bgeot::base_node;
+
+    // 1. Pulizia
+    mesh.region(0).clear();
+    mesh.region(1).clear();
+    mesh.region(2).clear();
+    mesh.region(3).clear();
+
+    if (mesh.points().index().card() == 0) return;
+
+    // 2. Bounding Box
+    size_type first_p = mesh.points().index().first_true();
+    base_node min_node = mesh.points()[first_p];
+    base_node max_node = mesh.points()[first_p];
+
+    for (size_type i = 0; i < mesh.points().index().last_true(); ++i) {
+        if (mesh.points().index().is_in(i)) {
+            const base_node& P = mesh.points()[i];
+            for (size_type k = 0; k < P.size(); ++k) {
+                min_node[k] = std::min(min_node[k], P[k]);
+                max_node[k] = std::max(max_node[k], P[k]);
+            }
+        }
+    }
+
+    scalar_type x_min = min_node[0];
+    scalar_type x_max = max_node[0];
+    scalar_type y_min = min_node[1];
+    scalar_type y_max = max_node[1];
+    scalar_type eps = 1.0e-4;
+
+    std::cout << "--- [BC] Box: [" << x_min << ", " << x_max << "] x [" 
+              << y_min << ", " << y_max << "]" << std::endl;
+
+    // 3. Loop Sicuro
+    size_type count_faces = 0;
+    
+    // Iteratore sugli elementi
+    for (dal::bv_visitor cv(mesh.convex_index()); !cv.finished(); ++cv) {
+        
+        // Struttura geometrica (es. Cubo, Tetraedro)
+        bgeot::pconvex_structure cv_struct = mesh.structure_of_convex(cv);
+        
+        // Se l'elemento non ha struttura valida, saltiamo
+        if (!cv_struct) continue;
+
+        short_type nb_faces = cv_struct->nb_faces();
+
+        for (short_type f = 0; f < nb_faces; ++f) {
+            
+            // Se non ha vicino, è un bordo
+            if (mesh.neighbor_of_convex(cv, f) == size_type(-1)) {
+                
+                // 1. Indici globali dei nodi dell'intero elemento
+                auto global_nodes = mesh.ind_points_of_convex(cv);
+
+                // 2. Indici LOCALI della faccia rispetto all'elemento (CORREZIONE QUI)
+                // Questa funzione restituisce un contenitore con gli indici locali (es: {0, 1})
+                auto local_face_indices = cv_struct->ind_points_of_face(f);
+
+                // 3. Calcolo Baricentro
+                base_node P(mesh.dim()); 
+                P.fill(0.0);
+                size_type n_pts = 0;
+
+                // Iteriamo sugli indici della faccia
+                for (size_type k = 0; k < local_face_indices.size(); ++k) {
+                    size_type local_idx = local_face_indices[k]; // Indice locale (es. 0)
+                    size_type global_idx = global_nodes[local_idx]; // Indice globale nella mesh
+                    
+                    P += mesh.points()[global_idx]; // Somma coordinate
+                    n_pts++;
+                }
+
+                if (n_pts > 0) P /= scalar_type(n_pts);
+
+                // Assegnazione Region
+                if (mesh.dim() == 2) {
+                    if (std::abs(P[0] - x_min) < eps) mesh.region(0).add(cv, f);
+                    else if (std::abs(P[0] - x_max) < eps) mesh.region(1).add(cv, f);
+                    else if (std::abs(P[1] - y_min) < eps) mesh.region(2).add(cv, f);
+                    else if (std::abs(P[1] - y_max) < eps) mesh.region(3).add(cv, f);
+                }
+                else {
+                    scalar_type z_min = min_node[2];
+                    scalar_type z_max = max_node[2];
+                    
+                    if (std::abs(P[0] - x_min) < eps) mesh.region(0).add(cv, f);
+                    else if (std::abs(P[0] - x_max) < eps) mesh.region(1).add(cv, f);
+                    else if (std::abs(P[1] - y_min) < eps) mesh.region(2).add(cv, f);
+                    else if (std::abs(P[1] - y_max) < eps) mesh.region(3).add(cv, f);
+                    else if (std::abs(P[2] - z_min) < eps) mesh.region(0).add(cv, f);
+                    else if (std::abs(P[2] - z_max) < eps) mesh.region(1).add(cv, f);
+                }
+                count_faces++;
+            }
+        }
+    }
+
+    std::cout << "--- [BC] Finito. Facce trovate: " << count_faces << std::endl;
+    std::cout << "R0: " << mesh.region(0).index().card() << " | "
+              << "R1: " << mesh.region(1).index().card() << " | "
+              << "R2: " << mesh.region(2).index().card() << " | "
+              << "R3: " << mesh.region(3).index().card() << std::endl;
+}
 // ============================================================================
 // Getters
 // ============================================================================

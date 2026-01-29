@@ -6,9 +6,11 @@
 BoundaryAssignmentType ElastProblem::parseBoundaryType(const std::string& typeStr) {
     std::string lower = typeStr;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-    
-    if (lower == "geometric" || lower == "geo" || lower == "auto") {
-        return BoundaryAssignmentType::GEOMETRIC;
+
+    if (lower == "geometric_cylinder" || lower == "geo_cylinder" || lower == "auto_cylinder" || lower == "cylinder") {
+        return BoundaryAssignmentType::GEOMETRIC_CYLINDER;
+    } else if (lower == "geometric_square" || lower == "geo_square" || lower == "auto_square" || lower == "square") {
+        return BoundaryAssignmentType::GEOMETRIC_SQUARE;
     } else if (lower == "tagname" || lower == "tag_name" || lower == "name" || lower == "byname") {
         return BoundaryAssignmentType::TAG_NAME;
     } else if (lower == "tagnumber" || lower == "tag_number" || lower == "number" || lower == "bynumber") {
@@ -17,8 +19,8 @@ BoundaryAssignmentType ElastProblem::parseBoundaryType(const std::string& typeSt
     
     // Default fallback
     std::cout << "[ElastProblem] WARNING: Unknown boundary type '" << typeStr 
-              << "', defaulting to GEOMETRIC" << std::endl;
-    return BoundaryAssignmentType::GEOMETRIC;
+              << "', defaulting to GEOMETRIC_SQUARE" << std::endl;
+    return BoundaryAssignmentType::GEOMETRIC_SQUARE;
 }
 
 // ============================================================================
@@ -29,7 +31,7 @@ ElastProblem::ElastProblem(const GetPot& dataFile, Bulk* bulk,
     M_time(nullptr),
     M_Bulk(bulk),
     M_BC(dataFile, "mecc/", basePath),
-    M_boundaryType(BoundaryAssignmentType::GEOMETRIC),
+    M_boundaryType(BoundaryAssignmentType::GEOMETRIC_SQUARE),
     M_tagNumberLargest(true),
     M_DispFEM(bulk->getMesh(), dataFile, "mecc/", "Displacement", basePath),
     M_CoeffFEM(bulk->getMesh(), dataFile, "mecc/", "Coeff", basePath),
@@ -50,7 +52,8 @@ ElastProblem::ElastProblem(const GetPot& dataFile, Bulk* bulk,
     
     std::cout << "[ElastProblem] Boundary assignment type: ";
     switch (M_boundaryType) {
-        case BoundaryAssignmentType::GEOMETRIC:  std::cout << "GEOMETRIC"; break;
+        case BoundaryAssignmentType::GEOMETRIC_CYLINDER:  std::cout << "GEOMETRIC_CYLINDER"; break;
+        case BoundaryAssignmentType::GEOMETRIC_SQUARE:    std::cout << "GEOMETRIC_SQUARE"; break;
         case BoundaryAssignmentType::TAG_NAME:   std::cout << "TAG_NAME"; break;
         case BoundaryAssignmentType::TAG_NUMBER: 
             std::cout << "TAG_NUMBER (" << (M_tagNumberLargest ? "largest" : "smallest") << ")"; 
@@ -81,11 +84,16 @@ ElastProblem::ElastProblem(const GetPot& dataFile, Bulk* bulk,
 // ============================================================================
 void ElastProblem::setupBoundaryConditions() {
     switch (M_boundaryType) {
-        case BoundaryAssignmentType::GEOMETRIC:
+        case BoundaryAssignmentType::GEOMETRIC_CYLINDER:
             std::cout << "[ElastProblem] Using geometric detection for boundary conditions..." << std::endl;
-            M_BC.setBoundaries(M_Bulk->getMesh());
+            M_BC.setBoundariesCylinder(M_Bulk->getMesh());
             break;
             
+        case BoundaryAssignmentType::GEOMETRIC_SQUARE:
+            std::cout << "[ElastProblem] Using geometric detection for boundary conditions..." << std::endl;
+            M_BC.setBoundariesSquare(M_Bulk->getMesh());
+            break;
+
         case BoundaryAssignmentType::TAG_NAME:
             if (M_Bulk->hasExternalMesh()) {
                 std::cout << "[ElastProblem] Using Gmsh physical tag names for boundary conditions..." << std::endl;
@@ -93,7 +101,7 @@ void ElastProblem::setupBoundaryConditions() {
             } else {
                 std::cout << "[ElastProblem] WARNING: TAG_NAME requested but no external mesh. "
                           << "Falling back to geometric detection." << std::endl;
-                M_BC.setBoundaries(M_Bulk->getMesh());
+                M_BC.setBoundariesSquare(M_Bulk->getMesh());
             }
             break;
             
@@ -104,7 +112,7 @@ void ElastProblem::setupBoundaryConditions() {
             } else {
                 std::cout << "[ElastProblem] WARNING: TAG_NUMBER requested but no external mesh. "
                           << "Falling back to geometric detection." << std::endl;
-                M_BC.setBoundaries(M_Bulk->getMesh());
+                M_BC.setBoundariesSquare(M_Bulk->getMesh());
             }
             break;
     }

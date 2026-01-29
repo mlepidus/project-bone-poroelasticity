@@ -43,10 +43,6 @@
 
 		bcflag = [1,1,0,0] %no flow dappertutto
                 nBoundaries = 4
-                boundaryType = tagName
-                % For tagNumber mode only: select "largest" or "smallest" tags
-                tagSelection = largest
-
                 Kxx = 1.0
                 Kyy = 1.0
                 Kzz = 1.0
@@ -76,9 +72,6 @@
 
 		bcflag = [0,1,1,1]  %0 means displacement   %%ext,int, low,up
 		nBoundaries = 4
-                boundaryType = tagName
-                % For tagNumber mode only: select "largest" or "smallest" tags
-                tagSelection = largest
                 mu = 1
                 lambda = 1
                 fluidP = 0  %to impose a given fluid pressure if we decouple the problems

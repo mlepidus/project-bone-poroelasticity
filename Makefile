@@ -24,22 +24,23 @@ VERBOSE_MODE  ?= 0
 
 # External library paths (customize these for your environment)
 # First try pkg-config, then fall back to manual path or default
-GETFEM_PREFIX ?= $(shell pkg-config --variable=prefix getfem 2>/dev/null)
-ifeq ($(GETFEM_PREFIX),)
+GETFEM_PREFIX = $(HOME)/getfem/getfem-5.4.4-standard
+#GETFEM_PREFIX ?= $(shell pkg-config --variable=prefix getfem 2>/dev/null)
+#ifeq ($(GETFEM_PREFIX),)
     # Fallback: check common installation directories
-    ifneq ($(wildcard /usr/local/include/getfem),)
-        GETFEM_PREFIX := /usr/local
-    else ifneq ($(wildcard /usr/include/getfem),)
-        GETFEM_PREFIX := /usr
-    else ifneq ($(wildcard $(HOME)/getfem),)
-        GETFEM_PREFIX := $(HOME)/getfem
-    else
+#    ifneq ($(wildcard /usr/local/include/getfem),)
+   #     GETFEM_PREFIX := /usr/local
+ #   else ifneq ($(wildcard /usr/include/getfem),)
+  #      GETFEM_PREFIX := /usr
+  # else ifneq ($(wildcard $(HOME)/getfem),)
+   #     GETFEM_PREFIX := $(HOME)/getfem
+ #   else
         # Last resort: use /usr/local and warn user
-        GETFEM_PREFIX := /usr/local
-        $(warning GetFEM not found via pkg-config. Using default: $(GETFEM_PREFIX))
-        $(warning If this is incorrect, set GETFEM_PREFIX manually: make GETFEM_PREFIX=/your/path)
-    endif
-endif
+#        GETFEM_PREFIX := /usr/local
+#        $(warning GetFEM not found via pkg-config. Using default: $(GETFEM_PREFIX))
+#        $(warning If this is incorrect, set GETFEM_PREFIX manually: make GETFEM_PREFIX=/your/path)
+#    endif
+#endif
 
 GETFEM_INC    := $(GETFEM_PREFIX)/include
 GETFEM_LIB    := $(GETFEM_PREFIX)/lib
