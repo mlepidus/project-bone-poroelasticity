@@ -504,24 +504,39 @@ void LinearSystem::solveIterative_BiCGSTAB(PreconditionerType precondType,
 void LinearSystem::solveDirect_MUMPS()
 {
     if (M_verbose)
-        std::cout << "[MUMPS] Starting parallel solve..." << std::endl;
+        std::cout << "[MUMPS] Starting MUMPS solve..." << std::endl;
     
     gmm::clear(*M_Sol);
     
     try {
-        // MUMPS automatically uses MPI for parallel factorization
-        gmm::MUMPS_solve(*M_Matrix, *M_Sol, *M_RHS);
-        M_converged = true;
+        // Correct GetFEM MUMPS interface:
+        // bool MUMPS_solve(const MAT &A, const VECTX &X, const VECTB &B, 
+        //                  bool sym = false, bool distributed = false)
+        // 
+        // Parameters:
+        // - A: Matrix (const reference)
+        // - X: Solution vector (non-const reference, will be modified)
+        // - B: RHS vector (const reference)
+        // - sym: Whether matrix is symmetric (false for general matrices)
+        // - distributed: Whether using MPI distributed matrix (false for serial)
         
-        if (M_verbose)
-            std::cout << "[MUMPS] Solve completed successfully" << std::endl;
+        bool success = gmm::MUMPS_solve(*M_Matrix, *M_Sol, *M_RHS, false, false);
+        
+        if (success) {
+            M_converged = true;
+            if (M_verbose)
+                std::cout << "[MUMPS] Solve completed successfully" << std::endl;
+        } else {
+            M_converged = false;
+            std::cerr << "[MUMPS] WARNING: MUMPS returned failure (matrix may be singular)" << std::endl;
+            std::cerr << "[MUMPS] Falling back to SuperLU solver..." << std::endl;
+            solveDirect_SuperLU();
+        }
     }
     catch (const std::exception& e) {
-        std::cerr << "[MUMPS] Error: " << e.what() << std::endl;
+        std::cerr << "[MUMPS] Exception: " << e.what() << std::endl;
+        std::cerr << "[MUMPS] Falling back to SuperLU solver..." << std::endl;
         M_converged = false;
-        
-        // Fallback to SuperLU
-        std::cerr << "[MUMPS] Falling back to SuperLU..." << std::endl;
         solveDirect_SuperLU();
     }
 }

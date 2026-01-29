@@ -94,8 +94,8 @@
 [../]
 
 [solver]
-       type = BICGSTAB
-       preconditioner = ILU
+       type = MUMPS
+       preconditioner = NONE
        maxIterations = 1000
        tolerance = 1.0e-8
 [../]

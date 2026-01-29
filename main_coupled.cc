@@ -25,11 +25,16 @@
  *   ./main -f datafile.txt
  *   ./main --file datafile.txt
  */
+#ifdef USE_MUMPS
+    #include <mpi.h>
+#endif
 
 // Enable floating point exception handling if available
 #ifdef GETFEM_HAVE_FEENABLEEXCEPT
 #include <fenv.h>
 #endif
+
+
 
 // Core include - provides all GetFem++, GMM++, and standard library includes
 #include "include/Core.h"
@@ -67,6 +72,9 @@ int main(int argc, char *argv[]) {
     feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
     #endif
     
+    #ifdef USE_MUMPS
+    MPI_Init(&argc, &argv);  // Needed by MUMPS library
+    #endif
     // ========================================================================
     // Parse Command Line Arguments
     // ========================================================================
@@ -227,5 +235,9 @@ int main(int argc, char *argv[]) {
     std::cout << "Total time steps: " << myTime.Nstep() << std::endl;
     std::cout << "Final time: " << myTime.time() << std::endl;
     
+    #ifdef USE_MUMPS
+    MPI_Finalize();
+    #endif
+
     return 0;
 }
