@@ -17,8 +17,6 @@
 [bulkData]
     [./domain]
         meshExternal = none
-        % meshFolder = ./meshes/
-        meshExternal = none
         dimension=2
         spatialDiscretizationX = 16
         spatialDiscretizationY = 16
@@ -31,10 +29,7 @@
     [../]
 
     [./darcy]
-        bcflag[0] = 1
-        bcflag[1] = 1
-        bcflag[2] = 1
-        bcflag[3] = 1 % Neumann for pressure
+        bcflag = [1,1,1,1]
         leakage = 0
         Kxx = 1.0
         Kyy = 1.0
