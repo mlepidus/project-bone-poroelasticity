@@ -36,8 +36,11 @@
 
 # VS Code
 .vscode/
+
+./output_vtk/*
 out
 *.mm
 *.csv
+main
 main_russian_doll
 main_coupled

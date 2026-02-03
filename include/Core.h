@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <vector>
 #include <utility>
+#include <cmath>
 
 // Boost library
 #include <boost/shared_ptr.hpp>

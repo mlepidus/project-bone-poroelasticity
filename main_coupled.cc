@@ -34,8 +34,6 @@
 #include <fenv.h>
 #endif
 
-
-
 // Core include - provides all GetFem++, GMM++, and standard library includes
 #include "include/Core.h"
 
@@ -235,7 +233,6 @@ int main(int argc, char *argv[]) {
     std::cout << "Total time steps: " << myTime.Nstep() << std::endl;
     std::cout << "Final time: " << myTime.time() << std::endl;
     
-
     #ifdef USE_MUMPS
     MPI_Finalize();
     #endif
