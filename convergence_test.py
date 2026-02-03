@@ -5,7 +5,7 @@ import numpy as np
 import os
 
 # --- CONFIGURAZIONE ---
-DATA_FILE = "data_2d_square.txt"
+DATA_FILE = "data_2d_square_convergence.txt"
 EXECUTABLE = "./main_coupled"
 # Discretizzazioni da testare (es. 4 cubi per lato, 8, 16...)
 MESH_SIZES = [4, 8, 16] 

@@ -29,10 +29,14 @@
         meshType = GT_PK(2,1)
         spaceDimension = 2
         nBoundaries = 2
+        boundaryType = tagName
+        % For tagNumber mode only: select "largest" or "smallest" tags
+        tagSelection = smallest
     [../]
 
     [./darcy]
-        bcflag = [0, 1]
+        nBoundaries = 2
+        bcflag = [1,1]
         Kxx = 1.0
         Kyy = 1.0
         Kzz = 1.0
@@ -44,29 +48,30 @@
         FEMTypeVelocityVis = FEM_PK(2,1)
         FEMTypePressure = FEM_PK(2,0)
         FEMTypeCoeff = FEM_PK(2,0)
-        integrationMethod = IM_TRIANGLE(2)
+        integrationMethod = IM_TRIANGLE(6)
         source = 0
         p_BC = 10
         v_BC = 0
-        pIni = 0  
+        pIni = 10
         u_exact =[0,0] 
         p_exact = 10
     [../]
 
     [./mecc]
-        bcflag = [0,1] 
+        nBoundaries = 2
+        bcflag = [0,0] 
         mu = 1
         lambda = 1
         fluidP = 0
-        bulkLoad = [0,-rho_r*9.81]
+        bulkLoad = [0,0]
         bdLoad = [0,0]
         bdDisp = [0,0]
         FEMTypeDisplacement = FEM_PK(2,1)
         FEMTypeCoeff = FEM_PK(2,0)
         FEMTypeStress = FEM_PK(2,1)
         FEMTypeStressS = FEM_PK(2,1)
-        integrationMethod = IM_TRIANGLE(2)
-        u_exact = 
+        integrationMethod = IM_TRIANGLE(6)
+        u_exact = [0,0]
         u_ini = [0,0]
     [../]
 [../]
