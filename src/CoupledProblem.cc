@@ -54,7 +54,6 @@ void CoupledProblem::assembleRHS()
 
 	M_DarcyPB->assembleRHS();
 
-	//M_DarcyPB->solve();
 }
 
 void CoupledProblem::addSubSystems()
@@ -66,9 +65,9 @@ void CoupledProblem::addSubSystems()
 	scalar_type alpha = M_Bulk->getDarcyData()->getBiotAlpha();
     scalar_type dt = M_time->dt();
 	//1,3
-	M_Sys->addSubMatrix(M_PressureStress, 0, M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"), -alpha);
+	M_Sys->addSubMatrix(M_PressureStress, 0, M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"), alpha);
 	//3,1
-	M_Sys->addSubMatrix(M_PressureStress, M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"),0, alpha/dt, true);
+	M_Sys->addSubMatrix(M_PressureStress, M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"),0, -alpha/dt, true);
 	
 	M_Sys->multAddToRHS(M_ElastPB->getOldSol(), M_ElastPB->getNDOF()+ M_DarcyPB->getNDOF("Velocity"),0 ,M_DarcyPB->getNDOF("Pressure"),  M_ElastPB->getNDOF("Disp") );
 	
@@ -113,10 +112,11 @@ void CoupledProblem::solve()
     M_DarcyPB->extractSol(M_solDa);
 
 	step++;
-	// Esporta i dati del time step corrente
-	exportHistory(*M_solEl, "displacement_history.csv", step);
-	exportHistory(M_DarcyPB->getPressureSolution(), "pressure_history.csv", step);
-	exportHistory(M_DarcyPB->getVelocitySolution(), "velocity_history.csv", step);
+
+	//TO EXOPORT THE CSV DATA UNCOMMENT THE FOLLOWING LINES
+	//exportHistory(*M_solEl, "displacement_history.csv", step);
+	//exportHistory(M_DarcyPB->getPressureSolution(), "pressure_history.csv", step);
+	//exportHistory(M_DarcyPB->getVelocitySolution(), "velocity_history.csv", step);
 
 }
 

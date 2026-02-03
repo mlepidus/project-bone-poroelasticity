@@ -66,7 +66,6 @@ typedef gmm::row_matrix<sparse_vector_type> sparse_matrix_type;
 typedef gmm::col_matrix<sparse_vector_type> col_sparse_matrix_type;
 
 int main(int argc, char *argv[]) {
-    
     // Enable floating point exception detection (helps catch NaN/Inf errors)
     #ifdef GETFEM_HAVE_FEENABLEEXCEPT
     feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
@@ -90,13 +89,13 @@ int main(int argc, char *argv[]) {
     // Load parameter file
     GetPot dataFile(data_file_name.data());
     
+
     // Output directory for VTK files
     const std::string vtkFolder = "output_vtk/";
     
     // ========================================================================
     // Setup Phase: Initialize Domain, Time Loop, and Physical Problems
     // ========================================================================
-    
     std::cout << "\n--- Initialization Phase ---" << std::endl;
     
     // Create bulk domain (loads mesh and material properties)
@@ -112,6 +111,7 @@ int main(int argc, char *argv[]) {
     std::cout << "  Time step size: " << myTime.dt() << std::endl;
     std::cout << "  Final time: " << myTime.Tend() << std::endl;
     
+
     // Create individual physics problems
     std::cout << "Creating Darcy flow problem..." << std::endl;
     DarcyProblemT myDarcy(dataFile, &myDomain);
@@ -159,6 +159,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Saving system matrix to matrix.mm..." << std::endl;
     mySys.saveMatrix("matrix.mm");
     
+
     // ========================================================================
     // Initial Condition: Compute and Export
     // ========================================================================
@@ -181,7 +182,6 @@ int main(int argc, char *argv[]) {
     std::cout << "Starting time loop for " << myTime.Nstep() << " time steps..." << std::endl;
     
     for (size_type tt = 0; tt < myTime.Nstep(); ++tt) {
-        
         std::cout << "\n=== Time Step " << tt + 1 << " / " << myTime.Nstep() 
                   << " (t = " << myTime.time() + myTime.dt() << ") ===" << std::endl;
         
@@ -235,6 +235,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Total time steps: " << myTime.Nstep() << std::endl;
     std::cout << "Final time: " << myTime.time() << std::endl;
     
+
     #ifdef USE_MUMPS
     MPI_Finalize();
     #endif

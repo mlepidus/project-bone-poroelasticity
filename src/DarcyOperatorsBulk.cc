@@ -1,122 +1,5 @@
 #include "../include/DarcyOperatorsBulk.h"
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
-/*
-void massL2( sparseMatrixPtr_Type M,   
-               Bulk* medium, FEM& FemP, FEM& FemC, getfem::mesh_im& im, scalar_type dt)
-{
-
-    getfem::mesh_fem femP(*(FemP.getFEM()));
-    getfem::mesh_fem femC((*FemC.getFEM()));
-
-   
-    massL2(  M,medium,  femP,  femC, im,  dt,-1);
-}
-
-void massL2Local( sparseMatrixPtr_Type M,
-               Bulk* medium, FEM& FemP, FEM& FemC, getfem::mesh_im& im, scalar_type dt, size_type icv)
-{
-
-    getfem::mesh_fem femP(*(FemP.getFEM()));
-    getfem::mesh_fem femC((*FemC.getFEM()));
-
-    sparseMatrix_Type M_(femP.nb_dof(),femP.nb_dof());
-    
-    //questo è il termine tau tau (matrice di "massa" per le velocità)
-
-    getfem::generic_assembly assem;
-
-    assem.set ( "x=data(#2);"
-                "a=comp(vBase(#1).vBase(#1).Base(#2));"
-                "M(#1,#1)+=a(:,i,:,i,j).x(j)");
-      
-                
-    // Assign the mesh integration method
-    assem.push_mi(im);
-    // Assign the mesh finite element space
-    assem.push_mf(femP);
-    // Assign the mesh finite element space
-    
-    // Assign the mesh finite element space for the coefficients
-    assem.push_mf(femC);
-    std::vector<scalar_type> iKxx(femC.nb_dof(),0.0);
-    
-    scalar_type leakage = medium->getDarcyData()->getLeakage();
-    size_type ii=femC.ind_basic_dof_of_element(icv)[0];
-    	iKxx[ii]=1./dt;
-   
-    
-    
-    // Assign the coefficients
-    
-    assem.push_data(iKxx);
-
-    // Set the matrices to save the evaluations
-    assem.push_mat(M_);
-
-    // Computes the matrices
-    assem.assembly(-1);
-
-   for ( size_type i = 0; i < femP.nb_dof(); ++i )
-    {
-        for ( size_type j = 0; j < femP.nb_dof(); ++j )
-        {
-            (*M)(i, j) += M_(i, j);
-	    
-        }
-    }
-
-    std::cout << "DARCY :: operator a(volume)      [OK]" << std::endl;
-
-}
-
-void massL2( sparseMatrixPtr_Type M,
-               Bulk* medium, getfem::mesh_fem& femP, getfem::mesh_fem& femC, getfem::mesh_im& im, scalar_type dt, int region)
-{
-
-   
-    //questo è il termine tau tau (matrice di "massa" per le velocità)
-
-    getfem::generic_assembly assem;
-
-       assem.set ( "x=data(#2);"
-                "a=comp(vBase(#1).vBase(#1).Base(#2));"
-                "M(#1,#1)+=a(:,i,:,i,j).x(j)");
-                
-    // Assign the mesh integration method
-    assem.push_mi(im);
-    // Assign the mesh finite element space
-    assem.push_mf(femP);
-    // Assign the mesh finite element space
-    
-    // Assign the mesh finite element space for the coefficients
-    assem.push_mf(femC);
-    std::vector<scalar_type> iKxx(femC.nb_dof(),0.0);
-    
-    scalar_type leakage = medium->getDarcyData()->getLeakage();
-    for (size_type i=0; i<femC.nb_dof();++i)
-    {   
-    	iKxx[i]=1./dt + leakage;
-   
-    }
-    
-    // Assign the coefficients
-    
-    assem.push_data(iKxx);
-
-    // Set the matrices to save the evaluations
-    assem.push_mat(*M);
-
-    // Computes the matrices
-    assem.assembly(region);
-
-    std::cout << "DARCY :: operator mass(volume)      [OK]" << std::endl;
-
-}
-*/
 
 //rivedi per dimensione
 void massL2Standard(sparseMatrixPtr_Type M,  FEM& femP, 
@@ -216,9 +99,7 @@ void massHdiv(sparseMatrixPtr_Type M,
     std::vector<scalar_type> iKxz(femP.nb_dof(), 0.0);
     std::vector<scalar_type> iKyz(femP.nb_dof(), 0.0);
 
-    #ifdef _OPENMP
-    #pragma omp parallel for schedule(static)
-    #endif
+
     // Compute inverse of permeability tensor at each DOF
     for (size_type i = 0; i < femP.nb_dof(); ++i)
     {   

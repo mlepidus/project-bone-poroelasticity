@@ -1,8 +1,6 @@
 #include "../include/DarcyProblemT.h"
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+
 
 // ============================================================================
 // Static helper to parse boundary type from string
@@ -313,9 +311,7 @@ scalar_type DarcyProblemT::computeError(std::string what, scalar_type time)
         scalarVector_Type loc_err(M_PressureFEM.getFEM()->nb_dof());
         if (what=="Pressure" || what=="all")
         {
-            #ifdef _OPENMP
-            #pragma omp parallel for schedule(static)
-            #endif
+
             for (size_type i=0;i<loc_err.size();++i)
             {
                 bgeot::base_node where=M_PressureFEM.getFEM()->point_of_basic_dof(i);
