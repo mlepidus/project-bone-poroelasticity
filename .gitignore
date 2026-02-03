@@ -39,5 +39,5 @@
 out
 *.mm
 *.csv
-main_coupled
 main_russian_doll
+main_coupled

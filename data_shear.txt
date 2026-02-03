@@ -4,7 +4,7 @@
 
 [time]
 
-    Tend = 7
+    Tend = 1
     dt = 0.1
 
 [../]
@@ -21,7 +21,7 @@
 
         [./domain]
 
-                meshExternal = bonePV.msh
+                meshExternal = mesh_correct.msh
                 meshFolder = ./meshes/
 
                 %spatialDiscretizationX = 10
@@ -34,12 +34,15 @@
                 spaceDimension = 3
                 nBoundaries = 4
                 interpolationDegree=5
+                boundaryType = tagNumber
+                % For tagNumber mode only: select "largest" or "smallest" tags
+                tagSelection = largest
 
         [../]
 
         [./darcy]
 
-		bcflag = [1,0,1,1] %no flow dappertutto
+		bcflag = [1,1,1,1] %no flow dappertutto
                 nBoundaries = 4
                 Kxx = 1.0
                 Kyy = 1.0
@@ -67,15 +70,16 @@
 
           [./mecc]
 
-		bcflag = [1,0,1,1]  %0 means displacement
+		bcflag = [1,1,0,1]  %0 means displacement
 		nBoundaries = 4
                 mu = 1
                 lambda = 1
                 fluidP = 0  %to impose a given fluid pressure if we decouple the problems
 
                 bulkLoad = [0,0,0]
-                bdLoad = (abs(sqrt((x-1)^2+(y-1)^2) - 0.8) < 0.01) * 0.2*cos(t) * [ -(y-1), (x-1), 0 ] / max(1e-5, sqrt((x-1)^2+(y-1)^2))
-                bdDisp = [0,0,0]
+                %bdLoad = (abs(sqrt((x-1)^2+(y-1)^2)-0.8)<0.01)*0.2*cos(t)*[-(y-1),(x-1),0]/max(1e-5,sqrt((x-1)^2+(y-1)^2))
+                bdLoad = [0,0,0]
+                bdDisp = [(tag==3)*[-(y-1)*0.2*t,(x-1)*0.2*t,0]]
                 bdVel = [0,0,0]
                 
                 FEMTypeDisplacement = FEM_PK(3,1)
