@@ -21,7 +21,7 @@
 
         [./domain]
 
-                meshExternal = mesh_tag2.msh
+                meshExternal = mesh_tagName.msh
                 meshFolder = ./meshes/
 
                 %spatialDiscretizationX = 10
