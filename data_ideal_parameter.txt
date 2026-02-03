@@ -4,7 +4,7 @@
 
 [time]
 
-    Tend = 5
+    Tend = 2
     dt = 0.1
 
 [../]
@@ -94,8 +94,8 @@
 [../]
 
 [solver]
-       type = MUMPS
-       preconditioner = NONE
+       type = BICGSTAB
+       preconditioner = ILU
        maxIterations = 1000
        tolerance = 1.0e-8
 [../]

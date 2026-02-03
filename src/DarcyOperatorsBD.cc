@@ -1,8 +1,6 @@
 #include "../include/DarcyOperatorsBD.h"
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+
 
 /*
 scalar_BD_data::scalar_BD_data ( const getfem::mesh_fem& mf_) :
@@ -35,9 +33,6 @@ void essentialWNitsche( sparseMatrixPtr_Type M,
     
     scalarVector_Type etaGammaUinvh(femC.nb_dof());
     scalar_type penaltyParameterVelocity=5*medium->Lx()*medium->Ly();
-    #ifdef _OPENMP
-    #pragma omp parallel for schedule(static)
-    #endif
     for ( size_type i = 0; i < femC.nb_dof(); ++i )
     {
         const scalar_type firstRow = medium->getDarcyData()->getKxx(i) + medium->getDarcyData()->getKxy(i) ;
@@ -87,9 +82,6 @@ void essentialWNitscheRHS( scalarVectorPtr_Type V,
     
     scalarVector_Type etaGammaUinvh(femC.nb_dof());
     scalar_type penaltyParameterVelocity=5*medium->Lx()*medium->Ly();
-    #ifdef _OPENMP
-    #pragma omp parallel for schedule(static)
-    #endif
     for ( size_type i = 0; i < femC.nb_dof(); ++i )
     {
         const scalar_type firstRow = medium->getDarcyData()->getKxx(i) + medium->getDarcyData()->getKxy(i) ;
@@ -121,9 +113,7 @@ void essentialWNitscheRHS( scalarVectorPtr_Type V,
     {
     
 	    scalarVector_Type data(femC.nb_dof());
-        #ifdef _OPENMP
-        #pragma omp parallel for schedule(static)
-        #endif
+
 	    for (size_type i=0; i<femC.nb_dof();++i)
 	    {
 	    	data [ i ] = etaGammaUinvh [ i ]*bcPtr->BCDiri(femC.point_of_basic_dof(i), bcPtr->getDiriBD()[bndID]);
@@ -171,9 +161,6 @@ void naturalRHS( scalarVectorPtr_Type V,
     {
 
 	    scalarVector_Type data(femC.nb_dof());
-        #ifdef _OPENMP
-        #pragma omp parallel for schedule(static)
-        #endif
 	    for (size_type i=0; i<femC.nb_dof();++i)
 	    {
 	    	data [ i ] = bcPtr->BCNeum(femC.point_of_basic_dof(i), bcPtr->getNeumBD()[bndID], time);

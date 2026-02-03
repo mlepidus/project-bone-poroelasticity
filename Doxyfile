@@ -7,10 +7,11 @@ OUTPUT_DIRECTORY = docs_graphs
 CREATE_SUBDIRS = NO
 
 # Input settings
-INPUT = ./3D/poroelastic_napde_3d/include \
-        ./3D/poroelastic_napde_3d/src \
-        ./3D/poroelastic_napde_3d/main_russian_doll.cc \
-        ./3D/poroelastic_napde_3d/README.md \
+INPUT = ./include \
+        ./src \
+        ./main_russian_doll.cc \
+        ./main_coupled.cc \
+        ./README.md \
 
 
 FILE_PATTERNS = *.h *.hh *.hpp *.hxx *.cc *.cpp *.cxx *.c++ *.c
@@ -53,7 +54,7 @@ MAX_DOT_GRAPH_DEPTH = 3
 DOT_TRANSPARENT = YES
 DOT_MULTI_TARGETS = YES
 
-# Include dependency graphs (what you want!)
+# Include dependency graphs
 INCLUDE_GRAPH = YES        # Graph showing what this file includes
 INCLUDED_BY_GRAPH = YES    # Graph showing what files include this file
 

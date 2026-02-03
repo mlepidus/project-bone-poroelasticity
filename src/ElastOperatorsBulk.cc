@@ -1,9 +1,6 @@
 #include "../include/ElastOperatorsBulk.h"
 #include <stdexcept>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 
 void stiffElast( sparseMatrixPtr_Type M,
                Bulk* medium, FEM& FemD, FEM& FemC, getfem::mesh_im& im)
@@ -30,9 +27,7 @@ void stiffElast( sparseMatrixPtr_Type M,
     std::vector<scalar_type> lambda(femC.nb_dof(),0.0);
     std::vector<scalar_type> mu(femC.nb_dof(),0.0);
    
-    #ifdef _OPENMP
-    #pragma omp parallel for schedule(static)
-    #endif
+
     for (size_type i=0; i<femC.nb_dof();++i)
     {   
     	lambda[i]=medium->getElastData()->getLambda(i);
@@ -91,9 +86,7 @@ void bulkLoad( scalarVectorPtr_Type V,
     assem.push_mf(femC);
     
 
-    #ifdef _OPENMP
-    #pragma omp parallel for schedule(static)
-    #endif
+
     for (size_type i=0; i<femC.nb_dof();++i)
     {
     	datax [ i ] = medium->getElastData()->bulkLoad(femC.point_of_basic_dof(i),time)[0];
@@ -144,9 +137,7 @@ void givenFluidP( scalarVectorPtr_Type V,
     assem.push_mf(femC);
     
     scalarVector_Type datax(femC.nb_dof());
-    #ifdef _OPENMP
-    #pragma omp parallel for schedule(static)
-    #endif
+
     for (size_type i=0; i<femC.nb_dof();++i)
     {
     	datax [ i ] = medium->getElastData()->fluidP(femC.point_of_basic_dof(i));
