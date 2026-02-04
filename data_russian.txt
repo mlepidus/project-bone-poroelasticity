@@ -4,7 +4,7 @@
 
 [time]
 
-    Tend = 4
+    Tend = 2
     dt = 0.1
 
 [../]./
@@ -22,7 +22,7 @@
         
         [./domain]
 
-                meshExternal = mesh_tag2.msh
+                meshExternal = mesh_tagName.msh
                 meshFolder = ./meshes/
 
                 %spatialDiscretizationX = 10
@@ -99,12 +99,15 @@
         
         [./domain]
 
-                meshExternal = mesh_tag2.msh
+                meshExternal = mesh_tagName.msh
                 meshFolder = ./meshes/
 
                 spaceDimension = 3
                 nBoundaries = 4
                 interpolationDegree=5
+                boundaryType = tagName
+                % For tagNumber mode only: select "largest" or "smallest" tags
+                tagSelection = largest
 
         [../]
 
@@ -119,7 +122,7 @@
                 Kxz = 0.0
                 Kyz = 0.0
 		biotM = 1
-                BiotAlpha=1
+                BiotAlpha = 1
                 leakage = 1
                 
                 FEMTypeVelocity = FEM_RT0(3)
@@ -146,7 +149,7 @@
                 fluidP = 0  %to impose a given fluid pressure if we decouple the problems
 
                 bulkLoad = [0,0,0]
-                bdLoad = [0,0,0.1*(-0.5)*sin(t)*(z>0.58)]
+                bdLoad = [0,0,0]
                 bdDisp = [0,0,0]
                 bdVel = [0,0,0]
                 
@@ -170,11 +173,11 @@
     
     [./line0]
         name = osteon_axis
-        start_x = 0.5
-        start_y = 0.3
+        start_x = 0.25
+        start_y = 1.0
         start_z = 0.0
-        end_x = 0.5
-        end_y = 0.3
+        end_x = 0.25
+        end_y = 1.0
         end_z = 1.0
         num_samples = 100
         polynomial_order = 5
