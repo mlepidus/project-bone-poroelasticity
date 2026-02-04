@@ -1,0 +1,105 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% TEST: same forcing as data_russian, but for just 1 problem              %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+[time]
+
+    Tend = 2
+    dt = 0.1
+
+[../]
+
+[materials]
+
+		gravity = [0,0] 
+		rho_r = 1
+		rho_f = 1
+		mu_f = 1
+[../]
+
+[bulkData]
+
+        [./domain]
+
+                meshExternal = mesh_tagName.msh
+                meshFolder = ./meshes/
+
+                %spatialDiscretizationX = 10
+                %spatialDiscretizationY = 10
+                %spatialInclination = 0.
+                %lengthAbscissa = 1
+                %lengthOrdinate = 1
+                %lengthQuota = 1.
+                %meshType = GT_PK(3,1)
+
+                spaceDimension = 3
+                nBoundaries = 4
+                interpolationDegree=5
+
+                %choose between: GEOMETRIC_SQUARE, GEOMETRIC_CYLINDER, TAG_NAME, TAG_NUMBER
+                boundaryType = tagName    
+
+                % For tagNumber mode only: select "largest" or "smallest" tags
+                tagSelection = largest
+        [../]
+
+        [./darcy]
+
+		bcflag = [1,1,0,0] %0 => Dirichlet condition, 1 => Neumann Condition
+                nBoundaries = 4
+                Kxx = 1.0
+                Kyy = 1.0
+                Kzz = 1.0
+                Kxy = 0.0
+                Kxz = 0.0
+                Kyz = 0.0
+		biotM = 1
+                BiotAlpha=1
+                leakage = 1
+                
+                FEMTypeVelocity = FEM_RT0(3)
+                FEMTypeVelocityVis = FEM_PK(3,1)
+                FEMTypePressure = FEM_PK(3,0)
+                FEMTypeCoeff = FEM_PK(3,0)
+                integrationMethod = IM_TETRAHEDRON(2)
+
+                source = 0
+		p_BC = 0
+                v_BC = 0
+                pIni = 0
+                u_exact = [0,0,0] 
+		p_exact = 0
+		
+        [../]
+
+        [./mecc]
+
+		bcflag = [0,1,1,1] %0 => Dirichlet condition, 1 => Neumann Condition 
+		nBoundaries = 4
+
+                mu = 1
+                lambda = 1
+                fluidP = 0  
+                bulkLoad = [0,0,0]
+                bdLoad = [0,0,0.1*(x-1)*sin(t)*(z>0.58)]
+                bdDisp = [0,0,0]
+                bdVel = [0,0,0]
+                
+                FEMTypeDisplacement = FEM_PK(3,1)
+                FEMTypeCoeff = FEM_PK(3,0)
+                FEMTypeStress = FEM_PK(3,1)
+                FEMTypeStressS = FEM_PK(3,1)
+                integrationMethod = IM_TETRAHEDRON(2)
+		u_exact = [0,0,0]
+		u_ini = [0,0,0]
+
+        [../]
+
+[../]
+
+[solver]
+       type = BICGSTAB    %choose between SUPERLU,GMRES,BICSTAB OR MUMPS(if configured)
+       preconditioner = ILU %choose between DIAGONAL, ILU, ILUT or NONE
+       maxIterations = 1000
+       tolerance = 1.0e-8
+[../]

@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% parameters for program laplacian                                        %
+% data for a 2d annululs                                                  %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 [time]
@@ -16,23 +16,32 @@
 
 [bulkData]
     [./domain]
-        meshExternal = square_2d.msh
+        meshExternal = annulus_2d.msh
         meshFolder = ./meshes/
         dimension=2
-        spatialDiscretizationX = 10  % Start with coarser mesh
-        spatialDiscretizationY = 10
-        spatialDiscretizationZ = 10
-        spatialInclination = 0.
-        lengthAbscissa = 1
-        lengthOrdinate = 1
+        
+        %spatialDiscretizationX = 10  % Start with coarser mesh
+        %spatialDiscretizationY = 10
+        %spatialDiscretizationZ = 10
+        %spatialInclination = 0.
+        %lengthAbscissa = 1
+        %lengthOrdinate = 1
         lengthQuota = 1.
         meshType = GT_PK(2,1)
+        
         spaceDimension = 2
-        nBoundaries = 4
+        nBoundaries = 2
+
+        %choose between: GEOMETRIC_SQUARE, GEOMETRIC_CYLINDER, TAG_NAME, TAG_NUMBER
+        boundaryType = tagName    
+
+        % For tagNumber mode only: select "largest" or "smallest" tags
+        tagSelection = largest
     [../]
 
     [./darcy]
-        bcflag = [0,0,1,1] % Dirichlet for pressure
+        nBoundaries = 2
+        bcflag = [1,1] %0 => Dirichlet condition, 1 => Neumann Condition
         Kxx = 1.0
         Kyy = 1.0
         Kzz = 1.0
@@ -44,35 +53,36 @@
         FEMTypeVelocityVis = FEM_PK(2,1)
         FEMTypePressure = FEM_PK(2,0)
         FEMTypeCoeff = FEM_PK(2,0)
-        integrationMethod = IM_TRIANGLE(2)
+        integrationMethod = IM_TRIANGLE(6)
         source = 0
         p_BC = 10
         v_BC = 0
-        pIni = 0  
-        u_exact = [0,0]
+        pIni = 10
+        u_exact =[0,0] 
         p_exact = 10
     [../]
 
     [./mecc]
-        bcflag = [0,0,1,1]  % Dirichlet for displacement
+        nBoundaries = 2
+        bcflag = [0,0] %0 => Dirichlet condition, 1 => Neumann Condition
         mu = 1
         lambda = 1
         fluidP = 0
-        bulkLoad = [0,-rho_r*9.81]
+        bulkLoad = [0,0]
         bdLoad = [0,0]
         bdDisp = [0,0]
         FEMTypeDisplacement = FEM_PK(2,1)
         FEMTypeCoeff = FEM_PK(2,0)
         FEMTypeStress = FEM_PK(2,1)
         FEMTypeStressS = FEM_PK(2,1)
-        integrationMethod = IM_TRIANGLE(2)
-        u_exact = 
+        integrationMethod = IM_TRIANGLE(6)
+        u_exact = [0,0]
         u_ini = [0,0]
     [../]
 [../]
 [solver]
-       type = BICGSTAB
-       preconditioner = ILU
+       type = BICGSTAB %choose between SUPERLU,GMRES,BICSTAB OR MUMPS(if configured)
+       preconditioner = ILU %choose between DIAGONAL, ILU, ILUT or NONE
        maxIterations = 1000
        tolerance = 1.0e-8
 [../]
