@@ -9,7 +9,6 @@
 #include "Core.h"
 #include "LinearSystem.h"
 #include "DarcyOperators.h"
-#include "UsefulFunctions.h"
 #include "StringUtility.h"
 #include "TimeLoop.h"
 

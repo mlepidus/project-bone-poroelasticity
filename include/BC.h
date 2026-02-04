@@ -194,6 +194,7 @@ public:
      * @param meshPtr Pointer to mesh
      * @param regmap Map from physical names to region IDs (from Gmsh import)
      * @param mode Whether to select LARGEST or SMALLEST tag numbers
+     * @param largest If true, select largest tags; if false, select smallest tags
      */
     void setBoundariesFromTagNumbers(getfem::mesh* meshPtr, 
                                      const std::map<std::string, size_type>& regmap,

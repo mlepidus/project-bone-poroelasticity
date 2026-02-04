@@ -54,8 +54,6 @@
 #include "include/RussianDollProblem.h"
 
 // Utilities
-#include "include/UsefulFunctions.h"
-
 #include <sys/stat.h>
 #include <cerrno>
 // Helper function to create directory
@@ -67,7 +65,6 @@
 
 #include <string>
 #include <sys/stat.h>
-#include <cerrno>
 
 /**
  * @brief Create directory recursively

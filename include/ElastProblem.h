@@ -5,21 +5,17 @@
 #include "Core.h"
 #include "LinearSystem.h"
 #include "ElastOperators.h"
-#include "UsefulFunctions.h"
 #include "StringUtility.h"
 #include "TimeLoop.h"
 
 /**
  * @enum BoundaryAssignmentType
  * @brief Specifies how boundary regions are assigned from mesh data
- * 
- * Note: This enum may be defined in DarcyProblemT.h as well.
- * If both headers are included, use include guards or a shared header.
  */
 #ifndef BOUNDARY_ASSIGNMENT_TYPE_DEFINED
 #define BOUNDARY_ASSIGNMENT_TYPE_DEFINED
 enum class BoundaryAssignmentType {
-    GEOMETRIC_CYLINDER,      ///< Automatic detection based on face normals and position
+    GEOMETRIC_CYLINDER,      ///< Automatic detection based on face normals and position (CENTERED ON (1,1))
     GEOMETRIC_SQUARE,        ///< Automatic detection for square geometry
     TAG_NAME,       ///< Match Gmsh physical names (outer, inner, top, bottom, etc.)
     TAG_NUMBER      ///< Select N largest/smallest tag numbers

@@ -6,7 +6,6 @@
 #include "LinearSystem.h"
 #include "ElastProblem.h"
 #include "DarcyProblemT.h"
-#include "UsefulFunctions.h"
 #include "StringUtility.h"
 #include "TimeLoop.h"
 
@@ -58,7 +57,7 @@ public:
      * @param t Current time
      * @return Error vector (pressure error, displacement error)
      */
-    bgeot::base_node computeError(scalar_type t); //virtual?
+    bgeot::base_node computeError(scalar_type t); 
     
     
     /// Register DOFs with global linear system
@@ -67,7 +66,7 @@ public:
     /**
      * @brief Assemble global system matrix
      */
-    virtual void assembleMatrix(); //virtual?
+    virtual void assembleMatrix(); 
     
     /**
      * @brief Assemble global right-hand side vector

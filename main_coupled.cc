@@ -55,14 +55,6 @@
 #include "include/ElastProblem.h"
 #include "include/CoupledProblem.h"
 
-// Utility functions
-#include "include/UsefulFunctions.h"
-
-// Sparse matrix type definitions for compatibility
-typedef gmm::rsvector<scalar_type> sparse_vector_type;
-typedef gmm::row_matrix<sparse_vector_type> sparse_matrix_type;
-typedef gmm::col_matrix<sparse_vector_type> col_sparse_matrix_type;
-
 int main(int argc, char *argv[]) {
     // Enable floating point exception detection (helps catch NaN/Inf errors)
     #ifdef GETFEM_HAVE_FEENABLEEXCEPT

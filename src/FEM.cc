@@ -43,8 +43,7 @@ FEM::FEM ( const getfem::mesh* mesh,
    	M_DOFpoints.push_back(M_FEM.point_of_basic_dof(M_extended[i]));
    }
 }
-// questo secondo costruttore non si basa sul file di input
-
+//this second constructor does not read from datafile, but directly from input arguments
 FEM::FEM (const getfem::mesh* mesh,
 	         std::string femType,
    		 size_type spaceDim

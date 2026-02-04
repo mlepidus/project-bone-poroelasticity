@@ -2,7 +2,11 @@
 To compile the code, please follow these steps:
 
 1) Configure the Makefile:
-Adapt the Makefile by specifying your local paths (particularly for GetFEM and other dependencies).
+Adapt the Makefile by specifying your local paths 
+particularly for GetFEM do 
+```bash
+export GETFEM_PREFIX=/path/to/getfem
+```
 
 2) Execute compilation:
 
@@ -39,14 +43,22 @@ After successful compilation, execute the program with:
 ## data files
 here are the different data_filename inside the input folder, that can be passed as input
 -data_ideal_parameter: force applied on top, using all physical parameters as 1
+paried with main_coupled:
 -data_real_parameter: same as ideal parameter, but using real experimental physical parameters
+
 -data_shear: rotating stress applied to the principal axe
+
 -data_local_force: horizonal displacement applied only on a small portion of the bone
+
 -data_2d_annulus: 2d test with a annular mesh
+
 -data_3d_cube: 3d test with an unit cube
+
 -data_2d_square_convergence: this datafile has been used paired with the convergence_test.py to do the convergence test
 
--data_russian: data to use with the main_russian_doll.cc file, in order to have the correct input structure for the PV-PLC problem
+
+paried with main_russian_doll:
+-data_russian: same as the data_ideal_parameter, but with the correct input structure for the Russian Doll model
 
 ## Output Specifications
 The program generates output in the following format:

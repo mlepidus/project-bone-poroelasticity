@@ -561,7 +561,7 @@ void BC::setBoundariesFromTagNumbers(getfem::mesh* meshPtr,
             count++;
         }
 
-        // Se è una regione di volume, la saltiamo (vogliamo solo i bordi per le BC)
+        //if is a volume region, skip it
         if (is_volume) {
             std::cout << "Skipping volume region " << i << " (" << count << " elements)" << std::endl;
             continue;
@@ -633,124 +633,6 @@ void BC::setBoundariesFromTagNumbers(getfem::mesh* meshPtr,
     std::cout << "\n=== Tag number boundary assignment complete ===\n" << std::endl;
 }
 
-// ============================================================================
-// Boundary Region Setup from Tag Numbers (Direct Mesh Version)
-// ============================================================================
-
-// void BC::setBoundariesFromTagNumbersDirect(getfem::mesh* meshPtr,
-//                                            bool largest)
-// {
-//     std::cout << "\n=== BC::setBoundariesFromTagNumbersDirect ===" << std::endl;
-//     std::cout << "Selection mode: " << (largest ? "LARGEST" : "SMALLEST") 
-//               << " tag numbers" << std::endl;
-//     std::cout << "Number of BCs required: " << M_nBoundaries << std::endl;
-    
-//     // Clear previous mappings
-//     M_internalToGmsh.clear();
-//     M_gmshToInternal.clear();
-    
-//     // Get all non-empty regions from the mesh
-//     dal::bit_vector mesh_regions = meshPtr->regions_index();
-    
-//     // Collect all region IDs that have faces
-//     std::vector<size_type> all_tags;
-    
-//     std::cout << "\nScanning mesh regions:" << std::endl;
-//     for (dal::bv_visitor i(mesh_regions); !i.finished(); ++i) {
-//         getfem::mesh_region region = meshPtr->region(i);
-//         bool is_volume = false;
-//         size_type count = 0;
-        
-//         for (getfem::mr_visitor it(region); !it.finished(); ++it) {
-//             // Se l'indice della faccia è -1, la regione contiene volumi interi
-//             if (it.f() == bgeot::short_type(-1)) {
-//                 is_volume = true;
-//             }
-//             count++;
-//         }
-
-//         // Se è una regione di volume, la saltiamo
-//         if (is_volume) {
-//             std::cout << "Skipping volume region " << i << " (" << count << " elements)" << std::endl;
-//             continue;
-//         }
-//         if (count > 0) {
-//             all_tags.push_back(i);
-//             std::cout << "  Region " << i << ": " << count << " faces" << std::endl;
-//         }
-//     }
-    
-//     // Sort the tags
-//     std::sort(all_tags.begin(), all_tags.end());
-    
-//     std::cout << "\nAll non-empty region tags (sorted): ";
-//     for (auto t : all_tags) std::cout << t << " ";
-//     std::cout << std::endl;
-    
-//     // Select the N tags based on mode
-//     std::vector<size_type> selected_tags = selectTagNumbers(all_tags, M_nBoundaries, largest);
-    
-//     if (selected_tags.size() < M_nBoundaries) {
-//         std::cout << "WARNING: Only " << selected_tags.size() 
-//                   << " tags available, but " << M_nBoundaries << " BCs required!" << std::endl;
-//     }
-    
-//     std::cout << "\nSelected tags: ";
-//     for (auto t : selected_tags) std::cout << t << " ";
-//     std::cout << std::endl;
-    
-//     // Store face data temporarily to avoid conflicts during reassignment
-//     struct FaceData {
-//         size_type cv;   // Convex index
-//         short int f;   // Face index
-//         FaceData(size_type c, short int face) : cv(c), f(face) {}
-//     };
-//     std::vector<std::vector<FaceData>> face_storage(selected_tags.size());
-    
-//     // First pass: collect all faces
-//     for (size_type i = 0; i < selected_tags.size(); ++i) {
-//         size_type gmsh_tag = selected_tags[i];
-//         getfem::mesh_region gmsh_region = meshPtr->region(gmsh_tag);
-        
-//         for (getfem::mr_visitor face_it(gmsh_region); !face_it.finished(); ++face_it) {
-//             face_storage[i].push_back(FaceData(face_it.cv(), face_it.f()));
-//         }
-//     }
-    
-//     // Clear internal regions that might overlap with selected tags
-//     for (size_type internal_id = 0; internal_id < M_nBoundaries; ++internal_id) {
-//         meshPtr->region(internal_id).clear();
-//     }
-    
-//     // Second pass: assign faces to internal regions
-//     std::cout << "\nAssigning tags to internal regions:" << std::endl;
-    
-//     for (size_type internal_id = 0; internal_id < selected_tags.size(); ++internal_id) {
-//         size_type gmsh_tag = selected_tags[internal_id];
-        
-//         // Store the mapping
-//         M_internalToGmsh[internal_id] = gmsh_tag;
-//         M_gmshToInternal[gmsh_tag] = internal_id;
-        
-//         // Add faces to internal region
-//         for (const auto& face : face_storage[internal_id]) {
-//             meshPtr->region(internal_id).add(face.cv, face.f);
-//         }
-        
-//         std::string bc_type = "Unknown";
-//         if (internal_id < M_BC.size()) {
-//             if (M_BC[internal_id] == 0) bc_type = "Dirichlet";
-//             else if (M_BC[internal_id] == 1) bc_type = "Neumann";
-//             else if (M_BC[internal_id] == 2) bc_type = "Mixed";
-//         }
-        
-//         std::cout << "  Internal region " << internal_id << " <- Gmsh tag " << gmsh_tag
-//                   << " (" << face_storage[internal_id].size() << " faces, BC type: " 
-//                   << bc_type << ")" << std::endl;
-//     }
-    
-//     std::cout << "\n=== Direct tag number boundary assignment complete ===\n" << std::endl;
-// }
 void BC::setBoundariesFromTagNumbersDirect(getfem::mesh* meshPtr,
                                            bool largest)
 {
@@ -758,9 +640,6 @@ void BC::setBoundariesFromTagNumbersDirect(getfem::mesh* meshPtr,
     std::cout << "Selection mode: " << (largest ? "LARGEST" : "SMALLEST") 
               << " tag numbers first" << std::endl;
 
-    // --- FASE 1: Scansione e Salvataggio (SENZA CANCELLARE NULLA) ---
-    
-    // Struttura per salvare le facce in memoria
     struct FaceInfo { 
         size_type cv; 
         short f;
@@ -776,31 +655,24 @@ void BC::setBoundariesFromTagNumbersDirect(getfem::mesh* meshPtr,
     for (dal::bv_visitor i(mesh_regions); !i.finished(); ++i) {
         getfem::mesh_region region = meshPtr->region(i);
         
-        // Controlla se è un volume (in GetFEM, face index == -1 significa volume)
         bool is_volume = false;
         std::vector<FaceInfo> current_faces;
 
         for (getfem::mr_visitor it(region); !it.finished(); ++it) {
             if (it.f() == bgeot::short_type(-1)) {
                 is_volume = true;
-                break; // È un volume, scartiamolo
+                break; 
             }
             current_faces.push_back(FaceInfo(it.cv(), it.f()));
         }
 
-        if (is_volume) {
-             // std::cout << "  Skipping volume tag " << i << std::endl;
-             continue;
-        }
-
         if (!current_faces.empty()) {
-            found_surfaces[i] = current_faces; // Salviamo i dati al sicuro!
+            found_surfaces[i] = current_faces; 
             tag_list.push_back(i);
             std::cout << "  Found Surface Tag: " << i << " (" << current_faces.size() << " faces)" << std::endl;
         }
     }
     
-    // --- FASE 2: Ordinamento ---
     if (largest) {
         std::sort(tag_list.rbegin(), tag_list.rend()); // 5, 4, 3, 2
     } else {
@@ -812,9 +684,6 @@ void BC::setBoundariesFromTagNumbersDirect(getfem::mesh* meshPtr,
         std::cerr << "Required: " << M_nBoundaries << ", Found: " << tag_list.size() << std::endl;
     }
 
-    // --- FASE 3: Pulizia e Assegnazione ---
-    
-    // Ora è sicuro pulire le regioni interne 0, 1, 2, 3 perché abbiamo i dati in 'found_surfaces'
     for (size_type i = 0; i < M_nBoundaries; ++i) {
         meshPtr->region(i).clear();
     }
@@ -832,7 +701,6 @@ void BC::setBoundariesFromTagNumbersDirect(getfem::mesh* meshPtr,
         size_type gmsh_tag = tag_list[i];
         size_type internal_id = i;
 
-        // Recupera le facce dalla memoria sicura
         const auto& faces = found_surfaces[gmsh_tag];
         for (const auto& face : faces) {
             meshPtr->region(internal_id).add(face.cv, face.f);
@@ -927,7 +795,6 @@ void BC::setBoundariesSquare(getfem::mesh* meshPtr) {
     using bgeot::size_type;
     using bgeot::base_node;
 
-    // 1. Pulizia
     mesh.region(0).clear();
     mesh.region(1).clear();
     mesh.region(2).clear();
@@ -935,7 +802,6 @@ void BC::setBoundariesSquare(getfem::mesh* meshPtr) {
 
     if (mesh.points().index().card() == 0) return;
 
-    // 2. Bounding Box
     size_type first_p = mesh.points().index().first_true();
     base_node min_node = mesh.points()[first_p];
     base_node max_node = mesh.points()[first_p];
@@ -959,49 +825,38 @@ void BC::setBoundariesSquare(getfem::mesh* meshPtr) {
     std::cout << "--- [BC] Box: [" << x_min << ", " << x_max << "] x [" 
               << y_min << ", " << y_max << "]" << std::endl;
 
-    // 3. Loop Sicuro
     size_type count_faces = 0;
     
-    // Iteratore sugli elementi
     for (dal::bv_visitor cv(mesh.convex_index()); !cv.finished(); ++cv) {
         
-        // Struttura geometrica (es. Cubo, Tetraedro)
         bgeot::pconvex_structure cv_struct = mesh.structure_of_convex(cv);
         
-        // Se l'elemento non ha struttura valida, saltiamo
         if (!cv_struct) continue;
 
         short_type nb_faces = cv_struct->nb_faces();
 
         for (short_type f = 0; f < nb_faces; ++f) {
             
-            // Se non ha vicino, è un bordo
             if (mesh.neighbor_of_convex(cv, f) == size_type(-1)) {
                 
-                // 1. Indici globali dei nodi dell'intero elemento
                 auto global_nodes = mesh.ind_points_of_convex(cv);
 
-                // 2. Indici LOCALI della faccia rispetto all'elemento (CORREZIONE QUI)
-                // Questa funzione restituisce un contenitore con gli indici locali (es: {0, 1})
                 auto local_face_indices = cv_struct->ind_points_of_face(f);
 
-                // 3. Calcolo Baricentro
                 base_node P(mesh.dim()); 
                 P.fill(0.0);
                 size_type n_pts = 0;
 
-                // Iteriamo sugli indici della faccia
                 for (size_type k = 0; k < local_face_indices.size(); ++k) {
-                    size_type local_idx = local_face_indices[k]; // Indice locale (es. 0)
-                    size_type global_idx = global_nodes[local_idx]; // Indice globale nella mesh
+                    size_type local_idx = local_face_indices[k]; 
+                    size_type global_idx = global_nodes[local_idx]; 
                     
-                    P += mesh.points()[global_idx]; // Somma coordinate
+                    P += mesh.points()[global_idx]; 
                     n_pts++;
                 }
 
                 if (n_pts > 0) P /= scalar_type(n_pts);
 
-                // Assegnazione Region
                 if (mesh.dim() == 2) {
                     if (std::abs(P[0] - x_min) < eps) mesh.region(0).add(cv, f);
                     else if (std::abs(P[0] - x_max) < eps) mesh.region(1).add(cv, f);

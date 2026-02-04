@@ -35,7 +35,7 @@ BulkDarcyData::BulkDarcyData ( const GetPot& dataFile,
 
 scalar_type BulkDarcyData::Kxx(const base_node& x )
 	 {	
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size();
 		M_parser.setString ( M_Kxx);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
@@ -48,7 +48,7 @@ scalar_type BulkDarcyData::Kxx(const base_node& x )
 
 scalar_type BulkDarcyData::Kxy(const base_node& x )
 	 {	
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size();
 		M_parser.setString ( M_Kxy);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
@@ -61,7 +61,7 @@ scalar_type BulkDarcyData::Kxy(const base_node& x )
 
 scalar_type BulkDarcyData::Kyy(const base_node& x )
 	 {	
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size(); 
 		M_parser.setString ( M_Kyy);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
@@ -73,7 +73,7 @@ scalar_type BulkDarcyData::Kyy(const base_node& x )
 	 }
 scalar_type BulkDarcyData::Kzz(const base_node& x )
 	 {	
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size(); 
 		M_parser.setString ( M_Kzz);
    		M_parser.setVariable ( "x", x [ 0 ] );
     	M_parser.setVariable ( "y", x [ 1 ] );
@@ -85,7 +85,7 @@ scalar_type BulkDarcyData::Kzz(const base_node& x )
 	 }
 scalar_type BulkDarcyData::Kxz(const base_node& x )
 	 {	
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size(); 
 		M_parser.setString ( M_Kxz);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
@@ -97,7 +97,7 @@ scalar_type BulkDarcyData::Kxz(const base_node& x )
 	 }
 scalar_type BulkDarcyData::Kyz(const base_node& x )
 	 {	
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size(); 
 		M_parser.setString ( M_Kyz);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
@@ -110,7 +110,7 @@ scalar_type BulkDarcyData::Kyz(const base_node& x )
 	 
 scalar_type BulkDarcyData::source(const base_node& x, const scalar_type t=0)
 	 {	
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size(); 
 		M_parser.setString ( M_source);
   		M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
@@ -124,7 +124,7 @@ scalar_type BulkDarcyData::source(const base_node& x, const scalar_type t=0)
 	 
 scalar_type BulkDarcyData::pIni(const base_node& x )
 	 {	
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size(); 
 		M_parser.setString ( M_pIni);
    		M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
@@ -138,7 +138,7 @@ scalar_type BulkDarcyData::pIni(const base_node& x )
 scalar_type BulkDarcyData::p_BC(const base_node& x, const scalar_type t)
 {  
    size_type dim = x.size();
-   M_parser.setString ( M_pBC ); // Usa la stringa letta dal file!
+   M_parser.setString ( M_pBC );
    M_parser.setVariable ( "x", x [ 0 ] );
    M_parser.setVariable ( "y", x [ 1 ] );
    if (dim >= 3) 
@@ -151,17 +151,12 @@ scalar_type BulkDarcyData::p_BC(const base_node& x, const scalar_type t)
 
 scalar_type BulkDarcyData::pEx(const base_node& x , const scalar_type t=0)
 	 {	
-		// --- BYPASS PARSER: HARDCODING SOLUZIONE ESATTA ---
-		// Questo assicura che il calcolo dell'errore usi la formula corretta
-		// double pi = 3.14159265359;
-		// return std::sin(pi * x[0]) * std::sin(pi * x[1]);
-		// DEBUG: Stampa la stringa la prima volta che viene chiamata
 		static bool first = true;
 		if (first) {
 			std::cout << "--- [BulkData] Parsing pEx string: " << M_pEx << " ---" << std::endl;
 			first = false;
 		}
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size(); 
 		M_parser.setString ( M_pEx);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );

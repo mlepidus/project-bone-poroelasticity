@@ -1,7 +1,6 @@
 #include "../include/DarcyOperatorsBulk.h"
 
 
-//rivedi per dimensione
 void massL2Standard(sparseMatrixPtr_Type M,  FEM& femP, 
                     FEM& femC, getfem::mesh_im& im)
 {
@@ -53,21 +52,7 @@ scalar_type L2Norm ( scalarVector_Type V, FEM& femP, getfem::mesh_im& im)
 	return pow(norm,0.5);
 
 }
-/*
-scalar_type L2Norm ( scalarVector_Type V, Bulk* medium, FEM& femV,FEM& femP, getfem::mesh_im& im)
-{
-	
- 	sparseMatrixPtr_Type M;
-	M.reset(new sparseMatrix_Type (femV.nb_dof(),femV.nb_dof()));
-			gmm::clear(*M);
-	massL2(M,  medium, femV,  femP, im, 1);
-	scalarVector_Type VV(V.size(),0);
-	gmm::mult(*M, V,VV);
-	scalar_type norm=gmm::vect_sp(V, VV);
-	return pow(norm,0.5);
 
-}
-*/
 
 scalar_type L2Norm ( sparseMatrixPtr_Type M, scalarVector_Type V, FEM& femP, getfem::mesh_im& im)
 {
@@ -251,7 +236,7 @@ void divHdiv( sparseMatrixPtr_Type M, FEM& FemV, FEM& FemP, getfem::mesh_im& im)
     getfem::mesh_fem femP((*FemP.getFEM()));
 
    
-    //questo è il termine tau tau (matrice di "massa" per le velocità)
+    // H(div) mass matrix: integral of (K^{-1} u) · v over the domain
 
     getfem::generic_assembly assem;
 
