@@ -110,8 +110,29 @@ int main(int argc, char *argv[]) {
     // ========================================================================
     
     GetPot command_line(argc, argv);
-    const std::string data_file_name = command_line.follow("data_russian.txt", 2, "-f", "--file");
+    const std::string data_file_name = command_line.follow("input/data_russian.txt", 2, "-f", "--file");
     
+    if (data_file_name.empty()) {
+        std::cerr << "\nERROR: No input data file specified!\n\n";
+         std::cerr << "Call the main with: ./main -f input/datafile.txt" << std::endl;
+        #ifdef USE_MUMPS
+        MPI_Finalize();
+        #endif
+        return 1;
+    }
+    
+    // Check if the file exists
+    std::ifstream test_file(data_file_name);
+    if (!test_file.good()) {
+        std::cerr << "\nERROR: Data file '" << data_file_name << "' not found!\n";
+        std::cerr << "Please check the file path and try again.\n\n";
+        std::cerr << "Call the main with: ./main -f input/datafile.txt" << std::endl;
+        #ifdef USE_MUMPS
+        MPI_Finalize();
+        #endif
+        return 1;
+    }
+
     std::cout << "========================================================" << std::endl;
     std::cout << "  Russian Doll Dual-Porosity Poroelasticity Simulation  " << std::endl;
     std::cout << "========================================================" << std::endl;   

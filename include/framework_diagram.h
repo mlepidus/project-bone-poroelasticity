@@ -80,7 +80,7 @@
  *   
  *   // Key dependencies
  *   RussianDollProblem -> CoupledProblem [label="couples"];
- *   RussianDollProblem -> PLCProblem [label="couples"];
+ *   RussianDollProblem -> PLCProblem [label="couples"]; 
  *   RussianDollProblem -> InterpolationManager [label="uses"];
  * 
  *   CoupledProblem -> {DarcyProblemT, ElastProblem} [label="couples",color=orange];

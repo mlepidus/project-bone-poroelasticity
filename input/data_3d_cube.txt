@@ -68,8 +68,7 @@
         bdDisp = [0,0,0]
         FEMTypeDisplacement = FEM_PK(3,1)
         FEMTypeCoeff = FEM_PK(3,0)
-        FEMTypeStress = FEM_PK(3,1)
-        FEMTypeStressS = FEM_PK(3,1)
+
         integrationMethod = IM_TETRAHEDRON(2)
         u_exact = [x*(1-x)*y*(1-y)*z*(1-z)*t, x*(1-x)*y*(1-y)*z*(1-z)*t, x*(1-x)*y*(1-y)*z*(1-z)*t]
         u_ini = [0,0,0]

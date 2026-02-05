@@ -64,8 +64,7 @@
         bdDisp = [0,0]
         FEMTypeDisplacement = FEM_PK(2,1)
         FEMTypeCoeff = FEM_PK(2,0)
-        FEMTypeStress = FEM_PK(2,1)
-        FEMTypeStressS = FEM_PK(2,1)
+
         integrationMethod = IM_TRIANGLE(6)
         u_exact = [0,0]
         u_ini = [0,0]

@@ -85,8 +85,7 @@
                 
                 FEMTypeDisplacement = FEM_PK(3,1)
                 FEMTypeCoeff = FEM_PK(3,0)
-                FEMTypeStress = FEM_PK(3,1)
-                FEMTypeStressS = FEM_PK(3,1)
+
                 integrationMethod = IM_TETRAHEDRON(2)
 		u_exact = [0,0,0]
 		u_ini = [0,0,0]
@@ -158,8 +157,7 @@
                 
                 FEMTypeDisplacement = FEM_PK(3,1)
                 FEMTypeCoeff = FEM_PK(3,0)
-                FEMTypeStress = FEM_PK(3,1)
-                FEMTypeStressS = FEM_PK(3,1)
+
                 integrationMethod = IM_TETRAHEDRON(2)
 		u_exact = [0,0,0]
 		u_ini = [0,0,0]
