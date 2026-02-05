@@ -35,7 +35,9 @@
                 spaceDimension = 3
                 nBoundaries = 4
                 interpolationDegree=5
-                boundaryType = tagName
+                %choose between: GEOMETRIC_SQUARE, GEOMETRIC_CYLINDER, TAG_NAME, TAG_NUMBER
+                boundaryType = tag_Name    
+
                 % For tagNumber mode only: select "largest" or "smallest" tags
                 tagSelection = largest
         [../]
@@ -104,7 +106,9 @@
                 spaceDimension = 3
                 nBoundaries = 4
                 interpolationDegree=5
-                boundaryType = tagName
+                %choose between: GEOMETRIC_SQUARE, GEOMETRIC_CYLINDER, TAG_NAME, TAG_NUMBER
+                boundaryType = tag_Name    
+
                 % For tagNumber mode only: select "largest" or "smallest" tags
                 tagSelection = largest
 
@@ -140,7 +144,7 @@
         [../]
 
         [./mecc]
-        %important to keep the first bc to 0 if you want to use the interpolated displacement
+                %important to keep the first bc to 0 if you want to use the interpolated displacement
 		bcflag = [0,1,1,1]  %0 => Dirichlet condition, 1 => Neumann Condition
 		nBoundaries = 4
                 mu = 1
@@ -184,8 +188,8 @@
 [../]
 
 [solver]
-        type = BICGSTAB 
-        preconditioner = ILU
+        type = BICGSTAB %choose between SUPERLU,GMRES,BICSTAB OR MUMPS(if configured)
+        preconditioner = ILU %choose between DIAGONAL, ILU, ILUT or NONE
         maxIterations = 1000
         tolerance = 1.0e-8
         verobose = false

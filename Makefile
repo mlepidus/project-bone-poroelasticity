@@ -321,7 +321,7 @@ check-getfem:
 	fi
 	@echo "✓ GetFEM found at: $(GETFEM_PREFIX)"
 ifeq ($(PARALLEL),1)
-	@echo "✓ Parallel mode enabled (MUMPS + OpenMP)"
+	@echo "✓ Parallel mode enabled (MUMPS)"
 else
 	@echo "✓ Serial mode"
 endif
@@ -357,11 +357,11 @@ coupled: check-getfem directories $(TARGET_COUPLED)
 	@echo ""
 	@echo "==> Build complete: $(TARGET_COUPLED)"
 ifeq ($(PARALLEL),1)
-	@echo "==> Parallel mode (MUMPS + OpenMP)"
-	@echo "==> Run with: export OMP_NUM_THREADS=4; ./$(TARGET_COUPLED) -f data_file.txt"
+	@echo "==> Parallel mode (MUMPS)"
+	@echo "==> Run with: export OPENBLAS_NUM_THREADS=4; ./$(TARGET_COUPLED) -f input/data_file.txt"
 else
 	@echo "==> Serial mode"
-	@echo "==> Run with: ./$(TARGET_COUPLED) -f data_file.txt"
+	@echo "==> Run with: ./$(TARGET_COUPLED) -f input/data_file.txt"
 endif
 	@echo ""
 
@@ -369,11 +369,11 @@ russian: check-getfem directories $(TARGET_RUSSIAN)
 	@echo ""
 	@echo "==> Build complete: $(TARGET_RUSSIAN)"
 ifeq ($(PARALLEL),1)
-	@echo "==> Parallel mode (MUMPS + OpenMP)"
-	@echo "==> Run with: export OMP_NUM_THREADS=4; ./$(TARGET_RUSSIAN) -f data_file.txt"
+	@echo "==> Parallel mode (MUMPS)"
+	@echo "==> Run with: export OPENBLAS_NUM_THREADS=4; ./$(TARGET_RUSSIAN) -f input/data_file.txt"
 else
 	@echo "==> Serial mode"
-	@echo "==> Run with: ./$(TARGET_RUSSIAN) -f data_file.txt"
+	@echo "==> Run with: ./$(TARGET_RUSSIAN) -f input/data_file.txt"
 endif
 	@echo ""
 
@@ -544,20 +544,15 @@ endif
 	@echo "  # Verbose output"
 	@echo "  make VERBOSE_MODE=1"
 	@echo ""
-	@echo "  # Clean output (suppress Boost pragma warnings):"
-	@echo "  chmod +x clean-make"
-	@echo "  ./clean-make parallel russian -j4"
-	@echo ""
 	@echo "===================================================================="
 	@echo "Running the Simulation"
 	@echo "===================================================================="
 	@echo "  # Serial mode:"
-	@echo "  ./main_coupled -f data_file.txt"
+	@echo "  ./main_coupled -f input/data_file.txt"
 	@echo ""
 	@echo "  # Parallel mode (set thread count):"
-	@echo "  export OMP_NUM_THREADS=4"
 	@echo "  export OPENBLAS_NUM_THREADS=4"
-	@echo "  ./main_coupled -f data_file.txt"
+	@echo "  ./main_coupled -f input/data_file.txt"
 	@echo ""
 	@echo "===================================================================="
 	@echo "Required Libraries (Parallel Mode)"

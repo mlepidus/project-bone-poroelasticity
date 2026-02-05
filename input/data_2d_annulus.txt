@@ -4,7 +4,7 @@
 
 [time]
     Tend = 1.0
-    dt = 0.05  % Reduced for stability
+    dt = 0.05 
 [../]
 
 [materials]
@@ -20,14 +20,14 @@
         meshFolder = ./meshes/
         dimension=2
         
-        %spatialDiscretizationX = 10  % Start with coarser mesh
+        %spatialDiscretizationX = 10  
         %spatialDiscretizationY = 10
         %spatialDiscretizationZ = 10
         %spatialInclination = 0.
         %lengthAbscissa = 1
         %lengthOrdinate = 1
-        lengthQuota = 1.
-        meshType = GT_PK(2,1)
+        %lengthQuota = 1.
+        %meshType = GT_PK(2,1)
         
         spaceDimension = 2
         nBoundaries = 2

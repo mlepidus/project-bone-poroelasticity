@@ -39,7 +39,7 @@
  *     TimeLoop [label="TimeLoop", URL="\ref TimeLoop"];
  *     BC [label="BC", URL="\ref BC"];
  *     LinearSystem [label="LinearSystem", URL="\ref LinearSystem"];
- *     Core [label="Core", URL="\ref Core"];
+ *    
  *     
  *     // Operators sub-cluster
  *     subgraph cluster_operators {
@@ -61,10 +61,9 @@
  *     label="Utilities";
  *     style=filled;
  *     color=orange;
- *     
+ *    
  *     GetPot [label="GetPot", URL="\ref GetPot"];
  *     Parser [label="Parser", URL="\ref Parser"];
- *     UsefulFunctions [label="UsefulFunctions", URL="\ref UsefulFunctions"];
  *     StringUtility [label="StringUtility", URL="\ref StringUtility"];
  *   }
  *   
@@ -73,7 +72,7 @@
  *     label="Data Structures";
  *     style=filled;
  *     color=purple;
- *     
+ *     Core [label="Core", URL="\ref Core"];
  *     Bulk [label="Bulk", URL="\ref Bulk"];
  *     BulkDarcyData [label="BulkDarcyData", URL="\ref BulkDarcyData"];
  *     BulkElastData [label="BulkElastData", URL="\ref BulkElastData"];
@@ -83,25 +82,32 @@
  *   RussianDollProblem -> CoupledProblem [label="couples"];
  *   RussianDollProblem -> PLCProblem [label="couples"];
  *   RussianDollProblem -> InterpolationManager [label="uses"];
- *   CoupledProblem -> {DarcyProblemT, ElastProblem} [label="couples"];
-
- *   DarcyProblemT -> FEM ;
- *   DarcyProblemT -> DarcyOperators;
- *   DarcyProblemT -> BC ;
- *   DarcyProblemT -> TimeLoop ;
- *   DarcyProblemT -> LinearSystem [label="solves"];
+ * 
+ *   CoupledProblem -> {DarcyProblemT, ElastProblem} [label="couples",color=orange];
+ *   CoupledProblem -> LinearSystem [style=dashed,color=orange];
+ *   CoupledProblem -> TimeLoop [style=dashed,color=orange];
+ *   CoupledProblem -> Bulk[style=dashed,color=orange];   
+ * 
+ *   DarcyProblemT -> FEM [style=dashed, color=blue];
+ *   DarcyProblemT -> DarcyOperators[color=blue];
+ *   DarcyProblemT -> BC [style=dashed, color=blue];
+ *   DarcyProblemT -> TimeLoop [style=dashed, color=blue];
+ *   DarcyProblemT -> LinearSystem [style=dashed, color=blue];
+ *   DarcyProblemT -> Bulk [style=dashed, color=blue];
  *   DarcyOperators -> DarcyOperatorsBD [label="includes"];
  *   DarcyOperators -> DarcyOperatorsBulk [label="includes"];
- * 
- *   ElastProblem -> BC ;
- *   ElastProblem -> LinearSystem [label="solves"];
- *   ElastProblem -> TimeLoop ;
- *   ElastProblem -> FEM [label="uses"];
- *   ElastProblem -> ElastOperators ;
+ *   
+ *   ElastProblem -> BC [style=dashed, color=red];
+ *   ElastProblem -> LinearSystem [style=dashed, color=red];
+ *   ElastProblem -> TimeLoop [style=dashed, color=red];
+ *   ElastProblem -> FEM [style=dashed, color=red];
+ *   ElastProblem -> Bulk [style=dashed, color=red];
+ *   ElastProblem -> ElastOperators [color=red];
  *   ElastOperators -> ElastOperatorsBD [label="includes"];
  *   ElastOperators -> ElastOperatorsBulk [label="includes"];
  *   
- *
+ *   Bulk -> BulkDarcyData [label="contains"];
+ *   Bulk -> BulkElastData [label="contains"];
  *   
  *   // Utilities used by everyone
  *   {DarcyProblemT, ElastProblem, FEM} -> GetPot [style=dashed];

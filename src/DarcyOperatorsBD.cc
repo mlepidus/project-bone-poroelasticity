@@ -1,29 +1,6 @@
 #include "../include/DarcyOperatorsBD.h"
 
 
-
-/*
-scalar_BD_data::scalar_BD_data ( const getfem::mesh_fem& mf_) :
-    mf(mf_), U(mf_.nb_basic_dof()), N(mf_.linked_mesh().dim()), gradU(1, N)
-{
-    sizes_.resize(1);
-    sizes_ [ 0 ] = bgeot::short_type(N);
-
- }
-
-void scalar_BD_data::compute ( getfem::fem_interpolation_context& ctx,
-                                      bgeot::base_tensor& t )
-{
-    size_type cv = ctx.convex_num();
-    coeff.resize(mf.nb_basic_dof_of_element(cv));
-   
-    bgeot::base_node where=ctx.xreal();
-    //[-pi*cos(pi*x)*sin(pi*y),-pi*cos(pi*y)*sin(pi*x)]
-scalar_type pi=std::acos(-1);
-    t [ 0 ] = sin(pi*where[0])*sin(pi*where[1]);  
-
-}
-*/
 void essentialWNitsche( sparseMatrixPtr_Type M,
                Bulk* medium, BC* bcPtr,  FEM& FemV, FEM& FemC, getfem::mesh_im& im)
                
