@@ -341,7 +341,7 @@ public:
      * @param fit Polynomial fit
      * @return Lambda that evaluates p_v(z)
      */
-    std::function<scalar_type(scalar_type)> createBCCallback(const PolynomialFit& fit);
+    std::function<scalar_type(scalar_type)> createBCCallback(const PolynomialFit& fit) const;
     
     // ========================================================================
     // Legacy Methods for Mesh Interpolation
@@ -471,7 +471,7 @@ private:
     
     // Helper methods
     void readLineProfilesFromFile(const GetPot& dataFile);
-    bgeot::base_node interpolatePoint(const LineProfile& profile, scalar_type t);
+    bgeot::base_node interpolatePoint(const LineProfile& profile, scalar_type t) const;
     
     // GMM helper for solving normal equations (replaces Eigen QR)
     void solveNormalEquations(const gmm::dense_matrix<scalar_type>& VtV,
@@ -480,7 +480,7 @@ private:
     
     // Compute z-coordinates from sample points
     void computeZCoordinates(const std::vector<bgeot::base_node>& sample_points,
-                             std::vector<scalar_type>& z_coords);
+                             std::vector<scalar_type>& z_coords) const;
 };
 
 #endif // INTERPOLATIONMANAGER_H

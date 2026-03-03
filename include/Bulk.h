@@ -34,7 +34,7 @@ public:
          const std::string& sectionElast = "mecc/");
     
     /// Export mesh to VTK format for visualization
-    void exportMesh(std::string filename);
+    void exportMesh(std::string filename) const;
     
     /// Get pointer to mesh object
     inline getfem::mesh* getMesh() { return &M_mesh; }
@@ -51,15 +51,15 @@ public:
     inline BulkElastData* getElastData() { return M_ElastDataPtr; }
     
     /// Get domain length in x-direction
-    inline scalar_type Lx() { return M_Lx; }
+    inline scalar_type Lx()  const{ return M_Lx; }
     
     /// Get domain length in y-direction
-    inline scalar_type Ly() { return M_Ly; }
+    inline scalar_type Ly()  const{ return M_Ly; }
     
     /// Get domain length in z-direction
-    inline scalar_type Lz() { return M_Lz; }
+    inline scalar_type Lz()  const{ return M_Lz; }
 
-    inline size_type getDim() {return M_dim;}
+    inline size_type getDim() const {return M_dim;}
     /**
      * @brief Get the region map from Gmsh import
      * @return Map from physical names to region IDs

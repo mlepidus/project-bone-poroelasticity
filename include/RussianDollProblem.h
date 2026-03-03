@@ -113,7 +113,7 @@ public:
      * @param folder Output directory
      * @param frame Time frame number
      */
-    void exportInterpolationData(const std::string& folder, int frame);
+    void exportInterpolationData(const std::string& folder, int frame) const;
     
     /**
      * @brief Compute errors against exact solutions (if available)

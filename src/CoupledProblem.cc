@@ -141,7 +141,7 @@ void CoupledProblem::enforceStrongBC(bool firstTime)
 }
 
 
-bgeot::base_node CoupledProblem::computeError(scalar_type t)
+bgeot::base_node CoupledProblem::computeError(scalar_type t) const
 {
 
 	bgeot::base_node error(0.0,0.0);
@@ -153,7 +153,7 @@ bgeot::base_node CoupledProblem::computeError(scalar_type t)
 	
 }
 
-void CoupledProblem::exportVtk(std::string folder, std::string what, int frame)
+void CoupledProblem::exportVtk(std::string folder, std::string what, int frame) const
 {
 	if (what=="all")
 	{
@@ -175,7 +175,7 @@ void CoupledProblem::exportVtk(std::string folder, std::string what, int frame)
 
 }
 
-void CoupledProblem::exportHistory(const scalarVector_Type& timestepData, const std::string& filename, size_t step)
+void CoupledProblem::exportHistory(const scalarVector_Type& timestepData, const std::string& filename, size_t step) const
 {
     // Apri il file in modalità append
     std::ofstream outFile(filename, std::ios::app);

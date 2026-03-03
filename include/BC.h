@@ -166,9 +166,9 @@ public:
      * @brief Associate boundary regions with mesh (geometric detection)
      * @param meshPtr Pointer to mesh
      */
-    void setBoundariesCylinder(getfem::mesh* meshPtr);
+    void setBoundariesCylinder(getfem::mesh* meshPtr) const;
     
-    void setBoundariesSquare(getfem::mesh* meshPtr);
+    void setBoundariesSquare(getfem::mesh* meshPtr) const;
 
     /**
      * @brief Associate boundary regions with mesh using Gmsh tags
@@ -176,7 +176,7 @@ public:
      * @param regmap Map from physical names to region IDs (from Gmsh import)
      */
     void setBoundariesFromTagsName(getfem::mesh* meshPtr, 
-                               const std::map<std::string, size_type>& regmap);
+                               const std::map<std::string, size_type>& regmap) const;
     
      /**
      * @brief Associate boundary regions with mesh using tag numbers in sorted order
@@ -224,13 +224,13 @@ public:
     
                                
     /// Get list of boundary region IDs with Neumann conditions
-    std::vector<size_type> getNeumBD();
+    std::vector<size_type> getNeumBD() const;
     
     /// Get list of boundary region IDs with Dirichlet conditions
-    std::vector<size_type> getDiriBD();
+    std::vector<size_type> getDiriBD() const;
     
     /// Get list of boundary region IDs with mixed conditions
-    std::vector<size_type> getMixedBD();
+    std::vector<size_type> getMixedBD() const;
     
     /// Get BC flag for a specific region (0=Dirichlet, 1=Neumann, 2=Mixed)
     size_type getBCFlag(size_type region) const {

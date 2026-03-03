@@ -97,6 +97,8 @@
  *   DarcyOperators -> DarcyOperatorsBD [label="includes"];
  *   DarcyOperators -> DarcyOperatorsBulk [label="includes"];
  *   
+ *   {DarcyOperatorsBulk, DarcyOperatorsBD, ElastOperatorsBulk, ElastOperatorsBD} -> Parser [style=dashed];    
+ *   
  *   ElastProblem -> BC [style=dashed, color=red];
  *   ElastProblem -> LinearSystem [style=dashed, color=red];
  *   ElastProblem -> TimeLoop [style=dashed, color=red];
@@ -109,9 +111,7 @@
  *   Bulk -> BulkDarcyData [label="contains"];
  *   Bulk -> BulkElastData [label="contains"];
  *   
- *   // Utilities used by everyone
- *   {DarcyProblemT, ElastProblem, FEM} -> GetPot [style=dashed];
- *   GetPot -> Parser [label="uses"];
+ *   BC -> Parser [style=dashed]; 
  * }
  * @enddot
  */

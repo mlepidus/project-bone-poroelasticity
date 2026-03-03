@@ -162,7 +162,7 @@ Bulk::Bulk ( const GetPot& dataFile,
     M_ElastDataPtr = &M_ElastData;
 }
 
-void Bulk::exportMesh(std::string nomefile)
+void Bulk::exportMesh(std::string nomefile) const
 {
    getfem::vtk_export vtkmesh(nomefile);
    vtkmesh.exporting(M_mesh);

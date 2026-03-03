@@ -84,7 +84,7 @@ public:
     scalar_type computeError(std::string what, scalar_type time);
     
     /// Get pointer to linear system
-    inline LinearSystem* getSys() { return M_Sys; }
+    inline LinearSystem* getSys() const { return M_Sys; }
     
     /// Solve linear system
     void solve();

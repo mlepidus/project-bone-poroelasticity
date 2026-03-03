@@ -33,7 +33,7 @@ BulkDarcyData::BulkDarcyData ( const GetPot& dataFile,
 }
 
 
-scalar_type BulkDarcyData::Kxx(const base_node& x )
+scalar_type BulkDarcyData::Kxx(const base_node& x ) const
 	 {	
 		size_type dim = x.size();
 		M_parser.setString ( M_Kxx);
@@ -46,7 +46,7 @@ scalar_type BulkDarcyData::Kxx(const base_node& x )
  	    return M_parser.evaluate ()/M_muF;
 	 }
 
-scalar_type BulkDarcyData::Kxy(const base_node& x )
+scalar_type BulkDarcyData::Kxy(const base_node& x ) const
 	 {	
 		size_type dim = x.size();
 		M_parser.setString ( M_Kxy);
@@ -59,7 +59,7 @@ scalar_type BulkDarcyData::Kxy(const base_node& x )
  	    return M_parser.evaluate ()/M_muF;
 	 }
 
-scalar_type BulkDarcyData::Kyy(const base_node& x )
+scalar_type BulkDarcyData::Kyy(const base_node& x ) const
 	 {	
 		size_type dim = x.size(); 
 		M_parser.setString ( M_Kyy);
@@ -71,7 +71,7 @@ scalar_type BulkDarcyData::Kyy(const base_node& x )
         	M_parser.setVariable("z", 0.0);
  	    return M_parser.evaluate ()/M_muF;
 	 }
-scalar_type BulkDarcyData::Kzz(const base_node& x )
+scalar_type BulkDarcyData::Kzz(const base_node& x ) const
 	 {	
 		size_type dim = x.size(); 
 		M_parser.setString ( M_Kzz);
@@ -83,7 +83,7 @@ scalar_type BulkDarcyData::Kzz(const base_node& x )
         	M_parser.setVariable("z", 0.0);
  	    return M_parser.evaluate ()/M_muF;
 	 }
-scalar_type BulkDarcyData::Kxz(const base_node& x )
+scalar_type BulkDarcyData::Kxz(const base_node& x ) const
 	 {	
 		size_type dim = x.size(); 
 		M_parser.setString ( M_Kxz);
@@ -95,7 +95,7 @@ scalar_type BulkDarcyData::Kxz(const base_node& x )
         	M_parser.setVariable("z", 0.0);
  	    return M_parser.evaluate ()/M_muF;
 	 }
-scalar_type BulkDarcyData::Kyz(const base_node& x )
+scalar_type BulkDarcyData::Kyz(const base_node& x ) const
 	 {	
 		size_type dim = x.size(); 
 		M_parser.setString ( M_Kyz);
@@ -108,7 +108,7 @@ scalar_type BulkDarcyData::Kyz(const base_node& x )
  	    return M_parser.evaluate ()/M_muF;
 	 }
 	 
-scalar_type BulkDarcyData::source(const base_node& x, const scalar_type t=0)
+scalar_type BulkDarcyData::source(const base_node& x, const scalar_type t=0) const
 	 {	
 		size_type dim = x.size(); 
 		M_parser.setString ( M_source);
@@ -122,7 +122,7 @@ scalar_type BulkDarcyData::source(const base_node& x, const scalar_type t=0)
  	    return M_parser.evaluate ();
 	 }
 	 
-scalar_type BulkDarcyData::pIni(const base_node& x )
+scalar_type BulkDarcyData::pIni(const base_node& x ) const
 	 {	
 		size_type dim = x.size(); 
 		M_parser.setString ( M_pIni);
@@ -135,7 +135,7 @@ scalar_type BulkDarcyData::pIni(const base_node& x )
  	    return M_parser.evaluate ();
 	 }
 
-scalar_type BulkDarcyData::p_BC(const base_node& x, const scalar_type t)
+scalar_type BulkDarcyData::p_BC(const base_node& x, const scalar_type t) const
 {  
    size_type dim = x.size();
    M_parser.setString ( M_pBC );
@@ -149,7 +149,7 @@ scalar_type BulkDarcyData::p_BC(const base_node& x, const scalar_type t)
    return M_parser.evaluate ();
 }
 
-scalar_type BulkDarcyData::pEx(const base_node& x , const scalar_type t=0)
+scalar_type BulkDarcyData::pEx(const base_node& x , const scalar_type t=0) const
 	 {	
 		static bool first = true;
 		if (first) {
@@ -169,7 +169,7 @@ scalar_type BulkDarcyData::pEx(const base_node& x , const scalar_type t=0)
 	 }
 
 
-bgeot::base_node BulkDarcyData::uEx(const base_node& x, const scalar_type t=0)
+bgeot::base_node BulkDarcyData::uEx(const base_node& x, const scalar_type t=0) const
 	 {	
 		size_type dim = x.size();
 		bgeot::base_node u(dim,0);

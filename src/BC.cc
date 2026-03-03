@@ -336,7 +336,7 @@ bgeot::base_node BC::BCDiriVel(const base_node& x, const size_type& flag, const 
 // ============================================================================
 
 void BC::setBoundariesFromTagsName(getfem::mesh* meshPtr, 
-                               const std::map<std::string, size_type>& regmap)
+                               const std::map<std::string, size_type>& regmap) const
 {
     std::cout << "\n=== BC::setBoundariesFromTagsName ===" << std::endl;
     std::cout << "Setting boundaries from Gmsh physical tags..." << std::endl;
@@ -724,7 +724,7 @@ void BC::setBoundariesFromTagNumbersDirect(getfem::mesh* meshPtr,
 // Geometric Boundary Detection (Fallback)
 // ============================================================================
 
-void BC::setBoundariesCylinder(getfem::mesh* meshPtr)
+void BC::setBoundariesCylinder(getfem::mesh* meshPtr) const
 {
     std::cout << "\n=== BC::setBoundaries (geometric detection) ===" << std::endl;
     
@@ -782,7 +782,7 @@ void BC::setBoundariesCylinder(getfem::mesh* meshPtr)
 }
 
 
-void BC::setBoundariesSquare(getfem::mesh* meshPtr) {
+void BC::setBoundariesSquare(getfem::mesh* meshPtr) const {
     std::cout << "--- [BC] Avvio rilevamento bordi (Topology Fix) ---" << std::endl;
 
     if (!meshPtr) {
@@ -889,17 +889,17 @@ void BC::setBoundariesSquare(getfem::mesh* meshPtr) {
 // Getters
 // ============================================================================
 
-std::vector<size_type> BC::getNeumBD()
+std::vector<size_type> BC::getNeumBD() const
 {
     return M_NeumRG;
 }
 
-std::vector<size_type> BC::getDiriBD()
+std::vector<size_type> BC::getDiriBD() const
 {
     return M_DiriRG;
 }
 
-std::vector<size_type> BC::getMixedBD()
+std::vector<size_type> BC::getMixedBD() const
 {
     return M_MixedRG;
 }

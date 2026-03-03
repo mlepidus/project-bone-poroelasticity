@@ -45,34 +45,34 @@ public:
      * @param which Selector: "all" (base + extended), "base", or "extended"
      * @return Total number of DOFs
      */
-    size_type nb_dof(std::string which = "all");
+    size_type nb_dof(std::string which = "all") const;
 
     /// Get finite element type string
-    inline std::string type() { return M_femType; }
+    inline std::string type() const { return M_femType; }
     
     /// Get pointer to underlying GetFem++ mesh_fem object
-    inline getfem::mesh_fem* getFEM() { return &M_FEM; }
+    inline getfem::mesh_fem* getFEM()  { return &M_FEM; }
     
     /// Get spatial coordinates of all DOF points
-    inline std::vector<base_node> getDOFpoints() { return M_DOFpoints; }
+    inline std::vector<base_node> getDOFpoints() const { return M_DOFpoints; }
     
     /// Get indices of extended DOFs (for XFEM enrichment)
-    inline std::vector<size_type> getExt() { return M_extended; }
+    inline std::vector<size_type> getExt() const { return M_extended; }
     
     /// Get signs (+1/-1) indicating which side of level set each extended DOF belongs to
-    inline std::vector<scalar_type> getExtSign() { return M_extSign; }
+    inline std::vector<scalar_type> getExtSign() const { return M_extSign; }
     
     /// Get base DOF index corresponding to i-th extended DOF
-    inline size_type getExt(size_type i) { return M_extended[i]; }
+    inline size_type getExt(size_type i) const { return M_extended[i]; }
     
     /// Get sign of i-th DOF relative to level set
-    inline scalar_type getDOFSign(size_type i) { return M_DOFSign[i]; }
+    inline scalar_type getDOFSign(size_type i) const { return M_DOFSign[i]; }
     
     /// Get sign of i-th extended DOF
-    inline scalar_type getExtSign(size_type i) { return M_extSign[i]; }
+    inline scalar_type getExtSign(size_type i) const { return M_extSign[i]; }
     
     /// Get spatial coordinate of i-th basic DOF
-    inline base_node point_of_basic_dof(size_type i) {
+    inline base_node point_of_basic_dof(size_type i) const {
         return M_FEM.point_of_basic_dof(i);
     }
 

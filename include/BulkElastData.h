@@ -27,10 +27,10 @@ public:
                   const std::string& sectionElast = "mecc/");
     
     /// Evaluate first Lamé parameter (bulk modulus component)
-    scalar_type Lambda(const base_node& x);
+    scalar_type Lambda(const base_node& x) const;
     
     /// Evaluate second Lamé parameter (shear modulus)
-    scalar_type Mu(const base_node& x);
+    scalar_type Mu(const base_node& x) const;
     
     /// Set Lamé parameters at mesh nodes
     void setLambda(std::vector<base_node> nodes);
@@ -38,32 +38,32 @@ public:
     void setfluidP(std::vector<base_node> nodes);
     
     /// Get Lambda at DOF i
-    inline scalar_type getLambda(size_type i) { return (*M_LambdaVector)[i]; }
+    inline scalar_type getLambda(size_type i) const { return (*M_LambdaVector)[i]; }
     
     /// Get Mu at DOF i
-    inline scalar_type getMu(size_type i) { return (*M_MuVector)[i]; }
+    inline scalar_type getMu(size_type i) const { return (*M_MuVector)[i]; }
     
     /// Get all Lambda values
-    inline std::vector<scalar_type> getLambda() { return *M_LambdaVector; }
+    inline std::vector<scalar_type> getLambda() const { return *M_LambdaVector; }
     
     /// Get all Mu values
-    inline std::vector<scalar_type> getMu() { return *M_MuVector; }
+    inline std::vector<scalar_type> getMu() const { return *M_MuVector; }
     
     /// Check if exact solution is provided
-    inline bool hasExactSolution() {
+    inline bool hasExactSolution() const{
         return !M_uEx.empty();
     }
     /// Evaluate volumetric body force (e.g., gravity)
-    bgeot::base_node bulkLoad(bgeot::base_node x, scalar_type t);
+    bgeot::base_node bulkLoad(bgeot::base_node x, scalar_type t) const;
     
     /// Evaluate exact displacement solution (for verification)
-    bgeot::base_node uEx(bgeot::base_node x, scalar_type t);
+    bgeot::base_node uEx(bgeot::base_node x, scalar_type t) const;
     
     /// Evaluate initial displacement condition
-    bgeot::base_node uIni(bgeot::base_node x);
+    bgeot::base_node uIni(bgeot::base_node x) const;
     
     /// Evaluate prescribed fluid pressure field
-    scalar_type fluidP(const base_node& x);
+    scalar_type fluidP(const base_node& x) const;
 
 private:
     std::string M_section;       ///< Bulk data section name
@@ -88,7 +88,7 @@ private:
     scalarVectorPtr_Type M_LoadY;        ///< Y-component of body force
     scalarVectorPtr_Type M_fluidPVector; ///< Fluid pressure field
     
-    LifeV::Parser M_parser;  ///< Expression parser
+    mutable LifeV::Parser M_parser;  ///< Expression parser
 };
 
 #endif // BULKELASTDATA_H

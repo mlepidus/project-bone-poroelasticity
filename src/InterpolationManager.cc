@@ -119,7 +119,7 @@ void InterpolationManager::addLineProfile(const LineProfile& profile) {
 // Helper: Interpolate Point Along Line
 // ============================================================================
 bgeot::base_node InterpolationManager::interpolatePoint(const LineProfile& profile, 
-                                                        scalar_type t) {
+                                                        scalar_type t) const {
     bgeot::base_node pt(3);
     for (int d = 0; d < 3; ++d) {
         pt[d] = (1.0 - t) * profile.start_point[d] + t * profile.end_point[d];
@@ -131,7 +131,7 @@ bgeot::base_node InterpolationManager::interpolatePoint(const LineProfile& profi
 // Helper: Compute Z-coordinates from sample points
 // ============================================================================
 void InterpolationManager::computeZCoordinates(const std::vector<bgeot::base_node>& sample_points,
-                                               std::vector<scalar_type>& z_coords) {
+                                               std::vector<scalar_type>& z_coords) const {
     z_coords.resize(sample_points.size());
     for (size_type i = 0; i < sample_points.size(); ++i) {
         z_coords[i] = sample_points[i][2];  // Assuming z is the 3rd coordinate
@@ -685,7 +685,7 @@ void InterpolationManager::applyPolynomialBC(const PolynomialFit& fit,
 // Create BC Callback
 // ============================================================================
 std::function<scalar_type(scalar_type)> 
-InterpolationManager::createBCCallback(const PolynomialFit& fit) {
+InterpolationManager::createBCCallback(const PolynomialFit& fit) const {
     // Capture fit by copy
     return [fit](scalar_type z) -> scalar_type {
         return fit.evaluateAtZ(z);

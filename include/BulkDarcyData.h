@@ -27,12 +27,12 @@ public:
                   const std::string& sectionDarcy = "darcy/");
     
     // Permeability tensor components (can be spatially variable)
-    scalar_type Kxx(const base_node& x);  ///< K_xx component
-    scalar_type Kyy(const base_node& x);  ///< K_yy component
-    scalar_type Kxy(const base_node& x);  ///< K_xy component (off-diagonal)
-    scalar_type Kzz(const base_node& x);  ///< K_zz component
-    scalar_type Kxz(const base_node& x);  ///< K_xz component (off-diagonal)
-    scalar_type Kyz(const base_node& x);  ///< K_yz component (off-diagonal)
+    scalar_type Kxx(const base_node& x) const;  ///< K_xx component
+    scalar_type Kyy(const base_node& x) const;  ///< K_yy component
+    scalar_type Kxy(const base_node& x) const;  ///< K_xy component (off-diagonal)
+    scalar_type Kzz(const base_node& x) const;  ///< K_zz component
+    scalar_type Kxz(const base_node& x) const;  ///< K_xz component (off-diagonal)
+    scalar_type Kyz(const base_node& x) const;  ///< K_yz component (off-diagonal)
     
     /// Set permeability values at mesh nodes
     void setKxx(std::vector<base_node> nodes);
@@ -46,50 +46,47 @@ public:
     bgeot::base_node spaceDistrK(const base_node& x);
     
     // Getters for permeability at DOF i
-    inline scalar_type getKxx(size_type i) { return (*M_KxxVector)[i]; }
-    inline scalar_type getKxy(size_type i) { return (*M_KxyVector)[i]; }
-    inline scalar_type getKyy(size_type i) { return (*M_KyyVector)[i]; }
-    inline scalar_type getKzz(size_type i) { return (*M_KzzVector)[i]; }
-    inline scalar_type getKxz(size_type i) { return (*M_KxzVector)[i]; }
-    inline scalar_type getKyz(size_type i) { return (*M_KyzVector)[i]; }
-    inline scalar_type getBiotAlpha() { return M_biotAlpha; }
+    inline scalar_type getKxx(size_type i) const { return (*M_KxxVector)[i]; }
+    inline scalar_type getKxy(size_type i) const { return (*M_KxyVector)[i]; }
+    inline scalar_type getKyy(size_type i) const { return (*M_KyyVector)[i]; }
+    inline scalar_type getKzz(size_type i) const { return (*M_KzzVector)[i]; }
+    inline scalar_type getKxz(size_type i) const { return (*M_KxzVector)[i]; }
+    inline scalar_type getKyz(size_type i) const { return (*M_KyzVector)[i]; }
+    inline scalar_type getBiotAlpha() const { return M_biotAlpha; }
     /// Get fluid density
-    inline scalar_type rhoF() { return M_rhoF; }
+    inline scalar_type rhoF() const { return M_rhoF; }
     
     /// Get gravity vector
-    inline bgeot::base_node gravity() { return M_G; }
+    inline bgeot::base_node gravity() const { return M_G; }
     
     /// Evaluate source term
-    scalar_type source(const base_node& x, const scalar_type t);
+    scalar_type source(const base_node& x, const scalar_type t) const;
     
     /// Evaluate initial pressure condition
-    scalar_type pIni(const base_node& x);
+    scalar_type pIni(const base_node& x) const;
 
     /// Evaluate boundary pressure condition
-    scalar_type p_BC(const base_node& x, const scalar_type t=0);
+    scalar_type p_BC(const base_node& x, const scalar_type t=0) const;
 
     /// Evaluate exact pressure solution (for verification)
-    scalar_type pEx(const base_node& x, const scalar_type t);
+    scalar_type pEx(const base_node& x, const scalar_type t) const;
     
     /// Evaluate exact velocity solution (for verification)
-    bgeot::base_node uEx(const base_node& x, const scalar_type t);
+    bgeot::base_node uEx(const base_node& x, const scalar_type t) const;
     
     /// Get Biot modulus M (poroelasticity parameter)
-    inline scalar_type M() { return M_biotM; }
+    inline scalar_type M() const { return M_biotM; }
     
-    /// Load layered material properties
-    void getLayers();
-    
-    bool hasExactSolution() { return !M_pEx.empty() && !M_uEx.empty(); };
+    bool hasExactSolution() const{ return !M_pEx.empty() && !M_uEx.empty(); };
 
     /// Get exact pressure expression string
-    inline std::string getPexpr() { return M_pEx; }
+    inline std::string getPexpr() const { return M_pEx; }
     
     /// Get exact velocity expression string
-    inline std::string getUexpr() { return M_uEx; }
+    inline std::string getUexpr() const { return M_uEx; }
     
     /// Get leakage coefficient
-    inline scalar_type getLeakage() { return M_leakage; }
+    inline scalar_type getLeakage() const { return M_leakage; }
 
 private:
     std::string M_section;        ///< Bulk data section name

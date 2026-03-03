@@ -40,7 +40,7 @@ public:
     void addSubVector(scalarVectorPtr_Type V, int first_row, scalar_type scale = 1.0);
     void extractSubVector(scalarVectorPtr_Type V, int first_row, std::string where = "sol");
     
-    inline sparseMatrixPtr_Type getMatrix() { return M_Matrix; }
+    inline sparseMatrixPtr_Type getMatrix()  { return M_Matrix; }
     inline scalarVectorPtr_Type getRHS() { return M_RHS; }
     inline scalarVectorPtr_Type getSol() { return M_Sol; }
     

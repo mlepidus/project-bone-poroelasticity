@@ -119,19 +119,19 @@ public:
     // ========================================================================
     
     /// Get pointer to elasticity problem
-    inline ElastProblem* getElastPB() { return M_ElastPB; }
+    inline ElastProblem* getElastPB() const { return M_ElastPB; }
     
     /// Get pointer to Darcy problem
-    inline DarcyProblemT* getDarcyPB() { return M_DarcyPB; }
+    inline DarcyProblemT* getDarcyPB() const { return M_DarcyPB; }
     
     /// Get pointer to linear system
-    inline LinearSystem* getSys() { return M_Sys; }
+    inline LinearSystem* getSys() const { return M_Sys; }
     
     /// Get pointer to bulk domain
-    inline Bulk* getBulk() { return M_Bulk; }
+    inline Bulk* getBulk() const { return M_Bulk; }
     
     /// Get pointer to time manager
-    inline TimeLoop* getTime() { return M_time; }
+    inline TimeLoop* getTime() const { return M_time; }
     
     /// Get pressure solution from Darcy sub-problem
     inline scalarVectorPtr_Type getPressure() {
@@ -160,17 +160,17 @@ public:
     inline size_type getNbTotDOF() const { return M_nbTotDOF; }
     
     /// Get number of pressure DOFs
-    size_type getNbPressureDOF() const { 
+    inline size_type getNbPressureDOF() const { 
         return M_DarcyPB ? M_DarcyPB->getNDOF("Pressure") : 0; 
     }
     
     /// Get number of velocity DOFs
-    size_type getNbVelocityDOF() const { 
+    inline size_type getNbVelocityDOF() const { 
         return M_DarcyPB ? M_DarcyPB->getNDOF("Velocity") : 0; 
     }
     
     /// Get number of elasticity DOFs
-    size_type getNbElastDOF() const { 
+    inline size_type getNbElastDOF() const { 
         return M_ElastPB ? M_ElastPB->getNDOF() : 0; 
     }
 

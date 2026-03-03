@@ -25,9 +25,9 @@ BulkElastData::BulkElastData ( const GetPot& dataFile,
 	
 }
 
-scalar_type BulkElastData::Lambda(const base_node& x )
+scalar_type BulkElastData::Lambda(const base_node& x )  const
 	 {	
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size(); 
 		M_parser.setString ( M_lambda);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
@@ -38,9 +38,9 @@ scalar_type BulkElastData::Lambda(const base_node& x )
  	    return M_parser.evaluate ();
 	 }
 
-scalar_type BulkElastData::Mu(const base_node& x )
+scalar_type BulkElastData::Mu(const base_node& x ) const
 	 {	
-		size_type dim = x.size(); // Rileva dimensione (2 o 3)
+		size_type dim = x.size();
 		M_parser.setString ( M_mu);
     	M_parser.setVariable ( "x", x [ 0 ] );
  		M_parser.setVariable ( "y", x [ 1 ] );
@@ -79,7 +79,7 @@ void BulkElastData::setfluidP(std::vector<base_node> nodes)
 			}
 	}
 	
-bgeot::base_node BulkElastData::bulkLoad(bgeot::base_node x, scalar_type t)
+bgeot::base_node BulkElastData::bulkLoad(bgeot::base_node x, scalar_type t) const
 	{	
 		size_type dim = x.size();
 		bgeot::base_node sol(dim,0);
@@ -101,7 +101,7 @@ bgeot::base_node BulkElastData::bulkLoad(bgeot::base_node x, scalar_type t)
 
 	}
 
-bgeot::base_node BulkElastData::uEx(bgeot::base_node x, scalar_type t)
+bgeot::base_node BulkElastData::uEx(bgeot::base_node x, scalar_type t) const
 	{	
 		size_type dim = x.size();
 		bgeot::base_node sol(dim,0);
@@ -124,7 +124,7 @@ bgeot::base_node BulkElastData::uEx(bgeot::base_node x, scalar_type t)
 	}
 
 
-bgeot::base_node BulkElastData::uIni(bgeot::base_node x)
+bgeot::base_node BulkElastData::uIni(bgeot::base_node x) const
 	{	
 		size_type dim = x.size();
 		bgeot::base_node sol(dim,0);
@@ -144,7 +144,7 @@ bgeot::base_node BulkElastData::uIni(bgeot::base_node x)
 	        return sol;
 
 	}
-scalar_type BulkElastData::fluidP(const base_node& x )
+scalar_type BulkElastData::fluidP(const base_node& x ) const
 	 {	
 		size_type dim = x.size();
 		M_parser.setString ( M_fluidP);

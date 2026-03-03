@@ -76,7 +76,7 @@ FEM::FEM (const getfem::mesh* mesh,
 
 
 
-size_type FEM::nb_dof(std::string which)
+size_type FEM::nb_dof(std::string which) const
 {
 	if (which=="base")
 	{

@@ -23,19 +23,19 @@ public:
     TimeLoop(const GetPot& dataFile);
     
     /// Get time step size
-    inline scalar_type dt() { return M_DT; }
+    inline scalar_type dt() const { return M_DT; }
     
     /// Get final simulation time
-    inline scalar_type Tend() { return M_Tend; }
+    inline scalar_type Tend() const { return M_Tend; }
     
     /// Get total number of time steps
-    inline scalar_type Nstep() { return M_nstep; }
+    inline scalar_type Nstep() const { return M_nstep; }
     
     /// Get current simulation time
-    inline scalar_type time() { return M_currentTime; }
+    inline scalar_type time() const{ return M_currentTime; }
     
     /// Get current time step index
-    inline size_type timeStep() { return M_currentTimeStep; }
+    inline size_type timeStep() const { return M_currentTimeStep; }
     
     /// Advance to next time step
     inline void advance() {
