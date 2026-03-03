@@ -229,7 +229,7 @@ void RussianDollProblem::exportVtk(const std::string& folder, int frame) {
 // ============================================================================
 // Export Interpolation Data
 // ============================================================================
-void RussianDollProblem::exportInterpolationData(const std::string& folder, int frame) {
+void RussianDollProblem::exportInterpolationData(const std::string& folder, int frame) const {
     std::string filename = folder + "/interpolation_data_" + std::to_string(frame) + ".txt";
     
     std::ofstream file(filename);

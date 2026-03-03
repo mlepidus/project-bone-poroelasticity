@@ -51,7 +51,7 @@ public:
     inline std::string type() const { return M_femType; }
     
     /// Get pointer to underlying GetFem++ mesh_fem object
-    inline getfem::mesh_fem* getFEM()  { return &M_FEM; }
+    inline getfem::mesh_fem* getFEM() { return &M_FEM; }
     
     /// Get spatial coordinates of all DOF points
     inline std::vector<base_node> getDOFpoints() const { return M_DOFpoints; }

@@ -135,7 +135,7 @@ FEM* DarcyProblemT::getFEM(const std::string variable)
     return &M_PressureFEM;  
 }
 
-size_type DarcyProblemT::getNDOF(std::string variable) 
+size_type DarcyProblemT::getNDOF(std::string variable) const 
 {
     if (variable=="Pressure")
     {

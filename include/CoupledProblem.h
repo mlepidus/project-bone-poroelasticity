@@ -57,7 +57,7 @@ public:
      * @param t Current time
      * @return Error vector (pressure error, displacement error)
      */
-    bgeot::base_node computeError(scalar_type t); 
+    bgeot::base_node computeError(scalar_type t) const; 
     
     
     /// Register DOFs with global linear system
@@ -97,7 +97,7 @@ public:
      * @param what Variables to export ("all", "darcy", "elast")
      * @param frame Time frame number
      */
-    virtual void exportVtk(std::string folder = "./vtk", std::string what = "all", int frame = -1);
+    virtual void exportVtk(std::string folder = "./vtk", std::string what = "all", int frame = -1) const;
     
     /**
      * @brief Export time history data to file
@@ -106,7 +106,7 @@ public:
      * @param step Time step number
      */
     void exportHistory(const scalarVector_Type& timestepData,
-                      const std::string& filename, size_t step);
+                      const std::string& filename, size_t step) const;
     
     /**
      * @brief Enforce boundary conditions
@@ -119,22 +119,36 @@ public:
     // ========================================================================
     
     /// Get pointer to elasticity problem
-    inline ElastProblem* getElastPB() const { return M_ElastPB; }
+    inline ElastProblem* getElastPB() { return M_ElastPB; }
+    inline const ElastProblem* getElastPB() const { return M_ElastPB; }
     
     /// Get pointer to Darcy problem
-    inline DarcyProblemT* getDarcyPB() const { return M_DarcyPB; }
+    inline DarcyProblemT* getDarcyPB() { return M_DarcyPB; }
+    inline const DarcyProblemT* getDarcyPB() const { return M_DarcyPB; }
     
     /// Get pointer to linear system
-    inline LinearSystem* getSys() const { return M_Sys; }
+    inline LinearSystem* getSys() { return M_Sys; }
+    inline const LinearSystem* getSys() const { return M_Sys; }
     
     /// Get pointer to bulk domain
-    inline Bulk* getBulk() const { return M_Bulk; }
+    inline Bulk* getBulk() { return M_Bulk; }
+    inline const Bulk* getBulk() const { return M_Bulk; }
     
     /// Get pointer to time manager
-    inline TimeLoop* getTime() const { return M_time; }
+    inline TimeLoop* getTime() { return M_time; }
+    inline const TimeLoop* getTime() const { return M_time; }
     
     /// Get pressure solution from Darcy sub-problem
     inline scalarVectorPtr_Type getPressure() {
+        if (M_DarcyPB) {
+            scalarVectorPtr_Type pressure;
+            pressure.reset(new scalarVector_Type(M_DarcyPB->getPressureSolution()));
+            return pressure;
+        }
+        return scalarVectorPtr_Type();
+    }
+
+    inline const scalarVectorPtr_Type getPressure() const {
         if (M_DarcyPB) {
             scalarVectorPtr_Type pressure;
             pressure.reset(new scalarVector_Type(M_DarcyPB->getPressureSolution()));

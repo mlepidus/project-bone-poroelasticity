@@ -43,6 +43,10 @@ public:
     inline sparseMatrixPtr_Type getMatrix()  { return M_Matrix; }
     inline scalarVectorPtr_Type getRHS() { return M_RHS; }
     inline scalarVectorPtr_Type getSol() { return M_Sol; }
+
+    inline const sparseMatrixPtr_Type getMatrix() const { return M_Matrix; }
+    inline const scalarVectorPtr_Type getRHS() const { return M_RHS; }
+    inline const scalarVectorPtr_Type getSol() const { return M_Sol; }
     
     void addSubSystem(LinearSystem* small, size_type shiftRows, size_type shiftColumns);
     void addSubSystemRHS(LinearSystem* small, size_type shiftRows);

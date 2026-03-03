@@ -38,7 +38,8 @@ public:
     
     /// Get pointer to mesh object
     inline getfem::mesh* getMesh() { return &M_mesh; }
-    
+    inline const getfem::mesh* getMesh() const { return &M_mesh; }
+
     /// Get vector of Neumann boundary regions
     inline std::vector<getfem::mesh_region*>* getNeumBoundaries() {
         return &M_NeumBoundaries;
@@ -46,9 +47,14 @@ public:
     
     /// Get pointer to Darcy problem data
     inline BulkDarcyData* getDarcyData() { return M_DarcyDataPtr; }
+    inline const BulkDarcyData* getDarcyData() const { return M_DarcyDataPtr; }
     
+     /**
+      * @brief Export interpolated PV data for PLC BCs
+      */
     /// Get pointer to elasticity problem data
     inline BulkElastData* getElastData() { return M_ElastDataPtr; }
+    inline const BulkElastData* getElastData() const { return M_ElastDataPtr; }
     
     /// Get domain length in x-direction
     inline scalar_type Lx()  const{ return M_Lx; }

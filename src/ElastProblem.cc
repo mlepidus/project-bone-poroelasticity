@@ -123,7 +123,7 @@ void ElastProblem::addToSys(LinearSystem* sys) {
     M_Sys->addToMatrix(M_nbTotDOF);
 }
 
-size_type ElastProblem::getNDOF(std::string variable) {
+size_type ElastProblem::getNDOF(std::string variable) const {
     if (variable == "Disp" || variable == "all") {
         return M_DispFEM.nb_dof();
     }

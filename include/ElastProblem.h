@@ -81,7 +81,7 @@ public:
      * @param time Current time
      * @return L2 error norm
      */
-    scalar_type computeError(std::string what, scalar_type time);
+    scalar_type computeError(std::string what, scalar_type time) ;
     
     /// Get pointer to linear system
     inline LinearSystem* getSys() const { return M_Sys; }
@@ -108,11 +108,17 @@ public:
      * @param variable Variable selector (only "Disp" or "all" supported)
      * @return Number of DOFs
      */
-    size_type getNDOF(std::string variable = "all");
+    size_type getNDOF(std::string variable = "all") const;
     
     /// Get previous time step solution
-    scalarVectorPtr_Type getOldSol() { return M_DispSolOld; }
+    inline scalarVectorPtr_Type getOldSol() { return M_DispSolOld; }
     
+    const inline scalarVectorPtr_Type getOldSol() const { return M_DispSolOld; }
+    
+     /**
+     * @brief Get pointer to bulk domain
+     * @return Pointer to Bulk object
+     */
     /// Initialize problem (setup FEM spaces, matrices)
     void initialize();
 

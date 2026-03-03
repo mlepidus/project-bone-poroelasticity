@@ -88,7 +88,7 @@ public:
      * @param what Variables to export ("all", "pressure", "velocity")
      * @param frame Time frame number (-1 for steady state)
      */
-    void exportVtk(std::string folder = "./vtk", std::string what = "all", int frame = -1) const;
+    void exportVtk(std::string folder = "./vtk", std::string what = "all", int frame = -1);
     
     /// Get const reference to pressure solution vector
     const scalarVector_Type& getPressureSolution() const { return *M_pressureSol; }
@@ -109,7 +109,7 @@ public:
      * @param variable Variable selector ("all", "pressure", "velocity")
      * @return Number of DOFs
      */
-    size_type getNDOF(std::string variable = "all") ;
+    size_type getNDOF(std::string variable = "all") const;
     
     /// Extract solution from global system vector
     void extractSol(scalarVectorPtr_Type sol);
