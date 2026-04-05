@@ -1,20 +1,28 @@
-# Compilation Instructions
-To compile the code, please follow these steps:
+# Coupled Poroelastic Finite Element Solver
 
-1) Configure the Makefile:
-Adapt the Makefile by specifying your local paths 
-particularly for GetFEM do 
-```bash
-export GETFEM_PREFIX=/path/to/getfem
-```
+This code solves time‑dependent poroelasticity problems (e.g., fluid flow in deformable porous media) using a **monolithic finite element method**. It supports 2D/3D meshes, various boundary conditions, and outputs VTK files for visualisation.
 
-2) Execute compilation:
+**Key features**  
+- Fully coupled displacement‑pressure formulation  
+- Parallel solver support (MUMPS via `make parallel`)  
+- Russian‑doll multiscale structure option  
+- Convergence testing utilities
+
+## Compilation
+
+### Prerequisites
+- [GetFEM](http://getfem.org/) – set its installation path before compiling:
+  ```bash
+  export GETFEM_PREFIX=/path/to/getfem
+  ```
+
+- Execute compilation:
 
 ```bash
 make
 ```
 
-## Additional options:
+### Additional options:
 -j4: Compile in parallel using 4 processors
 
 parallel: to compile with the necessary parallel libraries to have MUMPS solver
@@ -32,21 +40,24 @@ to print all the possible options and requirements:
 ```bash
 make help
 ```
-# Main Executables Description
+
+## Main Executables Description
 main_coupled: Implements a fully coupled monolithic formulation of the problem, solving all equations within a single linear system.
 
 (if we compile through make russian, the name will be main_coupled_russain)
 
-## Execution Instructions
+## Usage
 After successful compilation, execute the program with:
 
 ```bash
 ./main_coupled -f ./input/data_filename
 ```
-## data files
-here are the different data_filename inside the input folder, that can be passed as input
--data_ideal_parameter: force applied on top, using all physical parameters as 1
+replace data_filename with one of the following files:
+### input files
 paried with main_coupled:
+
+- data_ideal_parameter: force applied on top, using all physical parameters as 1
+
 - data_real_parameter: same as ideal parameter, but using real experimental physical parameters  
 
 - data_shear: rotating stress applied to the principal axe  
@@ -63,23 +74,14 @@ paried with main_coupled:
 paried with main_russian_doll:
 - data_russian: same as the data_ideal_parameter, but with the correct input structure for the Russian Doll model
 
-## Output Specifications
-The program generates output in the following format:
+## Output
 
-Results are exported to the output_vtk directory
+- **Directory**: `output_vtk/` (created automatically if it doesn’t exist)  
+- **Files**: One `.vtk` file per time step, containing pressure and displacement fields.  
+- **Visualization**: Open with ParaView, VisIt, or any VTK‑compatible viewer.
 
-Output includes pressure and displacement fields at each time step
+## Requirements & Notes
 
-Corresponding exact solution values are also exported (can be ignored if no exact solution has been configured)
-
-## Additional Notes
-For optimal performance, ensure that:
-
-- All dependency paths are correctly specified in the Makefile
-
-- Sufficient memory is available for the monolithic solver approach
-
-- Output directory permissions allow file creation and writing
-
-This implementation provides a comprehensive framework for solving coupled poroelastic problems using a monolithic finite element approach. The VTK output format allows for convenient visualization of results using standard scientific visualization tools.
-
+- **Memory** – The monolithic solver can be memory‑intensive. For large 3D problems, 16+ GB RAM is recommended.  
+- **Permissions** – Ensure you have write access to the `output_vtk/` directory.  
+- **Paths** – Double‑check the `GETFEM_PREFIX` and any other library paths in the Makefile before compiling.
