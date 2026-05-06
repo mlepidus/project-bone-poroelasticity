@@ -85,3 +85,6 @@ paired with main_russian_doll:
 - **Memory** – The monolithic solver can be memory‑intensive. For large 3D problems, 16+ GB RAM is recommended.  
 - **Permissions** – Ensure you have write access to the `output_vtk/` directory.  
 - **Paths** – Double‑check the `GETFEM_PREFIX` and any other library paths in the Makefile before compiling.
+
+## Acknowledgements
+Special thanks to **Professor Anna Scotti** for her mentorship and for sharing the starter code, without which this work would not have been possible.
